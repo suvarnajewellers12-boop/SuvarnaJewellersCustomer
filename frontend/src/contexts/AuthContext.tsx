@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         installmentsPaid: data.installmentsPaid,
       };
 
-      setEnrolledSchemes((prev) => [...prev, formatted]);
+      window.dispatchEvent(new Event("schemeUpdated"));
     } catch (err: any) {
       console.error("Enrollment failed:", err.message);
     }

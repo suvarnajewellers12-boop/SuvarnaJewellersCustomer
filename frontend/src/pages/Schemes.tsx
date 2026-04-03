@@ -140,7 +140,7 @@ const Schemes = () => {
           <div className="grid md:grid-cols-3 gap-8">
             {dbSchemes.map((scheme, index) => {
               // Compare IDs to see if already enrolled
-              const isEnrolled = enrolledSchemes.some((s) => s.id === scheme.id);
+              const isEnrolled = enrolledSchemes.some((s) => s.name === scheme.name);
               
               return (
                 <motion.div

@@ -164,16 +164,17 @@ const Dashboard = () => {
   const fetchSchemes = async () => {
     try {
       const res = await fetch(`${API_URL}/api/schemes/my`, {
-  credentials: "include",
-});
+        credentials: "include",
+      });
 
       if (res.ok) {
         const data = await res.json();
+        console.log("Dashboard schemes raw:", data.schemes);
 
         const formatted = data.schemes.map((s: any) => ({
           id: s.id,
           name: s.Scheme?.name || "Active Scheme",
-          monthlyAmount: s.Scheme?.monthlyAmount || 0,
+          monthlyAmount: s.totalPaid || s.Scheme?.monthlyAmount || 0,
           durationMonths: s.Scheme?.durationMonths || 11,
           enrolledDate: s.startDate,
           installmentsPaid: s.installmentsPaid,
@@ -188,10 +189,16 @@ const Dashboard = () => {
     }
   };
 
-  if (user?.id) {
+  if (user) {
     fetchSchemes();
   }
-}, [user?.id, setEnrolledSchemes]);
+
+  window.addEventListener("schemeUpdated", fetchSchemes);
+
+  return () => {
+    window.removeEventListener("schemeUpdated", fetchSchemes);
+  };
+}, [user, setEnrolledSchemes]);
 
   // Prevent crashes while data is loading
   if (authLoading || fetching) {
