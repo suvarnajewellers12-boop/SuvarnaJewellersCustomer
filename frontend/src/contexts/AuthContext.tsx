@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   enrolledSchemes: Scheme[];
-  setEnrolledSchemes: React.Dispatch<React.SetStateAction<Scheme[]>>; 
+  setEnrolledSchemes: React.Dispatch<React.SetStateAction<Scheme[]>>;
   login: (user: User) => void;
   logout: () => void;
   enrollScheme: (schemeData: any) => Promise<void>;
@@ -41,10 +41,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [enrolledSchemes, setEnrolledSchemes] = useState<Scheme[]>([]);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+          credentials: "include",
+        });
+
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
@@ -58,8 +63,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading(false);
       }
     };
+
     checkUser();
-  }, []);
+  }, [API_URL]);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -68,63 +74,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+
       setUser(null);
       setIsLoggedIn(false);
       setEnrolledSchemes([]);
-      window.location.href = "/login"; 
+      window.location.href = "/login";
     } catch (err) {
       console.error("Logout failed", err);
     }
   };
 
+  const enrollScheme = async (schemeData: any) => {
+    try {
+      const res = await fetch(`${API_URL}/api/schemes/enroll`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schemeId: schemeData.id,
+          monthlyAmount: schemeData.monthlyAmount,
+          durationMonths: schemeData.durationMonths,
+        }),
+      });
 
-const enrollScheme = async (schemeData: any) => {
-  try {
-    const res = await fetch("/api/schemes/enroll", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        schemeId: schemeData.id,
-        monthlyAmount: schemeData.monthlyAmount,
-        durationMonths: schemeData.durationMonths,
-      }),
-    });
+      const data = await res.json();
 
-    const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Enrollment failed");
+      }
 
-    if (!res.ok) {
-      throw new Error(data.message || "Enrollment failed");
+      const formatted: Scheme = {
+        id: data.id,
+        name: data.Scheme?.name || "New Scheme",
+        monthlyAmount: data.totalPaid,
+        durationMonths: data.Scheme?.durationMonths || 11,
+        enrolledDate: data.startDate,
+        installmentsPaid: data.installmentsPaid,
+      };
+
+      setEnrolledSchemes((prev) => [...prev, formatted]);
+    } catch (err: any) {
+      console.error("Enrollment failed:", err.message);
     }
-
-    const formatted: Scheme = {
-      id: data.id,
-      name: data.Scheme?.name || "New Scheme",
-      monthlyAmount: data.totalPaid,
-      durationMonths: data.Scheme?.durationMonths || 11,
-      enrolledDate: data.startDate,
-      installmentsPaid: data.installmentsPaid,
-    };
-
-    setEnrolledSchemes((prev) => [...prev, formatted]);
-  } catch (err: any) {
-    console.error("Enrollment failed:", err.message);
-  }
-};
-
-
+  };
 
   return (
-    <AuthContext.Provider value={{ 
-      isLoggedIn, 
-      user, 
-      isLoading, 
-      enrolledSchemes, 
-      setEnrolledSchemes, 
-      login, 
-      logout, 
-      enrollScheme 
-    }}>
+    <AuthContext.Provider
+      value={{
+        isLoggedIn,
+        user,
+        isLoading,
+        enrolledSchemes,
+        setEnrolledSchemes,
+        login,
+        logout,
+        enrollScheme,
+      }}
+    >
       {!isLoading && children}
     </AuthContext.Provider>
   );
