@@ -1,3 +1,7 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 import { NextResponse } from "next/server";
 import { signupUser } from "@/services/auth.service";
 import { generateToken } from "@/lib/jwt";
