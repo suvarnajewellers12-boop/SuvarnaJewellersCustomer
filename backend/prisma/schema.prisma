@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id         String     @id
+  username   String     @unique
+  branchName String
+  state      String
+  password   String
+  role       String     @default("ADMIN")
+  createdAt  DateTime   @default(now())
+  createdBy  String
+  Purchase   Purchase[]
+}
+
+model Customer {
+  id             String           @id
+  name           String
+  username       String           @unique
+  password       String
+  phone          String
+  createdAt      DateTime         @default(now())
+  CustomerScheme CustomerScheme[]
+}
+
+model CustomerScheme {
+  id               String   @id
+  customerId       String
+  schemeId         String
+  totalPaid        Float    @default(0)
+  remainingAmount  Float
+  installmentsPaid Int      @default(0)
+  installmentsLeft Int
+  isCompleted      Boolean  @default(false)
+  couponGenerated  Boolean  @default(false)
+  startDate        DateTime @default(now())
+  Customer         Customer @relation(fields: [customerId], references: [id])
+  Scheme           Scheme   @relation(fields: [schemeId], references: [id])
+}
+
+model GoldJobWork {
+  id                String    @id
+  companyName       String
+  productType       String
+  goldGivenType     String
+  goldGivenGrams    Float
+  makingCharge      Float?
+  status            String    @default("PENDING")
+  dateGiven         DateTime
+  dateReceived      DateTime?
+  wastageGrams      Float?
+  returnedGoldGrams Float?
+  notes             String?
+  createdBy         String
+  createdAt         DateTime  @default(now())
+}
+
+model GoldPurchase {
+  id            String   @id
+  companyName   String
+  goldType      String
+  grams         Float
+  pricePerGram  Float
+  totalAmount   Float
+  purchaseDate  DateTime
+  invoiceNumber String?
+  paymentMode   String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+}
+
+model OtpVerification {
+  id            String    @id
+  phoneNumber   String    @db.VarChar(15)
+  otpCode       String    @db.VarChar(6)
+  purpose       String    @db.VarChar(50)
+  requestedById String?
+  attempts      Int       @default(0)
+  isUsed        Boolean   @default(false)
+  expiresAt     DateTime
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([phoneNumber])
+  @@index([phoneNumber, purpose])
+  @@index([purpose])
+}
+
+model Product {
+  id              String         @id
+  name            String
+  metalType       String
+  grams           Float
+  carats          String
+  manufactureDate DateTime
+  uniqueCode      String         @unique
+  isSold          Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  soldAt          DateTime?
+  sku             String         @unique
+  bodyPart        String         @default("others")
+  category        String         @default("others")
+  huid            String?
+  netWeight       Float          @default(0)
+  quantity        Int            @default(1)
+  stoneWeight     Float          @default(0)
+  PurchaseItem    PurchaseItem[]
+}
+
+model ProductImgs {
+  id          String   @id
+  title       String
+  description String?
+  weight      Float
+  image       Bytes
+  createdAt   DateTime @default(now())
+  metalType   String   @default("gold")
+  mimeType    String   @default("image/jpeg")
+  carats      String   @default("24k")
+}
+
+model Purchase {
+  id             String         @id
+  customerName   String
+  totalAmount    Float
+  gstAmount      Float
+  discountAmount Float
+  finalAmount    Float
+  phoneNumber    String
+  paymentId      String?
+  paymentStatus  String         @default("PENDING")
+  purchasedAt    DateTime       @default(now())
+  adminId        String?
+  superAdminId   String?
+  Admin          Admin?         @relation(fields: [adminId], references: [id])
+  SuperAdmin     SuperAdmin?    @relation(fields: [superAdminId], references: [id])
+  PurchaseItem   PurchaseItem[]
+}
+
+model PurchaseItem {
+  id         String   @id
+  purchaseId String
+  productId  String
+  name       String
+  grams      Float
+  cost       Float
+  Product    Product  @relation(fields: [productId], references: [id])
+  Purchase   Purchase @relation(fields: [purchaseId], references: [id])
+}
+
+model Scheme {
+  id               String           @id
+  name             String
+  durationMonths   Int
+  monthlyAmount    Float
+  maturityAmount   Float
+  completionCoupon String?
+  createdAt        DateTime         @default(now())
+  CustomerScheme   CustomerScheme[]
+}
+
+model Staff {
+  id            String   @id
+  fullName      String
+  dateOfJoining DateTime
+  monthlySalary Float
+  gender        String
+  phoneNumber   String   @unique
+  aadharNumber  String   @unique
+  createdAt     DateTime @default(now())
+  createdBy     String
+}
+
+model SuperAdmin {
+  id        String     @id
+  username  String     @unique
+  password  String
+  createdAt DateTime   @default(now())
+  Purchase  Purchase[]
+}
