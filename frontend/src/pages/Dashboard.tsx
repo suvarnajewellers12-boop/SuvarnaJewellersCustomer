@@ -7,7 +7,9 @@ import GoldDustParticles from "@/components/GoldDustParticles";
 import { useState, useEffect } from "react";
 
 const formatINR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://suvarna-jewellers-customer-backend.vercel.app";
 const getSchemeDetails = (scheme: Scheme) => {
   const enrolledDate = new Date(scheme.enrolledDate || Date.now());
   const lastPaymentDate = new Date(enrolledDate);
