@@ -7,7 +7,7 @@ import GoldDustParticles from "@/components/GoldDustParticles";
 import { useState, useEffect } from "react";
 
 const formatINR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
-
+const API_URL = import.meta.env.VITE_API_URL;
 const getSchemeDetails = (scheme: Scheme) => {
   const enrolledDate = new Date(scheme.enrolledDate || Date.now());
   const lastPaymentDate = new Date(enrolledDate);
@@ -163,7 +163,9 @@ const Dashboard = () => {
   useEffect(() => {
   const fetchSchemes = async () => {
     try {
-      const res = await fetch("/api/schemes/my");
+      const res = await fetch(`${API_URL}/api/schemes/my`, {
+  credentials: "include",
+});
 
       if (res.ok) {
         const data = await res.json();
@@ -171,7 +173,7 @@ const Dashboard = () => {
         const formatted = data.schemes.map((s: any) => ({
           id: s.id,
           name: s.Scheme?.name || "Active Scheme",
-          monthlyAmount: s.totalPaid,
+          monthlyAmount: s.Scheme?.monthlyAmount || 0,
           durationMonths: s.Scheme?.durationMonths || 11,
           enrolledDate: s.startDate,
           installmentsPaid: s.installmentsPaid,
