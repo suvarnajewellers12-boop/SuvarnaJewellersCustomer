@@ -20,7 +20,11 @@ const Login = () => {
   
   const { login } = useAuth();
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://suvarna-jewellers-customer-backend.vercel.app";
+
+  console.log("API_URL:", API_URL);
 
   const isSignup = mode === "signup";
 
