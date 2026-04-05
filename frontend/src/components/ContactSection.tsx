@@ -4,15 +4,38 @@ import { Phone, Mail, MapPin, Send, Sparkles } from "lucide-react";
 import showroomImg from "@/assets/showroom.jpg";
 
 const ContactSection = () => {
-  const [formData, setFormData] = useState({ name: "", phone: "", message: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const API_URL =
+      import.meta.env.VITE_API_URL ||
+      "https://suvarna-jewellers-customer-backend.vercel.app";
+
+    const response = await fetch(`${API_URL}/api/contact`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to send message");
+    }
+
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
-    setFormData({ name: "", phone: "", message: "" });
-  };
+    setFormData({ name: "", email: "", message: "" });
+  } catch (error) {
+    console.error("Contact form failed:", error);
+  }
+};
 
   return (
     <section id="contact" className="py-28 px-4 relative overflow-hidden">
@@ -100,10 +123,10 @@ const ContactSection = () => {
                 className="w-full px-4 py-3.5 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all"
               />
               <input
-                type="tel"
-                placeholder="Phone Number"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
                 className="w-full px-4 py-3.5 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all"
               />
