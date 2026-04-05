@@ -22,18 +22,17 @@ export async function OPTIONS(req: Request) {
 export async function GET(req: Request) {
   const origin = req.headers.get("origin") || "";
   try {
-    // --- UPDATED TOKEN LOGIC: HEADERS ONLY ---
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.split(" ")[1]; 
-
-    if (!token) {
-      console.log("No token found in Authorization Header");
+    
+    // ✅ SAFETY CHECK: Prevent 500 crash if header is missing
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ schemes: [] }, { 
         status: 401, 
         headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" } 
       });
     }
 
+    const token = authHeader.split(" ")[1]; 
     const decoded: any = verifyToken(token);
     const currentUserId = decoded?.userId || decoded?.id;
 
@@ -52,15 +51,11 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ schemes: myEnrollments }, {
       status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Credentials": "true",
-      },
+      headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" },
     });
   } catch (error) {
-    console.error("Fetch Schemes Error:", error);
     return NextResponse.json({ schemes: [] }, { 
-      status: 500, 
+      status: 401, // Return 401 instead of 500 on token failure
       headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" } 
     });
   }
