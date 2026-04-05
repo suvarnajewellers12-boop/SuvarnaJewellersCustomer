@@ -163,44 +163,45 @@ const Dashboard = () => {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-  const fetchSchemes = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/schemes/my`, {
-        credentials: "include",
-      });
+    const fetchSchemes = async () => {
+      try {
+        // 1. Get the token from wherever you store it (localStorage is most common)
+        const token = localStorage.getItem("token"); 
+        
+        console.log("Attempting fetch with token:", token ? "Token exists" : "No token found");
 
-      if (res.ok) {
-        const data = await res.json();
-        console.log("Dashboard schemes raw:", data.schemes);
+        const res = await fetch(`${API_URL}/api/schemes/my`, {
+          method: "GET",
+          headers: {
+            // 2. This replaces the "cookie" method and is much more reliable for Vercel
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+        });
 
-        const formatted = data.schemes.map((s: any) => ({
-          id: s.id,
-          name: s.Scheme?.name || "Active Scheme",
-          monthlyAmount: s.totalPaid || s.Scheme?.monthlyAmount || 0,
-          durationMonths: s.Scheme?.durationMonths || 11,
-          enrolledDate: s.startDate,
-          installmentsPaid: s.installmentsPaid,
-        }));
-
-        setEnrolledSchemes(formatted);
+        if (res.ok) {
+          const data = await res.json();
+          const formatted = data.schemes.map((s: any) => ({
+            id: s.id,
+            name: s.Scheme?.name || "Active Scheme",
+            monthlyAmount: s.Scheme?.monthlyAmount || 0,
+            durationMonths: s.Scheme?.durationMonths || 11,
+            enrolledDate: s.startDate,
+            installmentsPaid: s.installmentsPaid,
+          }));
+          setEnrolledSchemes(formatted);
+        } else if (res.status === 401) {
+          console.error("Server says: You are not logged in (Unauthorized)");
+        }
+      } catch (err) {
+        console.error("Network/Fetch error:", err);
+      } finally {
+        setFetching(false);
       }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setFetching(false);
-    }
-  };
+    };
 
-  if (user) {
-    fetchSchemes();
-  }
-
-  window.addEventListener("schemeUpdated", fetchSchemes);
-
-  return () => {
-    window.removeEventListener("schemeUpdated", fetchSchemes);
-  };
-}, [user, setEnrolledSchemes]);
+    if (user) { fetchSchemes(); }
+  }, [user, setEnrolledSchemes]);
 
   // Prevent crashes while data is loading
   if (authLoading || fetching) {
