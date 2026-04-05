@@ -1,14 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, RotateCcw, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-import productNecklace from "@/assets/product-necklace.jpg";
-import productBridalSet from "@/assets/product-bridal-set.jpg";
-import productMangalsutra from "@/assets/product-mangalsutra.jpg";
-import productBangles from "@/assets/product-bangles.jpg";
-import productEarrings from "@/assets/product-earrings.jpg";
-import productPooja from "@/assets/product-pooja.jpg";
+
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://suvarna-jewellers-customer-backend.vercel.app";
 
 type Category = "gold" | "silver";
 
@@ -23,14 +21,6 @@ interface Product {
   subcategory: string;
 }
 
-const products: Product[] = [
-  { name: "Gold Necklace", grams: "200 gms", numgrams: 200, image: productNecklace, description: "A masterpiece of traditional Indian craftsmanship, this temple-style gold necklace features intricate kundan work and delicate filigree patterns passed down through generations.", story: "In Indian tradition, a gold necklace symbolizes prosperity and is often the centerpiece of a bride's trousseau, carrying blessings from one generation to the next.", category: "gold", subcategory: "Gold Chains" },
-  { name: "Bridal Temple Set", grams: "350 gms", numgrams: 350, image: productBridalSet, description: "Complete bridal ensemble featuring a statement necklace, matching jhumka earrings, and maang tikka, all crafted in 22K gold with precious stone settings.", story: "The bridal set represents the coming together of two families, each piece carefully chosen to honor the sacred bond of marriage in Indian culture.", category: "gold", subcategory: "Gold Bangles" },
-  { name: "Diamond Mangalsutra", grams: "100 gms", numgrams: 100, image: productMangalsutra, description: "A contemporary take on the sacred mangalsutra, blending traditional black beads with a stunning diamond-encrusted gold pendant.", story: "The mangalsutra is the most sacred piece of jewelry in Indian marriages — a symbol of love, commitment, and the eternal bond between husband and wife.", category: "gold", subcategory: "Gold Chains" },
-  { name: "Gold Bangles", grams: "120 gms", numgrams: 120, image: productBangles, description: "Set of six intricately designed gold bangles featuring traditional temple motifs and meenakari enamel work in vibrant colors.", story: "The jingling of gold bangles has been the sound of celebration in Indian households for millennia, from festivals to weddings.", category: "gold", subcategory: "Gold Bangles" },
-  { name: "Bridal Earrings", grams: "80 gms", numgrams: 80, image: productEarrings, description: "Grand bridal jhumka earrings with kundan setting, pearl drops, and detailed gold filigree work that catches every ray of light.", story: "Jhumkas have adorned Indian women since the Mughal era, their bell-shaped design creating a mesmerizing dance of light and sound.", category: "gold", subcategory: "Gold Rings" },
-  { name: "Silver Pooja Collection", grams: "790 gms", numgrams: 790, image: productPooja, description: "Complete silver pooja set including an ornate thali, diya, kalash, and accessories — perfect for daily worship and special ceremonies.", story: "Every Indian home has a sacred space for worship. This collection brings divinity and beauty to your daily rituals.", category: "silver", subcategory: "Silver Idols" },
-];
 
 const subcategories: Record<Category, string[]> = {
   gold: ["All", "Gold Rings", "Gold Chains", "Gold Bangles", "Gold Anklets"],
@@ -89,10 +79,45 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
 
 const ProductsSection = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<Category>("gold");
   const [activeSubcategory, setActiveSubcategory] = useState("All");
+
+  useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch("https://suvarnagold-16e5.vercel.app/api/productsimgs/list");
+      const data = await res.json();
+
+      const mapped = data.map((item: any) => ({
+        name: item.title,
+        grams: `${item.weight} gms`,
+        numgrams: item.weight,
+        image: item.image,
+        description: item.description || "No description available",
+        story: item.description || "Traditional craftsmanship from Suvarna Jewellers.",
+        category:
+          item.metalType?.toLowerCase() === "silver" ? "silver" : "gold",
+        subcategory:
+          item.metalType?.toLowerCase() === "silver"
+            ? "Silver Idols"
+            : "Gold Chains",
+      }));
+
+      setProducts(mapped);
+    } catch (error) {
+      console.error("Products fetch failed:", error);
+    }
+  };
+
+  fetchProducts();
+}, []);
+
   const { isLoggedIn, enrolledSchemes } = useAuth();
-  const totalSaved = enrolledSchemes.reduce((acc, s) => acc + s.monthlyAmount * s.paidMonths, 0);
+  const totalSaved = enrolledSchemes.reduce(
+  (acc, s: any) => acc + s.monthlyAmount * (s.paidMonths || 0),
+  0
+);
 
   const filteredProducts = products.filter(
     (p) =>
