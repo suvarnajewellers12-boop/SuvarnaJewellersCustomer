@@ -29,7 +29,8 @@ const getSchemeDetails = (scheme: Scheme) => {
   const isCompleted = (scheme.installmentsPaid || 0) >= (scheme.durationMonths || 1);
   
   // Logic: Only payable if Today is on or after the Next Due Date
-  const isPayable = today >= nextDueCheck && !isCompleted;
+  {/*const isPayable = today >= nextDueCheck && !isCompleted;*/}
+  const isPayable = true; // today >= nextDueCheck && !isCompleted;
 
   return {
     lastPaymentDate: lastPaymentDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
@@ -269,7 +270,7 @@ const Dashboard = () => {
             </p>
           </motion.div>
 
-          {hasDuePayments && (
+         {/* {hasDuePayments && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -282,7 +283,7 @@ const Dashboard = () => {
                 You have installments due. Tap a scheme to view details and pay.
               </p>
             </motion.div>
-          )}
+          )} */}
 
           {/* Temple Divider Sparkle strip restored */}
           {enrolledSchemes.length > 0 && (
