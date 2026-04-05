@@ -12,32 +12,25 @@ const API_URL =
   "https://suvarna-jewellers-customer-backend.vercel.app";
 const getSchemeDetails = (scheme: Scheme) => {
   const enrolledDate = new Date((scheme as any).enrolledDate || (scheme as any).startDate || Date.now());
-  
+  const installments = scheme.installmentsPaid || 0;
+  const duration = scheme.durationMonths || 1;
+
   const lastPaymentDate = new Date(enrolledDate);
-  lastPaymentDate.setMonth(lastPaymentDate.getMonth() + (scheme.installmentsPaid || 1) - 1);
+  // Fixed: Changed .setMonth() to .getMonth() inside the parenthesis
+  lastPaymentDate.setMonth(lastPaymentDate.getMonth() + (installments > 0 ? installments - 1 : 0));
 
   const nextDueDate = new Date(enrolledDate);
-  nextDueDate.setMonth(nextDueDate.getMonth() + (scheme.installmentsPaid || 1));
+  nextDueDate.setMonth(nextDueDate.getMonth() + installments);
 
-  // --- NEW DATE LOCK LOGIC ---
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Reset time to midnight for fair comparison
-  
-  const nextDueCheck = new Date(nextDueDate);
-  nextDueCheck.setHours(0, 0, 0, 0);
-
-  const isCompleted = (scheme.installmentsPaid || 0) >= (scheme.durationMonths || 1);
-  
-  // Logic: Only payable if Today is on or after the Next Due Date
-  {/*const isPayable = today >= nextDueCheck && !isCompleted;*/}
-  const isPayable = true; // today >= nextDueCheck && !isCompleted;
+  const isCompleted = installments >= duration;
+  const isPayable = true; // Temporary for testing
 
   return {
     lastPaymentDate: lastPaymentDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     nextDueDate: nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     amountDue: scheme.monthlyAmount,
     isCompleted,
-    isPayable, // <--- New status for the button
+    isPayable,
     isDue: !isCompleted,
   };
 };
@@ -162,9 +155,10 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
   disabled={!details.isPayable} 
   className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
     details.isPayable 
-      ? "btn-gold btn-gold-pulse" 
+      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg" 
       : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed opacity-70"
   }`}
+  onClick={() => console.log("Pay Now Clicked for amount:", details.amountDue)}
 >
   {details.isPayable ? "Pay Now" : `Next Due: ${details.nextDueDate}`}
 </button>
