@@ -25,6 +25,8 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   enrollScheme: (schemeData: any) => Promise<void>;
+  // 1. ADDED THIS LINE TO THE INTERFACE
+  payInstallment: (customerSchemeId: string) => Promise<void>; 
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -42,14 +44,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [enrolledSchemes, setEnrolledSchemes] = useState<Scheme[]>([]);
 
   const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://suvarna-jewellers-customer-backend.vercel.app";
+    import.meta.env.VITE_API_URL ||
+    "https://suvarna-jewellers-customer-backend.vercel.app";
 
   useEffect(() => {
     const checkUser = async () => {
       try {
+        const token = localStorage.getItem("token"); // Get token for checkUser too
         const res = await fetch(`${API_URL}/api/auth/me`, {
-          credentials: "include",
+          headers: { "Authorization": `Bearer ${token}` },
         });
 
         if (res.ok) {
@@ -70,33 +73,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [API_URL]);
 
   const login = (userData: any) => {
-  setUser(userData);
-  setIsLoggedIn(true);
-  // Do NOT call localStorage.clear() here!
-};
+    setUser(userData);
+    setIsLoggedIn(true);
+  };
 
   const logout = async () => {
-    try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      setUser(null);
-      setIsLoggedIn(false);
-      setEnrolledSchemes([]);
-      window.location.href = "/login";
-    } catch (err) {
-      console.error("Logout failed", err);
-    }
+    setUser(null);
+    setIsLoggedIn(false);
+    setEnrolledSchemes([]);
+    localStorage.removeItem("token"); // Clear token on logout
+    window.location.href = "/login";
   };
 
   const enrollScheme = async (schemeData: any) => {
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/api/schemes/enroll`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // Use Header
+        },
         body: JSON.stringify({
           schemeId: schemeData.id,
           monthlyAmount: schemeData.monthlyAmount,
@@ -104,24 +101,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Enrollment failed");
-      }
-
-      const formatted: Scheme = {
-        id: data.id,
-        name: data.Scheme?.name || "New Scheme",
-        monthlyAmount: data.totalPaid,
-        durationMonths: data.Scheme?.durationMonths || 11,
-        enrolledDate: data.startDate,
-        installmentsPaid: data.installmentsPaid,
-      };
+      if (!res.ok) throw new Error("Enrollment failed");
 
       window.dispatchEvent(new Event("schemeUpdated"));
     } catch (err: any) {
       console.error("Enrollment failed:", err.message);
+    }
+  };
+
+  // 2. ADDED THIS FUNCTION TO HANDLE MONTHLY PAYMENTS
+  const payInstallment = async (customerSchemeId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/schemes/pay`, {
+        method: "PATCH", 
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ customerSchemeId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Payment failed");
+      }
+
+      // This tells the Dashboard to fetch fresh data from the server
+      window.dispatchEvent(new Event("schemeUpdated")); 
+    } catch (err: any) {
+      console.error("Payment failed:", err.message);
+      throw err;
     }
   };
 
@@ -136,6 +146,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         enrollScheme,
+        // 3. ADDED THIS TO THE PROVIDER VALUE
+        payInstallment, 
       }}
     >
       {!isLoading && children}

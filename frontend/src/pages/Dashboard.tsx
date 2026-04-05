@@ -5,167 +5,199 @@ import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
 import { useState, useEffect } from "react";
+// ADDED IMPORT FOR THE PAYMENT MODAL
+import PaymentModal from "@/components/PaymentModal";
 
 const formatINR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 const getSchemeDetails = (scheme: Scheme) => {
+  // 1. Setup the basic dates
   const enrolledDate = new Date((scheme as any).enrolledDate || (scheme as any).startDate || Date.now());
   const installments = scheme.installmentsPaid || 0;
   const duration = scheme.durationMonths || 1;
 
   const lastPaymentDate = new Date(enrolledDate);
-  // Fixed: Changed .setMonth() to .getMonth() inside the parenthesis
   lastPaymentDate.setMonth(lastPaymentDate.getMonth() + (installments > 0 ? installments - 1 : 0));
 
   const nextDueDate = new Date(enrolledDate);
   nextDueDate.setMonth(nextDueDate.getMonth() + installments);
 
+  // 2. Logic Check
   const isCompleted = installments >= duration;
-  const isPayable = true; // Temporary for testing
+
+  // --- FOR TESTING: FORCE ENABLE ---
+  const isPayable = true; 
 
   return {
     lastPaymentDate: lastPaymentDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     nextDueDate: nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     amountDue: scheme.monthlyAmount,
     isCompleted,
-    isPayable,
+    isPayable, 
     isDue: !isCompleted,
   };
 };
 
 const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () => void }) => {
+  // ADDED STATE FOR SWITCHING TO PAYMENT SCREEN
+  const [isPaying, setIsPaying] = useState(false);
+  
   const details = getSchemeDetails(scheme);
   const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
 
+  // SUCCESS HANDLER FOR DASHBOARD INSTALLMENTS
+  const handleInstallmentSuccess = async () => {
+    setIsPaying(false);
+    onClose();
+    // Refresh to show the incremented installment in the UI
+    window.location.reload();
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.85, opacity: 0, y: 40 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.85, opacity: 0, y: 40 }}
-        transition={{ type: "spring", damping: 22, stiffness: 260 }}
-        onClick={(e) => e.stopPropagation()}
-        className="glass-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-0"
-        style={{ boxShadow: '0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)' }}
-      >
-        {/* Header */}
-        <div className="relative p-8 pb-4">
-          <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-          <p className="font-elegant text-sm tracking-[0.2em] uppercase text-gold-dark mb-2">Scheme Ledger</p>
-          <h3 className="font-display text-2xl font-bold text-foreground">{scheme.name}</h3>
-          <div className="mt-1">
-            <span className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
-              details.isCompleted
-                ? "bg-emerald/10 text-emerald border-emerald/20"
-                : "bg-gold/10 text-gold-dark border-gold/20"
-            }`}>
-              {details.isCompleted ? "Completed" : "Active"}
-            </span>
-          </div>
-        </div>
+    <AnimatePresence mode="wait">
+      {isPaying ? (
+        /* --- DUMMY PAYMENT SCREEN ADDED HERE --- */
+        <PaymentModal
+          key="payment-step"
+          schemeName={scheme.name}
+          monthlyAmount={scheme.monthlyAmount}
+          onSuccess={handleInstallmentSuccess}
+          onClose={() => setIsPaying(false)}
+        />
+      ) : (
+        /* --- ORIGINAL DETAILS MODAL (UNCHANGED) --- */
+        <motion.div
+          key="details-step"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.85, opacity: 0, y: 40 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.85, opacity: 0, y: 40 }}
+            transition={{ type: "spring", damping: 22, stiffness: 260 }}
+            onClick={(e) => e.stopPropagation()}
+            className="glass-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-0"
+            style={{ boxShadow: '0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)' }}
+          >
+            {/* Header */}
+            <div className="relative p-8 pb-4">
+              <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+              <p className="font-elegant text-sm tracking-[0.2em] uppercase text-gold-dark mb-2">Scheme Ledger</p>
+              <h3 className="font-display text-2xl font-bold text-foreground">{scheme.name}</h3>
+              <div className="mt-1">
+                <span className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
+                  details.isCompleted
+                    ? "bg-emerald/10 text-emerald border-emerald/20"
+                    : "bg-gold/10 text-gold-dark border-gold/20"
+                }`}>
+                  {details.isCompleted ? "Completed" : "Active"}
+                </span>
+              </div>
+            </div>
 
-        {/* Progress */}
-        <div className="px-8 pb-6">
-          <div className="w-full h-3 rounded-full bg-cream overflow-hidden mb-2">
-            <motion.div
-              className="h-full rounded-full relative overflow-hidden"
-              style={{ background: 'var(--gradient-gold)' }}
-              initial={{ width: "0%" }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-            >
-              <div className="absolute inset-0" style={{
-                background: 'linear-gradient(90deg, transparent, hsla(40, 40%, 97%, 0.4), transparent)',
-                animation: 'light-sweep 3s ease-in-out infinite',
-              }} />
-            </motion.div>
-          </div>
-          <p className="font-body text-sm text-muted-foreground text-center">
-            {scheme.installmentsPaid} of {scheme.durationMonths} installments completed
-          </p>
-        </div>
-
-        {/* Details grid */}
-        <div className="px-8 pb-6 grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
-            <p className="font-body text-xs text-muted-foreground mb-1">Monthly Amount</p>
-            <p className="font-display text-lg font-bold text-gold-gradient">{formatINR(scheme.monthlyAmount)}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
-            <p className="font-body text-xs text-muted-foreground mb-1">Gold Accumulated</p>
-            <p className="font-display text-lg font-bold text-gold-gradient">{formatINR(scheme.monthlyAmount * scheme.installmentsPaid)}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
-            <p className="font-body text-xs text-muted-foreground mb-1">Last Payment</p>
-            <p className="font-body text-sm font-semibold text-foreground">{details.lastPaymentDate}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
-            <p className="font-body text-xs text-muted-foreground mb-1">{details.isCompleted ? "Completed On" : "Next Due"}</p>
-            <p className="font-body text-sm font-semibold text-foreground">{details.isCompleted ? details.lastPaymentDate : details.nextDueDate}</p>
-          </div>
-        </div>
-
-        {/* Payment timeline */}
-        <div className="px-8 pb-6">
-          <p className="font-display text-sm font-semibold text-foreground mb-3">Payment Timeline</p>
-          <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-            {Array.from({ length: scheme.durationMonths }, (_, i) => {
-              const isPaid = i < scheme.installmentsPaid;
-              const isCurrent = i === scheme.installmentsPaid;
-              return (
-                <div key={i} className="flex items-center gap-3">
-                  {isPaid ? (
-                    <CheckCircle2 className="w-4 h-4 text-gold-dark flex-shrink-0" />
-                  ) : isCurrent ? (
-                    <AlertCircle className="w-4 h-4 text-gold flex-shrink-0 animate-glow-pulse" />
-                  ) : (
-                    <Clock className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
-                  )}
-                  <span className={`font-body text-xs ${isPaid ? "text-foreground" : isCurrent ? "text-gold-dark font-semibold" : "text-muted-foreground/50"}`}>
-                    Month {i + 1} — {formatINR(scheme.monthlyAmount)}
-                  </span>
-                  <span className={`ml-auto font-body text-xs ${isPaid ? "text-gold-dark" : isCurrent ? "text-gold-dark" : "text-muted-foreground/40"}`}>
-                    {isPaid ? "Paid" : isCurrent ? "Due" : "Upcoming"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Pay Now CTA */}
-        {details.isDue && (
-          <div className="px-8 pb-8">
-            <div className="p-4 rounded-xl border border-gold/20 mb-4" style={{ background: 'hsla(43, 80%, 55%, 0.05)' }}>
-              <p className="font-body text-sm text-foreground text-center">
-                Amount Due: <span className="font-display font-bold text-gold-gradient">{formatINR(details.amountDue)}</span>
+            {/* Progress */}
+            <div className="px-8 pb-6">
+              <div className="w-full h-3 rounded-full bg-cream overflow-hidden mb-2">
+                <motion.div
+                  className="h-full rounded-full relative overflow-hidden"
+                  style={{ background: 'var(--gradient-gold)' }}
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                >
+                  <div className="absolute inset-0" style={{
+                    background: 'linear-gradient(90deg, transparent, hsla(40, 40%, 97%, 0.4), transparent)',
+                    animation: 'light-sweep 3s ease-in-out infinite',
+                  }} />
+                </motion.div>
+              </div>
+              <p className="font-body text-sm text-muted-foreground text-center">
+                {scheme.installmentsPaid} of {scheme.durationMonths} installments completed
               </p>
             </div>
-            <button 
-  disabled={!details.isPayable} 
-  className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
-    details.isPayable 
-      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg" 
-      : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed opacity-70"
-  }`}
-  onClick={() => console.log("Pay Now Clicked for amount:", details.amountDue)}
->
-  {details.isPayable ? "Pay Now" : `Next Due: ${details.nextDueDate}`}
-</button>
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
+
+            {/* Details grid */}
+            <div className="px-8 pb-6 grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
+                <p className="font-body text-xs text-muted-foreground mb-1">Monthly Amount</p>
+                <p className="font-display text-lg font-bold text-gold-gradient">{formatINR(scheme.monthlyAmount)}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
+                <p className="font-body text-xs text-muted-foreground mb-1">Gold Accumulated</p>
+                <p className="font-display text-lg font-bold text-gold-gradient">{formatINR(scheme.monthlyAmount * scheme.installmentsPaid)}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
+                <p className="font-body text-xs text-muted-foreground mb-1">Last Payment</p>
+                <p className="font-body text-sm font-semibold text-foreground">{details.lastPaymentDate}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
+                <p className="font-body text-xs text-muted-foreground mb-1">{details.isCompleted ? "Completed On" : "Next Due"}</p>
+                <p className="font-body text-sm font-semibold text-foreground">{details.isCompleted ? details.lastPaymentDate : details.nextDueDate}</p>
+              </div>
+            </div>
+
+            {/* Payment timeline */}
+            <div className="px-8 pb-6">
+              <p className="font-display text-sm font-semibold text-foreground mb-3">Payment Timeline</p>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                {Array.from({ length: scheme.durationMonths }, (_, i) => {
+                  const isPaid = i < scheme.installmentsPaid;
+                  const isCurrent = i === scheme.installmentsPaid;
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      {isPaid ? (
+                        <CheckCircle2 className="w-4 h-4 text-gold-dark flex-shrink-0" />
+                      ) : isCurrent ? (
+                        <AlertCircle className="w-4 h-4 text-gold flex-shrink-0 animate-glow-pulse" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+                      )}
+                      <span className={`font-body text-xs ${isPaid ? "text-foreground" : isCurrent ? "text-gold-dark font-semibold" : "text-muted-foreground/50"}`}>
+                        Month {i + 1} — {formatINR(scheme.monthlyAmount)}
+                      </span>
+                      <span className={`ml-auto font-body text-xs ${isPaid ? "text-gold-dark" : isCurrent ? "text-gold-dark" : "text-muted-foreground/40"}`}>
+                        {isPaid ? "Paid" : isCurrent ? "Due" : "Upcoming"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pay Now CTA */}
+            {details.isDue && (
+              <div className="px-8 pb-8">
+                <div className="p-4 rounded-xl border border-gold/20 mb-4" style={{ background: 'hsla(43, 80%, 55%, 0.05)' }}>
+                  <p className="font-body text-sm text-foreground text-center">
+                    Amount Due: <span className="font-display font-bold text-gold-gradient">{formatINR(details.amountDue)}</span>
+                  </p>
+                </div>
+                <button 
+                  disabled={!details.isPayable} 
+                  /* ONCLICK MODIFIED TO SWITCH TO PAYMENT SCREEN */
+                  onClick={() => setIsPaying(true)}
+                  className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
+                    details.isPayable 
+                      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg" 
+                      : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed opacity-70"
+                  }`}
+                >
+                  {details.isPayable ? "Pay Now" : `Next Due: ${details.nextDueDate}`}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -178,15 +210,10 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchSchemes = async () => {
       try {
-        // 1. Get the token from wherever you store it (localStorage is most common)
         const token = localStorage.getItem("token"); 
-        
-        console.log("Attempting fetch with token:", token ? "Token exists" : "No token found");
-
         const res = await fetch(`${API_URL}/api/schemes/my`, {
           method: "GET",
           headers: {
-            // 2. This replaces the "cookie" method and is much more reliable for Vercel
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
@@ -214,9 +241,8 @@ const Dashboard = () => {
     };
 
     if (user) { fetchSchemes(); }
-  }, [user, setEnrolledSchemes]);
+  }, [user, setEnrolledSchemes, API_URL]);
 
-  // Prevent crashes while data is loading
   if (authLoading || fetching) {
     return (
       <Layout>
@@ -229,10 +255,6 @@ const Dashboard = () => {
       </Layout>
     );
   }
-
-  const hasDuePayments = enrolledSchemes.length > 0 && enrolledSchemes.some(
-    (s) => (s.installmentsPaid || 0) < (s.durationMonths || 1)
-  );
 
   return (
     <Layout>
@@ -249,7 +271,6 @@ const Dashboard = () => {
         <GoldDustParticles />
 
         <div className="relative z-10 max-w-6xl mx-auto">
-          {/* Welcome section with Velvet Spotlight logic restored */}
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="relative">
             <div className="absolute -top-16 left-0 w-96 h-48 pointer-events-none" style={{
               background: 'radial-gradient(ellipse at 30% 50%, hsla(43, 70%, 55%, 0.1) 0%, transparent 70%)',
@@ -264,22 +285,6 @@ const Dashboard = () => {
             </p>
           </motion.div>
 
-         {/* {hasDuePayments && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="glass-card rounded-2xl p-4 mb-8 flex items-center gap-3 border-gold/30"
-              style={{ boxShadow: 'var(--shadow-card)' }}
-            >
-              <div className="w-2.5 h-2.5 rounded-full animate-glow-pulse flex-shrink-0" style={{ background: 'hsl(var(--gold))' }} />
-              <p className="font-body text-sm text-foreground">
-                You have installments due. Tap a scheme to view details and pay.
-              </p>
-            </motion.div>
-          )} */}
-
-          {/* Temple Divider Sparkle strip restored */}
           {enrolledSchemes.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex items-center justify-center gap-3 mb-8">
               <div className="h-px flex-1 max-w-24" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--gold-light)))' }} />
@@ -304,7 +309,7 @@ const Dashboard = () => {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {enrolledSchemes.map((scheme, i) => {
                 const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
-                const isCompleted = scheme.installmentsPaid >= scheme.durationMonths;
+                const isCompleted = (scheme.installmentsPaid || 0) >= (scheme.durationMonths || 1);
                 return (
                   <motion.div
                     key={scheme.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
@@ -321,7 +326,7 @@ const Dashboard = () => {
                       </span>
                     </div>
                     <p className="font-body text-sm text-muted-foreground mb-1">{formatINR(scheme.monthlyAmount)}/month • {scheme.installmentsPaid}/{scheme.durationMonths} paid</p>
-                    <p className="font-body text-sm text-muted-foreground mb-3">Gold saved: <span className="font-semibold text-gold-gradient">{formatINR(scheme.monthlyAmount * scheme.installmentsPaid)}</span></p>
+                    <p className="font-body text-sm text-muted-foreground mb-3">Gold saved: <span className="font-semibold text-gold-gradient">{formatINR(scheme.monthlyAmount * (scheme.installmentsPaid || 0))}</span></p>
                     <div className="w-full h-2 rounded-full bg-cream overflow-hidden">
                       <motion.div className="h-full rounded-full" style={{ background: 'var(--gradient-gold)' }} initial={{ width: "0%" }} animate={{ width: `${progress}%` }} />
                     </div>
