@@ -32,8 +32,18 @@ export async function GET(req: Request) {
   const origin = req.headers.get("origin") || "";
 
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    // --- RESTORED LOGIC: CHECK BOTH HEADER AND COOKIE ---
+    const authHeader = req.headers.get("Authorization");
+// We use '|| null' at the end to ensure it's never 'undefined'
+let token: string | null = (authHeader && authHeader.startsWith("Bearer ")) 
+  ? authHeader.split(" ")[1] 
+  : null;
+
+if (!token) {
+  const cookieStore = await cookies();
+  // We add '|| null' here to fix the red squiggle!
+  token = cookieStore.get("token")?.value || null; 
+}
 
     if (!token) {
       return NextResponse.json(
@@ -68,7 +78,7 @@ export async function GET(req: Request) {
     }
 
     const user = await prisma.customer.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.userId.toString() },
       select: {
         id: true,
         name: true,

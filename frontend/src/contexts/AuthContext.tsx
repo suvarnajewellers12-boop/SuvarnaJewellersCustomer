@@ -25,7 +25,6 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   enrollScheme: (schemeData: any) => Promise<void>;
-  // 1. ADDED THIS LINE TO THE INTERFACE
   payInstallment: (customerSchemeId: string) => Promise<void>; 
 }
 
@@ -50,9 +49,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const token = localStorage.getItem("token"); // Get token for checkUser too
+        const token = localStorage.getItem("token");
+        
+        if (!token) {
+          setIsLoading(false);
+          setIsLoggedIn(false);
+          return;
+        }
+
         const res = await fetch(`${API_URL}/api/auth/me`, {
-          headers: { "Authorization": `Bearer ${token}` },
+          method: "GET",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
         });
 
         if (res.ok) {
@@ -60,6 +70,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (data.user) {
             setUser(data.user);
             setIsLoggedIn(true);
+          } else {
+            // If server says user is null, local token is invalid
+            localStorage.removeItem("token");
+            setIsLoggedIn(false);
           }
         }
       } catch (err) {
@@ -78,11 +92,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    setEnrolledSchemes([]);
-    localStorage.removeItem("token"); // Clear token on logout
-    window.location.href = "/login";
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      setUser(null);
+      setIsLoggedIn(false);
+      setEnrolledSchemes([]);
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
   };
 
   const enrollScheme = async (schemeData: any) => {
@@ -92,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // Use Header
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           schemeId: schemeData.id,
@@ -109,7 +132,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // 2. ADDED THIS FUNCTION TO HANDLE MONTHLY PAYMENTS
   const payInstallment = async (customerSchemeId: string) => {
     try {
       const token = localStorage.getItem("token");
@@ -127,7 +149,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(data.message || "Payment failed");
       }
 
-      // This tells the Dashboard to fetch fresh data from the server
       window.dispatchEvent(new Event("schemeUpdated")); 
     } catch (err: any) {
       console.error("Payment failed:", err.message);
@@ -146,7 +167,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         enrollScheme,
-        // 3. ADDED THIS TO THE PROVIDER VALUE
         payInstallment, 
       }}
     >
