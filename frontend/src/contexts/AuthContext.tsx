@@ -69,10 +69,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkUser();
   }, [API_URL]);
 
-  const login = (userData: User) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-  };
+  const login = (userData: any) => {
+  setUser(userData);
+  setIsLoggedIn(true);
+  // Do NOT call localStorage.clear() here!
+};
 
   const logout = async () => {
     try {

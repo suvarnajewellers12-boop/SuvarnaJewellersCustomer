@@ -58,9 +58,7 @@ const Login = () => {
         if (!response.ok) throw new Error(data.message || "Login failed");
 
         // ✅ THE FIX: Save the token to localStorage
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
+        localStorage.setItem("token", data.token);
 
         setVerified(true);
         setTimeout(() => {
