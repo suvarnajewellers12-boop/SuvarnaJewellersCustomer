@@ -24,12 +24,57 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
   const [stage, setStage] = useState<Stage>("summary");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("upi");
 
-  const handleProceed = () => {
-    setStage("processing");
-    // Simulate payment verification — replace this block with Razorpay SDK
-    setTimeout(() => {
-      setStage("success");
-    }, 2000);
+  const handleProceed = async () => {
+    try {
+      setStage("processing");
+
+      // 1. Create Order on the Backend
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: monthlyAmount }),
+      });
+
+      const orderData = await response.json();
+
+      if (!response.ok) throw new Error("Could not create order");
+
+      // 2. Configure Razorpay Options
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SQBmMDbmpm3m0D", // Use your Test Key ID here
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Suvarna Jewellers",
+        description: `Payment for ${schemeName}`,
+        order_id: orderData.orderId,
+        handler: function (response: any) {
+          // This runs when payment is successful!
+          console.log("Payment ID:", response.razorpay_payment_id);
+          setStage("success");
+        },
+        prefill: {
+          name: "Customer Name", // You can pass user.name from context here
+          contact: "9876543210",
+        },
+        theme: {
+          color: "#b8860b", // Your gold theme color
+        },
+        modal: {
+          ondismiss: function () {
+            setStage("summary"); // Go back if user closes popup
+          }
+        }
+      };
+
+      // 3. Open the Popup
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+
+    } catch (err) {
+      console.error("Payment Error:", err);
+      alert("Payment failed to initialize. Check console.");
+      setStage("summary");
+    }
   };
 
   const handleGoToDashboard = () => {
