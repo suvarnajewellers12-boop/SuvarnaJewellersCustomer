@@ -3,13 +3,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
-import { Sparkles } from "lucide-react";
+import { Sparkles, CalendarClock, CreditCard } from "lucide-react";
 
 const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
 const MySchemes = () => {
   const { enrolledSchemes } = useAuth();
   const navigate = useNavigate();
+
+  // Helper to handle payment navigation or modal
+  const handlePayment = (schemeId: string) => {
+    // You can navigate to a specific payment page or open your payment modal here
+    console.log("Processing payment for:", schemeId);
+  };
 
   return (
     <Layout>
@@ -50,6 +56,22 @@ const MySchemes = () => {
                 const goldAccumulated = scheme.monthlyAmount * scheme.installmentsPaid;
                 const remaining = scheme.durationMonths - scheme.installmentsPaid;
                 const status = remaining === 0 ? "Completed" : "Active";
+
+                // --- DATE LOCK LOGIC START ---
+                const today = new Date();
+                const start = new Date((scheme as any).startDate || new Date());
+                
+                // Calculate Next Due Date: Start Date + Current Number of Installments Paid
+                const nextDue = new Date(start);
+                nextDue.setMonth(nextDue.getMonth() + scheme.installmentsPaid);
+                
+                // Normalize dates to midnight for accurate day comparison
+                const todayCheck = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const dueCheck = new Date(nextDue.getFullYear(), nextDue.getMonth(), nextDue.getDate());
+                
+                const isPayable = todayCheck >= dueCheck && status !== "Completed";
+                const formattedDueDate = nextDue.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                // --- DATE LOCK LOGIC END ---
 
                 return (
                   <motion.div
@@ -118,10 +140,38 @@ const MySchemes = () => {
                         }} />
                       </motion.div>
                     </div>
-                    <div className="flex justify-between font-body text-xs text-muted-foreground relative">
+                    <div className="flex justify-between font-body text-xs text-muted-foreground relative mb-6">
                       <span>{scheme.installmentsPaid} of {scheme.durationMonths} months</span>
                       <span>{remaining} remaining</span>
                     </div>
+
+                    {/* Dynamic Action Button */}
+                    <motion.button
+                      whileHover={isPayable ? { scale: 1.02 } : {}}
+                      whileTap={isPayable ? { scale: 0.98 } : {}}
+                      onClick={() => isPayable && handlePayment(scheme.id)}
+                      disabled={!isPayable}
+                      className={`w-full py-4 rounded-xl font-display font-bold text-sm tracking-widest flex items-center justify-center gap-2 transition-all duration-500 relative z-20 ${
+                        status === "Completed"
+                          ? "bg-emerald/10 text-emerald border border-emerald/20 cursor-default"
+                          : isPayable
+                            ? "btn-gold shadow-lg shadow-gold/20"
+                            : "bg-pearl/50 text-muted-foreground/50 border border-gold/10 cursor-not-allowed opacity-70"
+                      }`}
+                    >
+                      {status === "Completed" ? (
+                        <>Scheme Matured</>
+                      ) : isPayable ? (
+                        <>
+                          <CreditCard className="w-4 h-4" /> Pay Now ({formatINR(scheme.monthlyAmount)})
+                        </>
+                      ) : (
+                        <>
+                          <CalendarClock className="w-4 h-4" /> Next Due: {formattedDueDate}
+                        </>
+                      )}
+                    </motion.button>
+
                   </motion.div>
                 );
               })}
