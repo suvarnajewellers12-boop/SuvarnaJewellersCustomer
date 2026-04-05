@@ -49,32 +49,27 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await loginUser(phone, password);
+    // Find this section in your Login POST function
+const user = await loginUser(phone, password);
 
-    const token = generateToken({
-      userId: user.id,
-      phone: user.phone,
-    });
+// Ensure we use String(user.id) to be safe
+const token = generateToken({
+  userId: String(user.id), 
+  phone: user.phone,
+});
 
-    const response = NextResponse.json(
-      {
-        message: "Login successful",
-        user: {
-          id: user.id,
-          name: user.name,
-          phone: user.phone,
-        },
-      },
-      {
-        status: 200,
-        headers: {
-          "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-            ? origin
-            : allowedOrigins[0],
-          "Access-Control-Allow-Credentials": "true",
-        },
-      }
-    );
+const response = NextResponse.json({
+  message: "Login successful",
+  token, // ✅ CRITICAL: Make sure the token is actually in the JSON body!
+  user: {
+    id: String(user.id),
+    name: user.name,
+    phone: user.phone,
+  },
+}, { 
+  status: 200,
+  headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+});
 
     response.cookies.set("token", token, {
       httpOnly: true,

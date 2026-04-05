@@ -11,17 +11,21 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 const getSchemeDetails = (scheme: Scheme) => {
-  const enrolledDate = new Date(scheme.enrolledDate || Date.now());
+  // Use 'scheme.enrolledDate' if exists, otherwise fallback to 'startDate' or current time
+  const enrolledDate = new Date((scheme as any).enrolledDate || (scheme as any).startDate || Date.now());
+  
+  // Calculate the most recent payment date
   const lastPaymentDate = new Date(enrolledDate);
   lastPaymentDate.setMonth(lastPaymentDate.getMonth() + (scheme.installmentsPaid || 1) - 1);
 
   const nextDueDate = new Date(enrolledDate);
-  nextDueDate.setMonth(nextDueDate.getMonth() + (scheme.installmentsPaid || 1));
+  nextDueDate.setMonth(nextDueDate.getMonth() + (scheme.installmentsPaid || 0));
 
   const isCompleted = (scheme.installmentsPaid || 0) >= (scheme.durationMonths || 1);
   const isDue = !isCompleted;
 
   return {
+    // This is the line that was missing!
     lastPaymentDate: lastPaymentDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     nextDueDate: nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     amountDue: scheme.monthlyAmount,
