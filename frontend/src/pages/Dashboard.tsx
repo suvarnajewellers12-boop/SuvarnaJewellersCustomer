@@ -48,11 +48,24 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
   const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
 
   // SUCCESS HANDLER FOR DASHBOARD INSTALLMENTS
+  const { payInstallment } = useAuth(); // Make sure you take this from useAuth
+
   const handleInstallmentSuccess = async () => {
-    setIsPaying(false);
-    onClose();
-    // Refresh to show the incremented installment in the UI
-    window.location.reload();
+    try {
+      // 1. Call the NEW payment function we added to AuthContext
+      await payInstallment(scheme.id); 
+      
+      // 2. Alert the user with the correct message
+      alert(`Payment for Month ${scheme.installmentsPaid + 1} was successful!`);
+      
+      setIsPaying(false);
+      onClose();
+      
+      // 3. Refresh data (without logging out!)
+      window.location.reload(); 
+    } catch (err) {
+      alert("Payment failed. Please try again.");
+    }
   };
 
   return (
