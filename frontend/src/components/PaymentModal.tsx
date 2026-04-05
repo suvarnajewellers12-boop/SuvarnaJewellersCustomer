@@ -47,7 +47,7 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
       <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={stage === "summary" ? onClose : undefined} />
 
       <AnimatePresence mode="wait">
-        {/* ─── STAGE 1: Payment Summary ─── */}
+        {/* ─── STAGE 1: Payment Summary (RESTORED FULL VERSION) ─── */}
         {stage === "summary" && (
           <motion.div
             key="summary"
@@ -79,7 +79,9 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
                 border: "1px solid hsla(43, 80%, 55%, 0.2)",
               }}>
                 <div className="flex justify-between items-center">
-                  <span className="font-body text-sm text-muted-foreground">First Installment</span>
+                  <span className="font-body text-sm text-muted-foreground">
+                    {window.location.pathname.includes('dashboard') ? "Monthly Installment" : "First Installment"}
+                  </span>
                   <span className="font-display text-2xl font-bold" style={{ color: "hsl(var(--gold-dark))" }}>
                     {formatINR(monthlyAmount)}
                   </span>
@@ -123,7 +125,7 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
                 ))}
               </div>
 
-              {/* Proceed button — replace onClick with Razorpay integration */}
+              {/* Proceed button */}
               <button
                 onClick={handleProceed}
                 className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2"
@@ -138,7 +140,7 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
           </motion.div>
         )}
 
-        {/* ─── STAGE 2: Processing ─── */}
+        {/* ─── STAGE 2: Processing (RESTORED FULL VERSION) ─── */}
         {stage === "processing" && (
           <motion.div
             key="processing"
@@ -197,7 +199,7 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
           </motion.div>
         )}
 
-        {/* ─── STAGE 3: Success ─── */}
+        {/* ─── STAGE 3: Success (RESTORED FULL VERSION WITH FIX) ─── */}
         {stage === "success" && (
           <motion.div
             key="success"
@@ -244,14 +246,17 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
             >
               Payment Successful
             </motion.h3>
+            
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.45 }}
               className="font-body text-sm text-muted-foreground mb-2"
             >
-              You are now enrolled in
+              {/* DYNAMIC TEXT RESTORED */}
+              {window.location.pathname.includes('dashboard') ? "Your installment has been received for" : "You are now enrolled in"}
             </motion.p>
+            
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -19,6 +19,7 @@ const getSchemeDetails = (scheme: Scheme) => {
   const duration = scheme.durationMonths || 1;
 
   const lastPaymentDate = new Date(enrolledDate);
+  // Fixed: Changed .setMonth() to .getMonth() inside the parenthesis
   lastPaymentDate.setMonth(lastPaymentDate.getMonth() + (installments > 0 ? installments - 1 : 0));
 
   const nextDueDate = new Date(enrolledDate);
