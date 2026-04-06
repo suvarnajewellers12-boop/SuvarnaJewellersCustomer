@@ -53,36 +53,34 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
         name: "Suvarna Jewellers",
         description: `Payment for ${schemeName}`,
         order_id: orderData.orderId,
-        handler: async function (response: any) {
-          // Log to your browser console so you can see if the ID is correct
-          console.log("DEBUG: Verifying for User:", currentUserId);
+        // Inside the 'handler' function of your Razorpay options:
+handler: async function (response: any) {
+  console.log("DEBUG: Verifying for User:", currentUserId);
 
-          const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/verify`, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              // ADD THIS LINE BELOW to help the backend identify you
-              "Authorization": `Bearer ${localStorage.getItem("token")}`
-            },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              schemeId: schemeId,
-              userId: currentUserId, // This must be the UUID from your DB
-            }),
-          });
+  const verifyRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payments/verify`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("token")}` // Send token for security
+    },
+    body: JSON.stringify({
+      razorpay_order_id: response.razorpay_order_id,
+      razorpay_payment_id: response.razorpay_payment_id,
+      razorpay_signature: response.razorpay_signature,
+      schemeId: schemeId,
+      userId: currentUserId,
+    }),
+  });
 
-          if (verifyRes.ok) {
-            setStage("success");
-            // Refresh the page data so the user sees the update
-            window.dispatchEvent(new Event("schemeUpdated"));
-          } else {
-            const errorData = await verifyRes.json();
-            console.error("Verification failed:", errorData.message);
-            alert("Payment successful but database update failed. Please refresh.");
-          }
-        },
+  if (verifyRes.ok) {
+    setStage("success");
+    window.dispatchEvent(new Event("schemeUpdated"));
+  } else {
+    const errorData = await verifyRes.json();
+    console.error("Verification failed:", errorData.message);
+    alert("Payment verified but database update failed. Please refresh your dashboard.");
+  }
+},
         prefill: {
           name: "Customer Name", // You can pass user.name from context here
           contact: "9876543210",

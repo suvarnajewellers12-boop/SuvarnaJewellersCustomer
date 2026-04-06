@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       userId 
     } = await req.json();
 
-    // 1. Security Check
+    // 1. Security Check: Generate the HMAC signature to verify authenticity
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
@@ -39,8 +39,7 @@ export async function POST(req: Request) {
       .digest("hex");
 
     if (expectedSignature === razorpay_signature) {
-      // 2. Database Update
-      // We use updateMany because customerId + schemeId identifies the enrollment
+      // 2. Database Update: Use 'customerScheme' as defined in schema.prisma
       const result = await prisma.customerScheme.updateMany({
         where: {
           customerId: userId,
@@ -48,15 +47,18 @@ export async function POST(req: Request) {
         },
         data: {
           installmentsPaid: { increment: 1 },
-          // We also need to decrease installmentsLeft and increase totalPaid
           installmentsLeft: { decrement: 1 },
-          totalPaid: { increment: 1000 } // Or use dynamic amount
+          totalPaid: { increment: 1000 }, // Note: Adjust if you pass dynamic monthlyAmount
         },
       });
 
+      // 3. Verify that a row was actually updated
       if (result.count === 0) {
         console.error("No enrollment found for User:", userId, "Scheme:", schemeId);
-        return NextResponse.json({ message: "Enrollment record not found" }, { status: 404 });
+        return NextResponse.json({ message: "Enrollment record not found" }, { 
+          status: 404,
+          headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+        });
       }
 
       return NextResponse.json({ message: "Payment verified and saved!" }, { 
@@ -67,10 +69,16 @@ export async function POST(req: Request) {
         }
       });
     } else {
-      return NextResponse.json({ message: "Invalid signature!" }, { status: 400 });
+      return NextResponse.json({ message: "Invalid signature!" }, { 
+        status: 400,
+        headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+      });
     }
   } catch (error) {
     console.error("Verification Error:", error);
-    return NextResponse.json({ message: "Server Error" }, { status: 500 });
+    return NextResponse.json({ message: "Server Error" }, { 
+      status: 500,
+      headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+    });
   }
 }
