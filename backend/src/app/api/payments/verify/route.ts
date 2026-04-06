@@ -22,10 +22,15 @@ export async function OPTIONS(req: Request) {
 
 export async function POST(req: Request) {
   const origin = req.headers.get("origin") || "";
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+    "Access-Control-Allow-Credentials": "true",
+  };
+
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, schemeId, userId } = await req.json();
 
-    // 1. Security Check: HMAC SHA256 Signature Verification
+    // 1. Signature Verification
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
@@ -33,54 +38,44 @@ export async function POST(req: Request) {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
-      return NextResponse.json({ message: "Invalid signature" }, { status: 400 });
+      return NextResponse.json({ message: "Invalid signature" }, { status: 400, headers: corsHeaders });
     }
 
-    // 2. Database Action: Check if Enrollment exists
-    const existingEnrollment = await prisma.customerScheme.findFirst({
-      where: { 
-        customerId: userId, 
-        schemeId: schemeId 
-      }
+    // 2. SMART LOGIC: Find existing enrollment
+    const existing = await prisma.customerScheme.findFirst({
+      where: { customerId: userId, schemeId: schemeId }
     });
 
-    if (existingEnrollment) {
-      // IF ENROLLED: Update existing record (Monthly Installment)
+    if (existing) {
+      // If already enrolled, just INCREMENT (Fixes the double-show issue!)
       await prisma.customerScheme.update({
-        where: { id: existingEnrollment.id },
+        where: { id: existing.id },
         data: {
           installmentsPaid: { increment: 1 },
+          totalPaid: { increment: 1000 },
           installmentsLeft: { decrement: 1 },
-          totalPaid: { increment: 1000 }, // Change to dynamic amount if needed
         },
       });
     } else {
-      // IF NOT ENROLLED: Create NEW record (First Enrollment)
+      // Only CREATE if it's truly the first time
       await prisma.customerScheme.create({
         data: {
           id: crypto.randomUUID(),
           customerId: userId,
           schemeId: schemeId,
-          startDate: new Date(),
           installmentsPaid: 1,
           totalPaid: 1000,
-          remainingAmount: 10000, // Replace with your scheme logic
-          installmentsLeft: 10,   // Replace with your scheme logic
+          remainingAmount: 10000,
+          installmentsLeft: 10,
           isCompleted: false,
         }
       });
     }
 
-    return NextResponse.json({ message: "Success!" }, { 
-      status: 200,
-      headers: { 
-        "Access-Control-Allow-Origin": origin, 
-        "Access-Control-Allow-Credentials": "true" 
-      }
-    });
+    return NextResponse.json({ message: "Success" }, { status: 200, headers: corsHeaders });
 
   } catch (error) {
-    console.error("Critical Verify Error:", error);
-    return NextResponse.json({ message: "Server Error" }, { status: 500 });
+    console.error("Verify Error:", error);
+    return NextResponse.json({ message: "Server Error" }, { status: 500, headers: corsHeaders });
   }
 }
