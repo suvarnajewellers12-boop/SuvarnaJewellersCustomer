@@ -196,6 +196,7 @@ const Schemes = () => {
       <AnimatePresence>
         {paymentScheme && (
           <PaymentModal
+            schemeId={paymentScheme.id}
             schemeName={paymentScheme.name}
             monthlyAmount={paymentScheme.monthlyAmount}
             onSuccess={handlePaymentSuccess}

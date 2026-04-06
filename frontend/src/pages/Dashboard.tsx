@@ -75,6 +75,7 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
         /* --- DUMMY PAYMENT SCREEN ADDED HERE --- */
         <PaymentModal
           key="payment-step"
+          schemeId={scheme.id}
           schemeName={scheme.name}
           monthlyAmount={scheme.monthlyAmount}
           onSuccess={handleInstallmentSuccess}
