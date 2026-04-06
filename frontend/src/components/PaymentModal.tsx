@@ -57,33 +57,41 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
 // Inside your PaymentModal's handleProceed function, update the 'options.handler':
 
 handler: async function (response: any) {
-  console.log("DEBUG: Finalizing payment for:", currentUserId);
+          console.log("DEBUG: Finalizing payment for UUID:", currentUserId);
 
-  const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/verify`, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("token")}`
-    },
-    body: JSON.stringify({
-      razorpay_order_id: response.razorpay_order_id,
-      razorpay_payment_id: response.razorpay_payment_id,
-      razorpay_signature: response.razorpay_signature,
-      schemeId: schemeId,
-      userId: currentUserId,
-    }),
-  });
+          // HARDCODED BACKEND URL TO FIX 'UNDEFINED' ERROR
+          const backendUrl = "https://suvarna-jewellers-customer-backend.vercel.app";
 
-  if (verifyRes.ok) {
-    setStage("success");
-    // Refresh the local data so the dashboard updates immediately
-    window.dispatchEvent(new Event("schemeUpdated"));
-  } else {
-    const errorData = await verifyRes.json();
-    console.error("Verification failed:", errorData.message);
-    alert("Payment successful but database failed to update. Please refresh your dashboard.");
-  }
-},
+          try {
+            const verifyRes = await fetch(`${backendUrl}/api/payments/verify`, {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${localStorage.getItem("token")}`
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                schemeId: schemeId,
+                userId: currentUserId,
+              }),
+            });
+
+            if (verifyRes.ok) {
+              setStage("success");
+              // This triggers the dashboard to refresh the gold counts
+              window.dispatchEvent(new Event("schemeUpdated"));
+            } else {
+              const errorText = await verifyRes.text();
+              console.error("Verification failed server response:", errorText);
+              alert("Payment successful! Please refresh your dashboard to see updates.");
+            }
+          } catch (err) {
+            console.error("Fetch Error:", err);
+            alert("Connection error. Please check your internet and refresh.");
+          }
+        },
         prefill: {
           name: "Customer Name", // You can pass user.name from context here
           contact: "9876543210",
