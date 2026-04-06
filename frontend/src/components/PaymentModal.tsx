@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CreditCard, Smartphone, Landmark, CheckCircle2, X, Shield } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 interface PaymentModalProps {
+  schemeId: string; // Add this line
   schemeName: string;
   monthlyAmount: number;
   onSuccess: () => void;
@@ -20,7 +22,11 @@ const paymentMethods: { id: PaymentMethod; label: string; icon: typeof CreditCar
   { id: "netbanking", label: "Net Banking", icon: Landmark, desc: "All major banks" },
 ];
 
-const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: PaymentModalProps) => {
+const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose }: PaymentModalProps) => {
+  // MOVED INSIDE THE COMPONENT
+  const { user } = useAuth(); 
+  const currentUserId = user?.id;
+
   const [stage, setStage] = useState<Stage>("summary");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("upi");
 
@@ -47,10 +53,35 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
         name: "Suvarna Jewellers",
         description: `Payment for ${schemeName}`,
         order_id: orderData.orderId,
-        handler: function (response: any) {
-          // This runs when payment is successful!
-          console.log("Payment ID:", response.razorpay_payment_id);
-          setStage("success");
+        handler: async function (response: any) {
+          // Log to your browser console so you can see if the ID is correct
+          console.log("DEBUG: Verifying for User:", currentUserId);
+
+          const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/verify`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              // ADD THIS LINE BELOW to help the backend identify you
+              "Authorization": `Bearer ${localStorage.getItem("token")}`
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              schemeId: schemeId,
+              userId: currentUserId, // This must be the UUID from your DB
+            }),
+          });
+
+          if (verifyRes.ok) {
+            setStage("success");
+            // Refresh the page data so the user sees the update
+            window.dispatchEvent(new Event("schemeUpdated"));
+          } else {
+            const errorData = await verifyRes.json();
+            console.error("Verification failed:", errorData.message);
+            alert("Payment successful but database update failed. Please refresh.");
+          }
         },
         prefill: {
           name: "Customer Name", // You can pass user.name from context here
@@ -193,7 +224,7 @@ const PaymentModal = ({ schemeName, monthlyAmount, onSuccess, onClose }: Payment
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4 }}
-            className="relative z-10 w-full max-w-sm rounded-3xl p-10 flex flex-col items-center text-center"
+            className="relative z-10 w-full max-sm rounded-3xl p-10 flex flex-col items-center text-center"
             style={{
               background: "linear-gradient(170deg, hsl(40, 28%, 96%) 0%, hsl(38, 22%, 91%) 100%)",
               boxShadow: "0 25px 60px -15px hsla(38, 50%, 30%, 0.35)",
