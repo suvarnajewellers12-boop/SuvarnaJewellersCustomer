@@ -23,62 +23,64 @@ export async function OPTIONS(req: Request) {
 export async function POST(req: Request) {
   const origin = req.headers.get("origin") || "";
   try {
-    const { 
-      razorpay_order_id, 
-      razorpay_payment_id, 
-      razorpay_signature,
-      schemeId,
-      userId 
-    } = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, schemeId, userId } = await req.json();
 
-    // 1. Security Check: Generate the HMAC signature to verify authenticity
+    // 1. Security Check: HMAC SHA256 Signature Verification
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(body.toString())
       .digest("hex");
 
-    if (expectedSignature === razorpay_signature) {
-      // 2. Database Update: Use 'customerScheme' as defined in schema.prisma
-      const result = await prisma.customerScheme.updateMany({
-        where: {
-          customerId: userId,
-          schemeId: schemeId,
-        },
+    if (expectedSignature !== razorpay_signature) {
+      return NextResponse.json({ message: "Invalid signature" }, { status: 400 });
+    }
+
+    // 2. Database Action: Check if Enrollment exists
+    const existingEnrollment = await prisma.customerScheme.findFirst({
+      where: { 
+        customerId: userId, 
+        schemeId: schemeId 
+      }
+    });
+
+    if (existingEnrollment) {
+      // IF ENROLLED: Update existing record (Monthly Installment)
+      await prisma.customerScheme.update({
+        where: { id: existingEnrollment.id },
         data: {
           installmentsPaid: { increment: 1 },
           installmentsLeft: { decrement: 1 },
-          totalPaid: { increment: 1000 }, // Note: Adjust if you pass dynamic monthlyAmount
+          totalPaid: { increment: 1000 }, // Change to dynamic amount if needed
         },
       });
-
-      // 3. Verify that a row was actually updated
-      if (result.count === 0) {
-        console.error("No enrollment found for User:", userId, "Scheme:", schemeId);
-        return NextResponse.json({ message: "Enrollment record not found" }, { 
-          status: 404,
-          headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
-        });
-      }
-
-      return NextResponse.json({ message: "Payment verified and saved!" }, { 
-        status: 200,
-        headers: {
-          "Access-Control-Allow-Origin": origin,
-          "Access-Control-Allow-Credentials": "true",
+    } else {
+      // IF NOT ENROLLED: Create NEW record (First Enrollment)
+      await prisma.customerScheme.create({
+        data: {
+          id: crypto.randomUUID(),
+          customerId: userId,
+          schemeId: schemeId,
+          startDate: new Date(),
+          installmentsPaid: 1,
+          totalPaid: 1000,
+          remainingAmount: 10000, // Replace with your scheme logic
+          installmentsLeft: 10,   // Replace with your scheme logic
+          isCompleted: false,
         }
       });
-    } else {
-      return NextResponse.json({ message: "Invalid signature!" }, { 
-        status: 400,
-        headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
-      });
     }
-  } catch (error) {
-    console.error("Verification Error:", error);
-    return NextResponse.json({ message: "Server Error" }, { 
-      status: 500,
-      headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+
+    return NextResponse.json({ message: "Success!" }, { 
+      status: 200,
+      headers: { 
+        "Access-Control-Allow-Origin": origin, 
+        "Access-Control-Allow-Credentials": "true" 
+      }
     });
+
+  } catch (error) {
+    console.error("Critical Verify Error:", error);
+    return NextResponse.json({ message: "Server Error" }, { status: 500 });
   }
 }

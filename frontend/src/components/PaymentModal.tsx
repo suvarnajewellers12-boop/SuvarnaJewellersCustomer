@@ -54,14 +54,16 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
         description: `Payment for ${schemeName}`,
         order_id: orderData.orderId,
         // Inside the 'handler' function of your Razorpay options:
+// Inside your PaymentModal's handleProceed function, update the 'options.handler':
+
 handler: async function (response: any) {
-  console.log("DEBUG: Verifying for User:", currentUserId);
+  console.log("DEBUG: Finalizing payment for:", currentUserId);
 
   const verifyRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payments/verify`, {
     method: "POST",
     headers: { 
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("token")}` // Send token for security
+      "Authorization": `Bearer ${localStorage.getItem("token")}`
     },
     body: JSON.stringify({
       razorpay_order_id: response.razorpay_order_id,
@@ -74,11 +76,12 @@ handler: async function (response: any) {
 
   if (verifyRes.ok) {
     setStage("success");
+    // Refresh the local data so the dashboard updates immediately
     window.dispatchEvent(new Event("schemeUpdated"));
   } else {
     const errorData = await verifyRes.json();
     console.error("Verification failed:", errorData.message);
-    alert("Payment verified but database update failed. Please refresh your dashboard.");
+    alert("Payment successful but database failed to update. Please refresh your dashboard.");
   }
 },
         prefill: {
