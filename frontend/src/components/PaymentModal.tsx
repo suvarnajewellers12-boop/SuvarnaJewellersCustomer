@@ -59,7 +59,7 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
 handler: async function (response: any) {
   console.log("DEBUG: Finalizing payment for:", currentUserId);
 
-  const verifyRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payments/verify`, {
+  const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/verify`, {
     method: "POST",
     headers: { 
       "Content-Type": "application/json",
