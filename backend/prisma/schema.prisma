@@ -44,7 +44,7 @@ model CustomerScheme {
   Scheme           Scheme   @relation(fields: [schemeId], references: [id])
 
   @@unique([customerId, schemeId])
-
+}
 model GoldJobWork {
   id                String    @id
   companyName       String
