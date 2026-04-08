@@ -42,9 +42,51 @@ export async function POST(req: Request) {
     }
 
     // 2. SMART LOGIC: Find existing enrollment
-    const existing = await prisma.customerScheme.findFirst({
-      where: { customerId: userId, schemeId: schemeId }
-    });
+  
+const existing = await prisma.customerScheme.findFirst({
+  where: {
+    customerId: userId,
+    schemeId: schemeId,
+  },
+});
+
+const scheme = await prisma.scheme.findUnique({
+  where: { id: schemeId },
+});
+
+if (!scheme) {
+  return NextResponse.json(
+    { message: "Scheme not found" },
+    { status: 404, headers: corsHeaders }
+  );
+}
+
+if (existing) {
+  await prisma.customerScheme.update({
+    where: { id: existing.id },
+    data: {
+      installmentsPaid: { increment: 1 },
+      totalPaid: { increment: scheme.monthlyAmount },
+      remainingAmount: { decrement: scheme.monthlyAmount },
+      installmentsLeft: { decrement: 1 },
+    },
+  });
+} else {
+  await prisma.customerScheme.create({
+    data: {
+      id: crypto.randomUUID(),
+      customerId: userId,
+      schemeId: schemeId,
+      installmentsPaid: 1,
+      totalPaid: scheme.monthlyAmount,
+      remainingAmount:
+        scheme.monthlyAmount * scheme.durationMonths - scheme.monthlyAmount,
+      installmentsLeft: scheme.durationMonths - 1,
+      isCompleted: false,
+    },
+  });
+}
+
 
     if (existing) {
       // If already enrolled, just INCREMENT (Fixes the double-show issue!)

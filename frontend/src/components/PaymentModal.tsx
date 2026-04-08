@@ -78,11 +78,7 @@ handler: async function (response: any) {
               }),
             });
 
-            if (verifyRes.ok) {
-              setStage("success");
-              // This triggers the dashboard to refresh the gold counts
-              window.dispatchEvent(new Event("schemeUpdated"));
-            } else {
+            if (verifyRes.ok) { window.dispatchEvent(new Event("schemeUpdated")); setStage("success"); } else {
               const errorText = await verifyRes.text();
               console.error("Verification failed server response:", errorText);
               alert("Payment successful! Please refresh your dashboard to see updates.");

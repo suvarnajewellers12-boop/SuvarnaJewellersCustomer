@@ -63,7 +63,8 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
       onClose();
       
       // 3. Refresh data (without logging out!)
-      window.location.reload(); 
+    
+window.dispatchEvent(new Event("schemeUpdated"));
     } catch (err) {
       alert("Payment failed. Please try again.");
     }
@@ -75,7 +76,7 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
         /* --- DUMMY PAYMENT SCREEN ADDED HERE --- */
         <PaymentModal
           key="payment-step"
-          schemeId={scheme.id}
+          schemeId={(scheme as any).schemeId}
           schemeName={scheme.name}
           monthlyAmount={scheme.monthlyAmount}
           onSuccess={handleInstallmentSuccess}
@@ -236,14 +237,18 @@ const Dashboard = () => {
 
         if (res.ok) {
           const data = await res.json();
-          const formatted = data.schemes.map((s: any) => ({
-            id: s.id,
-            name: s.Scheme?.name || "Active Scheme",
-            monthlyAmount: s.Scheme?.monthlyAmount || 0,
-            durationMonths: s.Scheme?.durationMonths || 11,
-            enrolledDate: s.startDate,
-            installmentsPaid: s.installmentsPaid,
-          }));
+          
+const formatted = data.schemes.map((s: any) => ({
+  id: s.id,
+  schemeId: s.schemeId,
+  name: s.Scheme?.name || "Active Scheme",
+  monthlyAmount: s.Scheme?.monthlyAmount || 0,
+  durationMonths: s.Scheme?.durationMonths || 11,
+  enrolledDate: s.startDate,
+  installmentsPaid: s.installmentsPaid,
+}));
+
+
           setEnrolledSchemes(formatted);
         } else if (res.status === 401) {
           console.error("Server says: You are not logged in (Unauthorized)");
@@ -255,7 +260,19 @@ const Dashboard = () => {
       }
     };
 
-    if (user) { fetchSchemes(); }
+    
+if (user) {
+  fetchSchemes();
+
+  const refresh = () => fetchSchemes();
+
+  window.addEventListener("schemeUpdated", refresh);
+
+  return () => {
+    window.removeEventListener("schemeUpdated", refresh);
+  };
+}
+
   }, [user, setEnrolledSchemes, API_URL]);
 
   if (authLoading || fetching) {

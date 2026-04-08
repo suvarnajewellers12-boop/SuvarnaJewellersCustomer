@@ -42,7 +42,8 @@ model CustomerScheme {
   startDate        DateTime @default(now())
   Customer         Customer @relation(fields: [customerId], references: [id])
   Scheme           Scheme   @relation(fields: [schemeId], references: [id])
-}
+
+  @@unique([customerId, schemeId])
 
 model GoldJobWork {
   id                String    @id
@@ -111,6 +112,8 @@ model Product {
   netWeight       Float          @default(0)
   quantity        Int            @default(1)
   stoneWeight     Float          @default(0)
+  branchName      String         @default("Gajuwaka")
+  va              Float          @default(2.5)
   PurchaseItem    PurchaseItem[]
 }
 
@@ -139,6 +142,13 @@ model Purchase {
   purchasedAt    DateTime       @default(now())
   adminId        String?
   superAdminId   String?
+  customerEmail  String?
+  district       String?
+  doorNo         String?
+  mandal         String?
+  pincode        String?
+  state          String?        @default("Andhra Pradesh")
+  village        String?
   Admin          Admin?         @relation(fields: [adminId], references: [id])
   SuperAdmin     SuperAdmin?    @relation(fields: [superAdminId], references: [id])
   PurchaseItem   PurchaseItem[]
