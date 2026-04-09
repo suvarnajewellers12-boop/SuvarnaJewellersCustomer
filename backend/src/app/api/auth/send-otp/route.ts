@@ -1,9 +1,34 @@
+
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 const allowedOrigins = [
   "https://suvarnajewellers.in",
   "https://www.suvarnajewellers.in",
 ];
+
+function getCorsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
+      ? origin
+      : allowedOrigins[0],
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get("origin") || "";
+
+  return new NextResponse(null, {
+    status: 200,
+    headers: getCorsHeaders(origin),
+  });
+}
 
 export async function POST(req: Request) {
   const origin = req.headers.get("origin") || "";
@@ -16,12 +41,7 @@ export async function POST(req: Request) {
         { message: "Phone required" },
         {
           status: 400,
-          headers: {
-            "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-              ? origin
-              : allowedOrigins[0],
-            "Access-Control-Allow-Credentials": "true",
-          },
+          headers: getCorsHeaders(origin),
         }
       );
     }
@@ -41,18 +61,18 @@ export async function POST(req: Request) {
     const data = await response.json();
 
     return NextResponse.json(data, {
-      status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-          ? origin
-          : allowedOrigins[0],
-        "Access-Control-Allow-Credentials": "true",
-      },
+      status: response.status,
+      headers: getCorsHeaders(origin),
     });
-  } catch {
+  } catch (error: any) {
     return NextResponse.json(
-      { message: "OTP send failed" },
-      { status: 500 }
+      {
+        message: error.message || "OTP send failed",
+      },
+      {
+        status: 500,
+        headers: getCorsHeaders(origin),
+      }
     );
   }
 }
