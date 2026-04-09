@@ -89,12 +89,7 @@ const Schemes = () => {
 
   const handlePaymentSuccess = async () => {
     if (paymentScheme) {
-      await enrollScheme({
-        id: paymentScheme.id,
-        name: paymentScheme.name,
-        monthlyAmount: paymentScheme.monthlyAmount,
-        durationMonths: paymentScheme.durationMonths,
-      });
+      window.dispatchEvent(new Event("schemeUpdated"));
 
       setPaymentScheme(null);
       navigate("/dashboard");

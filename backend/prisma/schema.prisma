@@ -42,9 +42,8 @@ model CustomerScheme {
   startDate        DateTime @default(now())
   Customer         Customer @relation(fields: [customerId], references: [id])
   Scheme           Scheme   @relation(fields: [schemeId], references: [id])
-
-  @@unique([customerId, schemeId])
 }
+
 model GoldJobWork {
   id                String    @id
   companyName       String
@@ -98,20 +97,20 @@ model Product {
   id              String         @id
   name            String
   metalType       String
-  grams           Float
   carats          String
-  manufactureDate DateTime
-  uniqueCode      String         @unique
-  isSold          Boolean        @default(false)
-  createdAt       DateTime       @default(now())
-  soldAt          DateTime?
-  sku             String         @unique
-  bodyPart        String         @default("others")
   category        String         @default("others")
-  huid            String?
+  bodyPart        String         @default("others")
+  grams           Float
+  stoneWeight     Float          @default(0)
   netWeight       Float          @default(0)
   quantity        Int            @default(1)
-  stoneWeight     Float          @default(0)
+  huid            String?
+  uniqueCode      String         @unique
+  sku             String         @unique
+  isSold          Boolean        @default(false)
+  manufactureDate DateTime
+  createdAt       DateTime       @default(now())
+  soldAt          DateTime?
   branchName      String         @default("Gajuwaka")
   va              Float          @default(2.5)
   PurchaseItem    PurchaseItem[]
@@ -123,15 +122,17 @@ model ProductImgs {
   description String?
   weight      Float
   image       Bytes
-  createdAt   DateTime @default(now())
-  metalType   String   @default("gold")
   mimeType    String   @default("image/jpeg")
+  metalType   String   @default("gold")
   carats      String   @default("24k")
+  createdAt   DateTime @default(now())
 }
 
 model Purchase {
   id             String         @id
   customerName   String
+  emailid        String?
+  Address        String?
   totalAmount    Float
   gstAmount      Float
   discountAmount Float
@@ -142,13 +143,6 @@ model Purchase {
   purchasedAt    DateTime       @default(now())
   adminId        String?
   superAdminId   String?
-  customerEmail  String?
-  district       String?
-  doorNo         String?
-  mandal         String?
-  pincode        String?
-  state          String?        @default("Andhra Pradesh")
-  village        String?
   Admin          Admin?         @relation(fields: [adminId], references: [id])
   SuperAdmin     SuperAdmin?    @relation(fields: [superAdminId], references: [id])
   PurchaseItem   PurchaseItem[]
