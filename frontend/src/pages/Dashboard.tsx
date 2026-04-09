@@ -49,17 +49,16 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
   const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
 
   // SUCCESS HANDLER FOR DASHBOARD INSTALLMENTS
-  const { payInstallment } = useAuth(); // Make sure you take this from useAuth
+  const { } = useAuth(); // Make sure you take this from useAuth
 
-  const handleInstallmentSuccess = async () => {
+ const handleInstallmentSuccess = async () => {
   try {
     const currentMonth = scheme.installmentsPaid + 1;
-
-    await payInstallment(scheme.id);
 
     alert(`Payment for Month ${currentMonth} was successful!`);
 
     window.dispatchEvent(new Event("schemeUpdated"));
+
     setIsPaying(false);
     onClose();
   } catch (err) {
