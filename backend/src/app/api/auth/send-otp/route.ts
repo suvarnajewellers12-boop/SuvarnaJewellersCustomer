@@ -55,10 +55,14 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         mobile: `91${phone}`,
         template_id: process.env.MSG91_TEMPLATE_ID,
+        otp_length: 6,
+        otp_expiry: 5,
       }),
     });
 
     const data = await response.json();
+
+    console.log("MSG91 Response:", data);
 
     return NextResponse.json(data, {
       status: response.status,

@@ -56,21 +56,23 @@ export async function POST(req: Request) {
       phone: user.phone,
     });
 
-    const response = NextResponse.json(
-      {
-        message: "Signup successful",
-        user,
-      },
-      {
-        status: 201,
-        headers: {
-          "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
-            ? origin
-            : allowedOrigins[0],
-          "Access-Control-Allow-Credentials": "true",
-        },
-      }
-    );
+const response = NextResponse.json(
+  {
+    message: "Signup successful",
+    token,
+    user,
+  },
+  {
+    status: 201,
+    headers: {
+      "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
+        ? origin
+        : allowedOrigins[0],
+      "Access-Control-Allow-Credentials": "true",
+    },
+  }
+);
+
 
     response.cookies.set("token", token, {
       httpOnly: true,
