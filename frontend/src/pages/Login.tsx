@@ -310,7 +310,7 @@ const handleSubmitForm = async (e: React.FormEvent) => {
                 {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
                 <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Verify OTP</button>
                 <button type="button" onClick={() => { setOtpSent(false); setOtp(["", "", "", "", "", ""]); setError(""); }} className="w-full text-center font-body text-sm text-gold-dark hover:underline">Change number</button>
-                <p className="font-body text-xs text-muted-foreground text-center">Hint: Use <span className="font-semibold text-foreground">123456</span> as OTP</p>
+                <p className="font-body text-xs text-muted-foreground text-center"> Enter OTP sent to your mobile </p>
               </motion.form>
             )}
           </div>

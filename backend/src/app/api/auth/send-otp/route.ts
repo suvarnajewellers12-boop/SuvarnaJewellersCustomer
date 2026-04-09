@@ -10,6 +10,8 @@ const allowedOrigins = [
   "https://www.suvarnajewellers.in",
 ];
 
+const otpStore = new Map<string, string>();
+
 function getCorsHeaders(origin: string) {
   return {
     "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
@@ -46,28 +48,42 @@ export async function POST(req: Request) {
       );
     }
 
-    const response = await fetch("https://control.msg91.com/api/v5/otp", {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    otpStore.set(phone, otp);
+
+    const response = await fetch("https://control.msg91.com/api/v5/flow/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         authkey: process.env.MSG91_AUTH_KEY!,
       },
       body: JSON.stringify({
-        mobile: `91${phone}`,
         template_id: process.env.MSG91_TEMPLATE_ID,
-        otp_length: 6,
-        otp_expiry: 5,
+        short_url: "0",
+        recipients: [
+          {
+            mobiles: `91${phone}`,
+            OTP: otp,
+          },
+        ],
       }),
     });
 
     const data = await response.json();
 
-    console.log("MSG91 Response:", data);
+    console.log("Generated OTP:", otp);
+    console.log("MSG91 FLOW Response:", data);
 
-    return NextResponse.json(data, {
-      status: response.status,
-      headers: getCorsHeaders(origin),
-    });
+    return NextResponse.json(
+      {
+        message: "OTP sent successfully",
+      },
+      {
+        status: 200,
+        headers: getCorsHeaders(origin),
+      }
+    );
   } catch (error: any) {
     return NextResponse.json(
       {
@@ -80,3 +96,5 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export { otpStore };
