@@ -44,6 +44,7 @@ const getSchemeDetails = (scheme: Scheme) => {
 const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () => void }) => {
   // ADDED STATE FOR SWITCHING TO PAYMENT SCREEN
   const [isPaying, setIsPaying] = useState(false);
+const [paymentMonth, setPaymentMonth] = useState(0);
   
   const details = getSchemeDetails(scheme);
   const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
@@ -53,9 +54,8 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
 
  const handleInstallmentSuccess = async () => {
   try {
-    const currentMonth = scheme.installmentsPaid + 1;
-
-    alert(`Payment for Month ${currentMonth} was successful!`);
+    alert(`Payment for Month ${paymentMonth + 1} was successful!`);
+    
 
     window.dispatchEvent(new Event("schemeUpdated"));
 
@@ -195,7 +195,10 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
                 <button 
                   disabled={!details.isPayable} 
                   /* ONCLICK MODIFIED TO SWITCH TO PAYMENT SCREEN */
-                  onClick={() => setIsPaying(true)}
+                  onClick={() => {
+  setPaymentMonth(scheme.installmentsPaid);
+  setIsPaying(true);
+}}
                   className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
                     details.isPayable 
                       ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg" 
