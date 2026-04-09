@@ -52,23 +52,20 @@ const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () =>
   const { payInstallment } = useAuth(); // Make sure you take this from useAuth
 
   const handleInstallmentSuccess = async () => {
-    try {
-      // 1. Call the NEW payment function we added to AuthContext
-      await payInstallment(scheme.id); 
-      
-      // 2. Alert the user with the correct message
-      alert(`Payment for Month ${scheme.installmentsPaid + 1} was successful!`);
-      
-      setIsPaying(false);
-      onClose();
-      
-      // 3. Refresh data (without logging out!)
-    
-window.dispatchEvent(new Event("schemeUpdated"));
-    } catch (err) {
-      alert("Payment failed. Please try again.");
-    }
-  };
+  try {
+    const currentMonth = scheme.installmentsPaid + 1;
+
+    await payInstallment(scheme.id);
+
+    alert(`Payment for Month ${currentMonth} was successful!`);
+
+    window.dispatchEvent(new Event("schemeUpdated"));
+    setIsPaying(false);
+    onClose();
+  } catch (err) {
+    alert("Payment failed. Please try again.");
+  }
+};
 
   return (
     <AnimatePresence mode="wait">
@@ -370,7 +367,14 @@ if (user) {
         </div>
 
         <AnimatePresence>
-          {selectedScheme && <SchemeDetailModal scheme={selectedScheme} onClose={() => setSelectedScheme(null)} />}
+          {selectedScheme && (
+  <SchemeDetailModal
+    scheme={
+      enrolledSchemes.find((s) => s.id === selectedScheme.id) || selectedScheme
+    }
+    onClose={() => setSelectedScheme(null)}
+  />
+)}
         </AnimatePresence>
       </section>
     </Layout>
