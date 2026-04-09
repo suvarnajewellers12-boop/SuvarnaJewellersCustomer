@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
 
-const MOCK_OTP = "123456";
+
 
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -38,71 +38,115 @@ const Login = () => {
     setError("");
   };
 
-  const handleSubmitForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // ... (validation logic)
+  
+  
+const handleSubmitForm = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (isSignup) {
-      // ... (signup validation)
+  if (isSignup) {
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "OTP send failed");
+
       setOtpSent(true);
-    } else {
-      setError("");
-      try {
-        const response = await fetch(`${API_URL}/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, password }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Login failed");
-
-        // ✅ THE FIX: Save the token to localStorage
-        localStorage.setItem("token", data.token);
-
-        setVerified(true);
-        setTimeout(() => {
-          login(data.user); 
-          navigate("/dashboard");
-        }, 1800);
-      } catch (err: any) {
-        setError(err.message);
-      }
+    } catch (err: any) {
+      setError(err.message);
     }
-  };
+
+    return;
+  }
+
+  setError("");
+
+  try {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || "Login failed");
+
+    localStorage.setItem("token", data.token);
+
+    setVerified(true);
+
+    setTimeout(() => {
+      login(data.user);
+      navigate("/dashboard");
+    }, 1800);
+  } catch (err: any) {
+    setError(err.message);
+  }
+};
+
 
   const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
+
+  try {
     const entered = otp.join("");
-    if (entered === MOCK_OTP) {
-      setError("");
-      try {
-        const response = await fetch(`${API_URL}/api/auth/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name.trim(), phone, password }),
-        });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Signup failed");
+    const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phone,
+        otp: entered,
+      }),
+    });
 
-        // ✅ THE FIX: Save the token to localStorage
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
+    const verifyData = await verifyRes.json();
 
-        setVerified(true);
-        setTimeout(() => {
-          login(data.user);
-          navigate("/dashboard");
-        }, 1800);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    } else {
-      setError("Invalid OTP. Try 123456");
+    if (verifyData.type !== "success") {
+      throw new Error("Invalid OTP");
     }
-  };
+
+    const response = await fetch(`${API_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: name.trim(),
+        phone,
+        password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || "Signup failed");
+
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+    }
+
+    setVerified(true);
+
+    setTimeout(() => {
+      login(data.user);
+      navigate("/dashboard");
+    }, 1800);
+  } catch (err: any) {
+    setError(err.message);
+  }
+};
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
