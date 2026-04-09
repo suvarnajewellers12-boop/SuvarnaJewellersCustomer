@@ -93,6 +93,7 @@ model OtpVerification {
   @@index([purpose])
 }
 
+
 model Product {
   id              String         @id
   name            String
@@ -189,3 +190,4 @@ model SuperAdmin {
   createdAt DateTime   @default(now())
   Purchase  Purchase[]
 }
+

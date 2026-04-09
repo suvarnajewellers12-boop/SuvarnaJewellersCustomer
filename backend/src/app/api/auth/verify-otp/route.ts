@@ -1,6 +1,5 @@
-
 import { NextResponse } from "next/server";
-import { otpStore } from "../send-otp/route";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +38,9 @@ export async function POST(req: Request) {
 
     if (!phone || !otp) {
       return NextResponse.json(
-        { message: "Phone and OTP required" },
+        {
+          message: "Phone and OTP required",
+        },
         {
           status: 400,
           headers: getCorsHeaders(origin),
@@ -47,11 +48,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const savedOtp = otpStore.get(phone);
+    const record = await prisma.otpVerification.findFirst({
+      where: {
+        phoneNumber: phone,
+        otpCode: otp,
+        purpose: "signup",
+        isUsed: false,
+      },
+    });
 
-    if (savedOtp !== otp) {
+    if (!record) {
       return NextResponse.json(
-        { type: "error", message: "Invalid OTP" },
+        {
+          type: "error",
+          message: "Invalid OTP",
+        },
         {
           status: 400,
           headers: getCorsHeaders(origin),
@@ -59,7 +70,28 @@ export async function POST(req: Request) {
       );
     }
 
-    otpStore.delete(phone);
+    if (record.expiresAt < new Date()) {
+      return NextResponse.json(
+        {
+          type: "error",
+          message: "OTP expired",
+        },
+        {
+          status: 400,
+          headers: getCorsHeaders(origin),
+        }
+      );
+    }
+
+    await prisma.otpVerification.update({
+      where: {
+        id: record.id,
+      },
+      data: {
+        isUsed: true,
+        verifiedAt: new Date(),
+      },
+    });
 
     return NextResponse.json(
       {

@@ -1,5 +1,7 @@
 
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +11,6 @@ const allowedOrigins = [
   "https://suvarnajewellers.in",
   "https://www.suvarnajewellers.in",
 ];
-
-const otpStore = new Map<string, string>();
 
 function getCorsHeaders(origin: string) {
   return {
@@ -50,7 +50,22 @@ export async function POST(req: Request) {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    otpStore.set(phone, otp);
+    await prisma.otpVerification.deleteMany({
+      where: {
+        phoneNumber: phone,
+        purpose: "signup",
+      },
+    });
+
+    await prisma.otpVerification.create({
+      data: {
+        id: crypto.randomUUID(),
+        phoneNumber: phone,
+        otpCode: otp,
+        purpose: "signup",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      },
+    });
 
     const response = await fetch("https://control.msg91.com/api/v5/flow/", {
       method: "POST",
@@ -96,5 +111,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-export { otpStore };
