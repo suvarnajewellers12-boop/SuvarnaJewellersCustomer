@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/prisma";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -48,9 +49,34 @@ export async function POST(req: Request) {
         }
       );
     }
+    const verifiedOtp = await prisma.otpVerification.findFirst({
+  where: {
+    phoneNumber: phone,
+    purpose: "signup",
+    isUsed: true,
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+});
 
+if (!verifiedOtp) {
+  return NextResponse.json(
+    { message: "OTP verification required" },
+    { status: 400 }
+  );
+}
     const user = await signupUser(name, phone, password);
-
+await prisma.otpVerification.deleteMany({
+  where: {
+  phoneNumber: phone,
+  purpose: "signup",
+  isUsed: true,
+  expiresAt: {
+    gt: new Date(),
+  },
+  },
+});
     const token = generateToken({
       userId: user.id,
       phone: user.phone,
