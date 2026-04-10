@@ -25,6 +25,7 @@ model Customer {
   username       String           @unique
   password       String
   phone          String
+  mpin           String?
   createdAt      DateTime         @default(now())
   CustomerScheme CustomerScheme[]
 }
