@@ -29,14 +29,14 @@ const getSchemeDetails = (scheme: Scheme) => {
   const isCompleted = installments >= duration;
 
   // --- FOR TESTING: FORCE ENABLE ---
-  const isPayable = true; 
+  const isPayable = true;
 
   return {
     lastPaymentDate: lastPaymentDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     nextDueDate: nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     amountDue: scheme.monthlyAmount,
     isCompleted,
-    isPayable, 
+    isPayable,
     isDue: !isCompleted,
   };
 };
@@ -44,27 +44,27 @@ const getSchemeDetails = (scheme: Scheme) => {
 const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () => void }) => {
   // ADDED STATE FOR SWITCHING TO PAYMENT SCREEN
   const [isPaying, setIsPaying] = useState(false);
-const [paymentMonth, setPaymentMonth] = useState(0);
-  
+  const [paymentMonth, setPaymentMonth] = useState(0);
+
   const details = getSchemeDetails(scheme);
   const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
 
   // SUCCESS HANDLER FOR DASHBOARD INSTALLMENTS
   const { } = useAuth(); // Make sure you take this from useAuth
 
- const handleInstallmentSuccess = async () => {
-  try {
-    alert(`Payment for Month ${paymentMonth + 1} was successful!`);
-    
+  const handleInstallmentSuccess = async () => {
+    try {
+      alert(`Payment for Month ${paymentMonth + 1} was successful!`);
 
-    window.dispatchEvent(new Event("schemeUpdated"));
 
-    setIsPaying(false);
-    onClose();
-  } catch (err) {
-    alert("Payment failed. Please try again.");
-  }
-};
+      window.dispatchEvent(new Event("schemeUpdated"));
+
+      setIsPaying(false);
+      onClose();
+    } catch (err) {
+      alert("Payment failed. Please try again.");
+    }
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -105,11 +105,10 @@ const [paymentMonth, setPaymentMonth] = useState(0);
               <p className="font-elegant text-sm tracking-[0.2em] uppercase text-gold-dark mb-2">Scheme Ledger</p>
               <h3 className="font-display text-2xl font-bold text-foreground">{scheme.name}</h3>
               <div className="mt-1">
-                <span className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
-                  details.isCompleted
+                <span className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${details.isCompleted
                     ? "bg-emerald/10 text-emerald border-emerald/20"
                     : "bg-gold/10 text-gold-dark border-gold/20"
-                }`}>
+                  }`}>
                   {details.isCompleted ? "Completed" : "Active"}
                 </span>
               </div>
@@ -192,18 +191,17 @@ const [paymentMonth, setPaymentMonth] = useState(0);
                     Amount Due: <span className="font-display font-bold text-gold-gradient">{formatINR(details.amountDue)}</span>
                   </p>
                 </div>
-                <button 
-                  disabled={!details.isPayable} 
+                <button
+                  disabled={!details.isPayable}
                   /* ONCLICK MODIFIED TO SWITCH TO PAYMENT SCREEN */
                   onClick={() => {
-  setPaymentMonth(scheme.installmentsPaid);
-  setIsPaying(true);
-}}
-                  className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
-                    details.isPayable 
-                      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg" 
+                    setPaymentMonth(scheme.installmentsPaid);
+                    setIsPaying(true);
+                  }}
+                  className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${details.isPayable
+                      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg"
                       : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed opacity-70"
-                  }`}
+                    }`}
                 >
                   {details.isPayable ? "Pay Now" : `Next Due: ${details.nextDueDate}`}
                 </button>
@@ -225,7 +223,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchSchemes = async () => {
       try {
-        const token = localStorage.getItem("token"); 
+        const token = localStorage.getItem("token");
         const res = await fetch(`${API_URL}/api/schemes/my`, {
           method: "GET",
           headers: {
@@ -236,16 +234,18 @@ const Dashboard = () => {
 
         if (res.ok) {
           const data = await res.json();
-          
-const formatted = data.schemes.map((s: any) => ({
-  id: s.id,
-  schemeId: s.schemeId,
-  name: s.Scheme?.name || "Active Scheme",
-  monthlyAmount: s.Scheme?.monthlyAmount || 0,
-  durationMonths: s.Scheme?.durationMonths || 11,
-  enrolledDate: s.startDate,
-  installmentsPaid: s.installmentsPaid,
-}));
+
+          const formatted = data.schemes.map((s: any) => ({
+            id: s.id,
+            schemeId: s.schemeId,
+            name: s.Scheme?.name || "Active Scheme",
+            monthlyAmount: s.Scheme?.monthlyAmount || 0,
+            durationMonths: s.Scheme?.durationMonths || 11,
+            enrolledDate: s.startDate,
+            maturityAmount: s.Scheme?.maturityAmount || 0,
+
+            installmentsPaid: s.installmentsPaid,
+          }));
 
 
           setEnrolledSchemes(formatted);
@@ -259,18 +259,18 @@ const formatted = data.schemes.map((s: any) => ({
       }
     };
 
-    
-if (user) {
-  fetchSchemes();
 
-  const refresh = () => fetchSchemes();
+    if (user) {
+      fetchSchemes();
 
-  window.addEventListener("schemeUpdated", refresh);
+      const refresh = () => fetchSchemes();
 
-  return () => {
-    window.removeEventListener("schemeUpdated", refresh);
-  };
-}
+      window.addEventListener("schemeUpdated", refresh);
+
+      return () => {
+        window.removeEventListener("schemeUpdated", refresh);
+      };
+    }
 
   }, [user, setEnrolledSchemes, API_URL]);
 
@@ -370,13 +370,13 @@ if (user) {
 
         <AnimatePresence>
           {selectedScheme && (
-  <SchemeDetailModal
-    scheme={
-      enrolledSchemes.find((s) => s.id === selectedScheme.id) || selectedScheme
-    }
-    onClose={() => setSelectedScheme(null)}
-  />
-)}
+            <SchemeDetailModal
+              scheme={
+                enrolledSchemes.find((s) => s.id === selectedScheme.id) || selectedScheme
+              }
+              onClose={() => setSelectedScheme(null)}
+            />
+          )}
         </AnimatePresence>
       </section>
     </Layout>
