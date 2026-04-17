@@ -7,7 +7,7 @@ import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
 import PaymentModal from "@/components/PaymentModal";
 
-const formatINR = (n: number) =>
+const formatINR = (n: number = 0) =>
   "₹" + n.toLocaleString("en-IN");
 
 const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMonths: number }) => {
@@ -165,7 +165,7 @@ const Schemes = () => {
                       <Check className="w-4 h-4 text-gold-dark" /> {scheme.durationMonths} monthly installments
                     </div>
                     <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
-                      <Sparkles className="w-4 h-4 text-gold-dark" /> Get Maturity Value: {formatINR(scheme.maturityAmount)}
+                      <Sparkles className="w-4 h-4 text-gold-dark" /> Get Maturity Value: {formatINR(scheme.monthlyAmount * scheme.durationMonths)}
                     </div>
                   </div>
 
