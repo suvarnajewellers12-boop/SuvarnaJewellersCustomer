@@ -25,24 +25,27 @@ model Customer {
   username       String           @unique
   password       String
   phone          String
-  mpin           String?
   createdAt      DateTime         @default(now())
+  mpin           String?
+  Coupon         Coupon[]
   CustomerScheme CustomerScheme[]
 }
 
 model CustomerScheme {
-  id               String   @id
+  id               String           @id
   customerId       String
   schemeId         String
-  totalPaid        Float    @default(0)
+  totalPaid        Float            @default(0)
   remainingAmount  Float
-  installmentsPaid Int      @default(0)
+  installmentsPaid Int              @default(0)
   installmentsLeft Int
-  isCompleted      Boolean  @default(false)
-  couponGenerated  Boolean  @default(false)
-  startDate        DateTime @default(now())
-  Customer         Customer @relation(fields: [customerId], references: [id])
-  Scheme           Scheme   @relation(fields: [schemeId], references: [id])
+  isCompleted      Boolean          @default(false)
+  startDate        DateTime         @default(now())
+  accumulatedGrams Float            @default(0)
+  Coupon           Coupon?
+  Customer         Customer         @relation(fields: [customerId], references: [id])
+  Scheme           Scheme           @relation(fields: [schemeId], references: [id])
+  PaymentHistory   PaymentHistory[]
 }
 
 model GoldJobWork {
@@ -130,23 +133,31 @@ model ProductImgs {
 }
 
 model Purchase {
-  id             String         @id
-  customerName   String
-  emailid        String?
-  Address        String?
-  totalAmount    Float
-  gstAmount      Float
-  discountAmount Float
-  finalAmount    Float
-  phoneNumber    String
-  paymentId      String?
-  paymentStatus  String         @default("PENDING")
-  purchasedAt    DateTime       @default(now())
-  adminId        String?
-  superAdminId   String?
-  Admin          Admin?         @relation(fields: [adminId], references: [id])
-  SuperAdmin     SuperAdmin?    @relation(fields: [superAdminId], references: [id])
-  PurchaseItem   PurchaseItem[]
+  id                        String         @id
+  customerName              String
+  emailid                   String?
+  Address                   String?
+  totalAmount               Float
+  discountAmount            Float
+  finalAmount               Float
+  phoneNumber               String
+  paymentId                 String?        @default("MANUAL_POS")
+  paymentStatus             String         @default("SUCCESS")
+  purchasedAt               DateTime       @default(now())
+  adminId                   String?
+  superAdminId              String?
+  cgstAmount                Float          @default(0)
+  sgstAmount                Float          @default(0)
+  excahngejewellrygrams     Float?
+  excahngejewellryname      String?
+  jewelleryexchangediscount Float?
+  cardAmount                Float          @default(0)
+  cashAmount                Float          @default(0)
+  chequeAmount              Float          @default(0)
+  upiAmount                 Float          @default(0)
+  Admin                     Admin?         @relation(fields: [adminId], references: [id])
+  SuperAdmin                SuperAdmin?    @relation(fields: [superAdminId], references: [id])
+  PurchaseItem              PurchaseItem[]
 }
 
 model PurchaseItem {
@@ -161,14 +172,15 @@ model PurchaseItem {
 }
 
 model Scheme {
-  id               String           @id
-  name             String
-  durationMonths   Int
-  monthlyAmount    Float
-  maturityAmount   Float
-  completionCoupon String?
-  createdAt        DateTime         @default(now())
-  CustomerScheme   CustomerScheme[]
+  id             String           @id
+  name           String
+  durationMonths Int
+  monthlyAmount  Float
+  createdAt      DateTime         @default(now())
+  isWeightBased  Boolean          @default(false)
+  maturityMonths Int?
+  Coupon         Coupon[]
+  CustomerScheme CustomerScheme[]
 }
 
 model Staff {
@@ -189,4 +201,31 @@ model SuperAdmin {
   password  String
   createdAt DateTime   @default(now())
   Purchase  Purchase[]
+}
+
+model Coupon {
+  id               String         @id
+  code             String         @unique
+  isUsed           Boolean        @default(false)
+  usedAt           DateTime?
+  createdAt        DateTime       @default(now())
+  customerSchemeId String         @unique
+  customerId       String
+  schemeId         String
+  isActive         Boolean        @default(false)
+  totalCashValue   Float          @default(0)
+  totalWeightGrams Float          @default(0)
+  Customer         Customer       @relation(fields: [customerId], references: [id])
+  CustomerScheme   CustomerScheme @relation(fields: [customerSchemeId], references: [id])
+  Scheme           Scheme         @relation(fields: [schemeId], references: [id])
+}
+
+model PaymentHistory {
+  id               String         @id
+  customerSchemeId String
+  amountPaid       Float
+  liveRate24K      Float?
+  gramsAdded       Float?
+  paidAt           DateTime       @default(now())
+  CustomerScheme   CustomerScheme @relation(fields: [customerSchemeId], references: [id])
 }
