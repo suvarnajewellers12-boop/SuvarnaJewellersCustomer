@@ -27,7 +27,7 @@ model Customer {
   phone          String
   createdAt      DateTime         @default(now())
   mpin           String?
-  Coupon         Coupon[]
+  coupons        Coupon[]
   CustomerScheme CustomerScheme[]
 }
 
@@ -42,7 +42,7 @@ model CustomerScheme {
   isCompleted      Boolean          @default(false)
   startDate        DateTime         @default(now())
   accumulatedGrams Float            @default(0)
-  Coupon           Coupon?
+  coupon           Coupon?
   Customer         Customer         @relation(fields: [customerId], references: [id])
   Scheme           Scheme           @relation(fields: [schemeId], references: [id])
   PaymentHistory   PaymentHistory[]
@@ -179,7 +179,7 @@ model Scheme {
   createdAt      DateTime         @default(now())
   isWeightBased  Boolean          @default(false)
   maturityMonths Int?
-  Coupon         Coupon[]
+  coupons        Coupon[]
   CustomerScheme CustomerScheme[]
 }
 

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
           schemeId,
         },
         include: {
-          Coupon: true,
+          coupon: true,
         },
       }),
     ]);
