@@ -34,28 +34,23 @@ export async function POST(req: Request) {
   const origin = req.headers.get("origin") || "";
 
   try {
-    const { phone, otp } = await req.json();
+    const { phone, otp, purpose = "signup" } = await req.json();
 
-    if (!phone || !otp) {
-      return NextResponse.json(
-        {
-          message: "Phone and OTP required",
-        },
-        {
-          status: 400,
-          headers: getCorsHeaders(origin),
-        }
-      );
-    }
+if (!phone || !otp) {
+  return NextResponse.json(
+    { message: "Phone and OTP required" },
+    { status: 400, headers: getCorsHeaders(origin) }
+  );
+}
 
-    const record = await prisma.otpVerification.findFirst({
-      where: {
-        phoneNumber: phone,
-        otpCode: otp,
-        purpose: "signup",
-        isUsed: false,
-      },
-    });
+const record = await prisma.otpVerification.findFirst({
+  where: {
+    phoneNumber: phone,
+    otpCode: otp,
+    purpose: purpose,   // ← was hardcoded "signup"
+    isUsed: false,
+  },
+});
 
     if (!record) {
       return NextResponse.json(

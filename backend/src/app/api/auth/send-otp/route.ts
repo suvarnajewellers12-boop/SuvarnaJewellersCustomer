@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const origin = req.headers.get("origin") || "";
 
   try {
-    const { phone } = await req.json();
+    const { phone, purpose = "signup" } = await req.json();
 
     if (!phone) {
       return NextResponse.json(
@@ -47,25 +47,40 @@ export async function POST(req: Request) {
         }
       );
     }
+    
+    // ← ADD: for forgot password, verify account exists first
+if (purpose === "forgot_password") {
+  const user = await prisma.customer.findFirst({
+    where: { phone },
+    select: { id: true },
+  });
 
+  if (!user) {
+    return NextResponse.json(
+      { message: "No account found with this number" },
+      { status: 404, headers: getCorsHeaders(origin) }
+    );
+  }
+}
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await prisma.otpVerification.deleteMany({
       where: {
         phoneNumber: phone,
-        purpose: "signup",
+        purpose: purpose,
       },
     });
 
-    await prisma.otpVerification.create({
-      data: {
-        id: crypto.randomUUID(),
-        phoneNumber: phone,
-        otpCode: otp,
-        purpose: "signup",
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-      },
-    });
+    // ✅ CORRECT
+await prisma.otpVerification.create({
+  data: {
+    id: crypto.randomUUID(),
+    phoneNumber: phone,
+    otpCode: otp,
+    purpose: purpose,       // ← use dynamic purpose
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+  },
+});
 
     const response = await fetch("https://control.msg91.com/api/v5/flow/", {
       method: "POST",
