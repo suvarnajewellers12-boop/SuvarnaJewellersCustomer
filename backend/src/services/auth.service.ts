@@ -40,26 +40,31 @@ export async function signupUser(
 }
 
 export async function loginUser(phone: string, passwordAttempt: string) {
-  // 1. Find the customer
   const user = await prisma.customer.findFirst({
     where: { phone },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      password: true,
+      mpin: true,          // ← ADD
+    },
   });
 
   if (!user) {
     throw new Error("No account found");
   }
 
-  // 2. Verify password
   const passwordValid = await verifyPassword(passwordAttempt, user.password);
 
   if (!passwordValid) {
     throw new Error("Incorrect password");
   }
 
-  // 3. Return user data
   return {
     id: user.id,
     name: user.name,
     phone: user.phone,
+    mpinExists: user.mpin !== null && user.mpin !== "",  // ← ADD
   };
 }

@@ -60,15 +60,19 @@ const token = generateToken({
 
 const response = NextResponse.json({
   message: "Login successful",
-  token, // ✅ CRITICAL: Make sure the token is actually in the JSON body!
+  token,
   user: {
     id: String(user.id),
     name: user.name,
     phone: user.phone,
   },
-}, { 
+  mpinExists: user.mpinExists,    // ← ADD THIS
+}, {
   status: 200,
-  headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+  headers: {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+    "Access-Control-Allow-Credentials": "true"
+  }
 });
 
     response.cookies.set("token", token, {
