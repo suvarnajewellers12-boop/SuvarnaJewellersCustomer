@@ -27,6 +27,7 @@ model Customer {
   phone          String
   createdAt      DateTime         @default(now())
   mpin           String?
+  fcmToken       String?
   coupons        Coupon[]
   CustomerScheme CustomerScheme[]
 }
