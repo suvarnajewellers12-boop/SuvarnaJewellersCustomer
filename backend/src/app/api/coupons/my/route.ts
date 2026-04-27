@@ -51,7 +51,17 @@ export async function GET(req: Request) {
     const coupons = await prisma.coupon.findMany({
       where: {
         customerId: payload.userId,
-        isActive: true, // only completed schemes
+        OR: [
+          {
+            // Active: scheme completed, coupon not yet used
+            CustomerScheme: { isCompleted: true },
+            isUsed: false,
+          },
+          {
+            // Redeemed: coupon has been used
+            isUsed: true,
+          },
+        ],
       },
       include: {
         Scheme: {
@@ -67,6 +77,7 @@ export async function GET(req: Request) {
             totalPaid: true,
             accumulatedGrams: true,
             installmentsPaid: true,
+            isCompleted: true,
           },
         },
       },
