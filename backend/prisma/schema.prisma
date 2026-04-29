@@ -27,7 +27,6 @@ model Customer {
   phone          String
   createdAt      DateTime         @default(now())
   mpin           String?
-  fcmToken       String?
   coupons        Coupon[]
   CustomerScheme CustomerScheme[]
 }
@@ -118,6 +117,7 @@ model Product {
   soldAt          DateTime?
   branchName      String         @default("Gajuwaka")
   va              Float          @default(2.5)
+  stoneCost       Float          @default(0)
   PurchaseItem    PurchaseItem[]
 }
 
@@ -156,6 +156,7 @@ model Purchase {
   cashAmount                Float          @default(0)
   chequeAmount              Float          @default(0)
   upiAmount                 Float          @default(0)
+  invoice                   String         @default("svj-234")
   Admin                     Admin?         @relation(fields: [adminId], references: [id])
   SuperAdmin                SuperAdmin?    @relation(fields: [superAdminId], references: [id])
   PurchaseItem              PurchaseItem[]
@@ -168,6 +169,7 @@ model PurchaseItem {
   name       String
   grams      Float
   cost       Float
+  isReturned Boolean  @default(false)
   Product    Product  @relation(fields: [productId], references: [id])
   Purchase   Purchase @relation(fields: [purchaseId], references: [id])
 }
@@ -205,20 +207,23 @@ model SuperAdmin {
 }
 
 model Coupon {
-  id               String         @id
-  code             String         @unique
-  isUsed           Boolean        @default(false)
+  id               String          @id
+  code             String          @unique
+  isUsed           Boolean         @default(false)
   usedAt           DateTime?
-  createdAt        DateTime       @default(now())
-  customerSchemeId String         @unique
+  createdAt        DateTime        @default(now())
+  customerSchemeId String?         @unique
   customerId       String
-  schemeId         String
-  isActive         Boolean        @default(false)
-  totalCashValue   Float          @default(0)
-  totalWeightGrams Float          @default(0)
-  Customer         Customer       @relation(fields: [customerId], references: [id])
-  CustomerScheme   CustomerScheme @relation(fields: [customerSchemeId], references: [id])
-  Scheme           Scheme         @relation(fields: [schemeId], references: [id])
+  schemeId         String?
+  isActive         Boolean         @default(true)
+  totalCashValue   Float           @default(0)
+  totalWeightGrams Float           @default(0)
+  description      String?
+  type             String          @default("WEIGHT")
+  value            Float           @default(0)
+  Customer         Customer        @relation(fields: [customerId], references: [id])
+  CustomerScheme   CustomerScheme? @relation(fields: [customerSchemeId], references: [id])
+  Scheme           Scheme?         @relation(fields: [schemeId], references: [id])
 }
 
 model PaymentHistory {
@@ -229,4 +234,26 @@ model PaymentHistory {
   gramsAdded       Float?
   paidAt           DateTime       @default(now())
   CustomerScheme   CustomerScheme @relation(fields: [customerSchemeId], references: [id])
+}
+
+model CreditNote {
+  id           String       @id
+  productName  String
+  grams        Float
+  carats       String?
+  stoneWeight  Float?
+  overallCost  Float
+  couponId     String
+  createdAt    DateTime     @default(now())
+  ReturnCoupon ReturnCoupon @relation(fields: [couponId], references: [id])
+}
+
+model ReturnCoupon {
+  id         String       @id
+  code       String       @unique
+  cashAmount Float
+  isUsed     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  invoice    String       @default("#svn")
+  CreditNote CreditNote[]
 }

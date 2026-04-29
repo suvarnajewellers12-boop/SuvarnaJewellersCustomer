@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     }
     
     // ← ADD: for forgot password, verify account exists first
-if (purpose === "forgot_password") {
+if (purpose == "forgot_password" || purpose == "forgot_mpin") {
   const user = await prisma.customer.findFirst({
     where: { phone },
     select: { id: true },
