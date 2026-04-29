@@ -217,62 +217,30 @@ const [paymentMonth, setPaymentMonth] = useState(0);
 };
 
 const Dashboard = () => {
-  const { user, enrolledSchemes, setEnrolledSchemes, isLoading: authLoading } = useAuth();
+  const { user, enrolledSchemes, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [selectedScheme, setSelectedScheme] = useState<Scheme | null>(null);
   const [fetching, setFetching] = useState(true);
 
-  useEffect(() => {
-    const fetchSchemes = async () => {
-      try {
-        const token = localStorage.getItem("token"); 
-        const res = await fetch(`${API_URL}/api/schemes/my`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-        });
+ useEffect(() => {
+  if (!authLoading) {
+    setFetching(false);
+  }
 
-        if (res.ok) {
-          const data = await res.json();
-          
-const formatted = data.schemes.map((s: any) => ({
-  id: s.id,
-  schemeId: s.schemeId,
-  name: s.Scheme?.name || "Active Scheme",
-  monthlyAmount: s.Scheme?.monthlyAmount || 0,
-  durationMonths: s.Scheme?.durationMonths || 11,
-  enrolledDate: s.startDate,
-  installmentsPaid: s.installmentsPaid,
-}));
+  const refresh = () => {
+    setFetching(true);
 
-
-          setEnrolledSchemes(formatted);
-        } else if (res.status === 401) {
-          console.error("Server says: You are not logged in (Unauthorized)");
-        }
-      } catch (err) {
-        console.error("Network/Fetch error:", err);
-      } finally {
-        setFetching(false);
-      }
-    };
-
-    
-if (user) {
-  fetchSchemes();
-
-  const refresh = () => fetchSchemes();
+    setTimeout(() => {
+      setFetching(false);
+    }, 300);
+  };
 
   window.addEventListener("schemeUpdated", refresh);
 
   return () => {
     window.removeEventListener("schemeUpdated", refresh);
   };
-}
-
-  }, [user, setEnrolledSchemes, API_URL]);
+}, [authLoading]);
 
   if (authLoading || fetching) {
     return (

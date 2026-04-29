@@ -8,6 +8,7 @@ export interface Scheme {
   maturityAmount?: number;
   enrolledDate: string;
   installmentsPaid: number;
+  schemeId?: string;
 }
 
 interface User {
@@ -22,10 +23,10 @@ interface AuthContextType {
   isLoading: boolean;
   enrolledSchemes: Scheme[];
   setEnrolledSchemes: React.Dispatch<React.SetStateAction<Scheme[]>>;
-  login: (user: User) => void;
+  login: (user: User) => Promise<void>;
   logout: () => void;
   enrollScheme: (schemeData: any) => Promise<void>;
-  payInstallment: (customerSchemeId: string) => Promise<void>; 
+  payInstallment: (customerSchemeId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -46,11 +47,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     import.meta.env.VITE_API_URL ||
     "https://suvarna-jewellers-customer-backend.vercel.app";
 
+  // ✅ CENTRAL SCHEME FETCH
+  const fetchMySchemes = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/api/schemes/my`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      const formatted = data.schemes.map((s: any) => ({
+        id: s.id,
+        schemeId: s.schemeId,
+        name: s.Scheme?.name || "Active Scheme",
+        monthlyAmount: s.Scheme?.monthlyAmount || 0,
+        durationMonths: s.Scheme?.durationMonths || 11,
+        enrolledDate: s.startDate,
+        installmentsPaid: s.installmentsPaid,
+      }));
+
+      setEnrolledSchemes(formatted);
+    } catch (err) {
+      console.error("Scheme fetch failed");
+    }
+  };
+
+  // ✅ SESSION RESTORE
   useEffect(() => {
     const checkUser = async () => {
       try {
         const token = localStorage.getItem("token");
-        
+
         if (!token) {
           setIsLoading(false);
           setIsLoggedIn(false);
@@ -59,19 +95,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const res = await fetch(`${API_URL}/api/auth/me`, {
           method: "GET",
-          headers: { 
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         });
 
         if (res.ok) {
           const data = await res.json();
+
           if (data.user) {
             setUser(data.user);
             setIsLoggedIn(true);
+
+            // ✅ load schemes immediately
+            await fetchMySchemes();
           } else {
-            // If server says user is null, local token is invalid
             localStorage.removeItem("token");
             setIsLoggedIn(false);
           }
@@ -84,18 +123,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     checkUser();
-  }, [API_URL]);
+  }, []);
 
-  const login = (userData: any) => {
+  // ✅ LOGIN NOW LOADS SCHEMES TOO
+  const login = async (userData: any) => {
     setUser(userData);
     setIsLoggedIn(true);
+    await fetchMySchemes();
   };
 
   const logout = async () => {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
       setUser(null);
@@ -111,11 +154,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const enrollScheme = async (schemeData: any) => {
     try {
       const token = localStorage.getItem("token");
+
       const res = await fetch(`${API_URL}/api/schemes/enroll`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           schemeId: schemeData.id,
@@ -126,6 +170,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!res.ok) throw new Error("Enrollment failed");
 
+      await fetchMySchemes();
+
       window.dispatchEvent(new Event("schemeUpdated"));
     } catch (err: any) {
       console.error("Enrollment failed:", err.message);
@@ -135,11 +181,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const payInstallment = async (customerSchemeId: string) => {
     try {
       const token = localStorage.getItem("token");
+
       const res = await fetch(`${API_URL}/api/schemes/pay`, {
-        method: "PATCH", 
-        headers: { 
+        method: "PATCH",
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ customerSchemeId }),
       });
@@ -149,7 +196,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(data.message || "Payment failed");
       }
 
-      window.dispatchEvent(new Event("schemeUpdated")); 
+      await fetchMySchemes();
+
+      window.dispatchEvent(new Event("schemeUpdated"));
     } catch (err: any) {
       console.error("Payment failed:", err.message);
       throw err;
@@ -167,7 +216,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         enrollScheme,
-        payInstallment, 
+        payInstallment,
       }}
     >
       {!isLoading && children}
