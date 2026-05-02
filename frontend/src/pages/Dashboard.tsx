@@ -4,72 +4,65 @@ import { Calendar, Sparkles, X, Clock, CheckCircle2, AlertCircle } from "lucide-
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
-import { useState, useEffect } from "react";
-// ADDED IMPORT FOR THE PAYMENT MODAL
+import { useState } from "react";
 import PaymentModal from "@/components/PaymentModal";
 
 const formatINR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+
 const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
+
 const getSchemeDetails = (scheme: Scheme) => {
-  // 1. Setup the basic dates
   const enrolledDate = new Date((scheme as any).enrolledDate || (scheme as any).startDate || Date.now());
   const installments = scheme.installmentsPaid || 0;
   const duration = scheme.durationMonths || 1;
 
   const lastPaymentDate = new Date(enrolledDate);
-  // Fixed: Changed .setMonth() to .getMonth() inside the parenthesis
   lastPaymentDate.setMonth(lastPaymentDate.getMonth() + (installments > 0 ? installments - 1 : 0));
 
   const nextDueDate = new Date(enrolledDate);
   nextDueDate.setMonth(nextDueDate.getMonth() + installments);
 
-  // 2. Logic Check
   const isCompleted = installments >= duration;
-
-  // --- FOR TESTING: FORCE ENABLE ---
-  const isPayable = true; 
+  const isPayable = true; // force enable for testing
 
   return {
     lastPaymentDate: lastPaymentDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     nextDueDate: nextDueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     amountDue: scheme.monthlyAmount,
     isCompleted,
-    isPayable, 
+    isPayable,
     isDue: !isCompleted,
   };
 };
 
-const SchemeDetailModal = ({ scheme, onClose }: { scheme: Scheme; onClose: () => void }) => {
-  // ADDED STATE FOR SWITCHING TO PAYMENT SCREEN
+// Added onPaymentSuccess prop
+const SchemeDetailModal = ({
+  scheme,
+  onClose,
+  onPaymentSuccess,
+}: {
+  scheme: Scheme;
+  onClose: () => void;
+  onPaymentSuccess: () => Promise<void>;
+}) => {
   const [isPaying, setIsPaying] = useState(false);
-const [paymentMonth, setPaymentMonth] = useState(0);
-  
+  const [paymentMonth, setPaymentMonth] = useState(0);
+
   const details = getSchemeDetails(scheme);
   const progress = ((scheme.installmentsPaid || 0) / (scheme.durationMonths || 1)) * 100;
 
-  // SUCCESS HANDLER FOR DASHBOARD INSTALLMENTS
-  const { } = useAuth(); // Make sure you take this from useAuth
-
- const handleInstallmentSuccess = async () => {
-  try {
+  const handleInstallmentSuccess = async () => {
     alert(`Payment for Month ${paymentMonth + 1} was successful!`);
-    
-
-    window.dispatchEvent(new Event("schemeUpdated"));
-
+    await onPaymentSuccess(); // this calls refreshSchemes() in context — no spinner
     setIsPaying(false);
     onClose();
-  } catch (err) {
-    alert("Payment failed. Please try again.");
-  }
-};
+  };
 
   return (
     <AnimatePresence mode="wait">
       {isPaying ? (
-        /* --- DUMMY PAYMENT SCREEN ADDED HERE --- */
         <PaymentModal
           key="payment-step"
           schemeId={(scheme as any).schemeId}
@@ -79,7 +72,6 @@ const [paymentMonth, setPaymentMonth] = useState(0);
           onClose={() => setIsPaying(false)}
         />
       ) : (
-        /* --- ORIGINAL DETAILS MODAL (UNCHANGED) --- */
         <motion.div
           key="details-step"
           initial={{ opacity: 0 }}
@@ -95,11 +87,14 @@ const [paymentMonth, setPaymentMonth] = useState(0);
             transition={{ type: "spring", damping: 22, stiffness: 260 }}
             onClick={(e) => e.stopPropagation()}
             className="glass-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-0"
-            style={{ boxShadow: '0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)' }}
+            style={{ boxShadow: "0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)" }}
           >
             {/* Header */}
             <div className="relative p-8 pb-4">
-              <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors">
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
               <p className="font-elegant text-sm tracking-[0.2em] uppercase text-gold-dark mb-2">Scheme Ledger</p>
@@ -120,14 +115,14 @@ const [paymentMonth, setPaymentMonth] = useState(0);
               <div className="w-full h-3 rounded-full bg-cream overflow-hidden mb-2">
                 <motion.div
                   className="h-full rounded-full relative overflow-hidden"
-                  style={{ background: 'var(--gradient-gold)' }}
+                  style={{ background: "var(--gradient-gold)" }}
                   initial={{ width: "0%" }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 1.2, ease: "easeOut" }}
                 >
                   <div className="absolute inset-0" style={{
-                    background: 'linear-gradient(90deg, transparent, hsla(40, 40%, 97%, 0.4), transparent)',
-                    animation: 'light-sweep 3s ease-in-out infinite',
+                    background: "linear-gradient(90deg, transparent, hsla(40, 40%, 97%, 0.4), transparent)",
+                    animation: "light-sweep 3s ease-in-out infinite",
                   }} />
                 </motion.div>
               </div>
@@ -187,21 +182,20 @@ const [paymentMonth, setPaymentMonth] = useState(0);
             {/* Pay Now CTA */}
             {details.isDue && (
               <div className="px-8 pb-8">
-                <div className="p-4 rounded-xl border border-gold/20 mb-4" style={{ background: 'hsla(43, 80%, 55%, 0.05)' }}>
+                <div className="p-4 rounded-xl border border-gold/20 mb-4" style={{ background: "hsla(43, 80%, 55%, 0.05)" }}>
                   <p className="font-body text-sm text-foreground text-center">
                     Amount Due: <span className="font-display font-bold text-gold-gradient">{formatINR(details.amountDue)}</span>
                   </p>
                 </div>
-                <button 
-                  disabled={!details.isPayable} 
-                  /* ONCLICK MODIFIED TO SWITCH TO PAYMENT SCREEN */
+                <button
+                  disabled={!details.isPayable}
                   onClick={() => {
-  setPaymentMonth(scheme.installmentsPaid);
-  setIsPaying(true);
-}}
+                    setPaymentMonth(scheme.installmentsPaid);
+                    setIsPaying(true);
+                  }}
                   className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
-                    details.isPayable 
-                      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg" 
+                    details.isPayable
+                      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg"
                       : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed opacity-70"
                   }`}
                 >
@@ -217,32 +211,13 @@ const [paymentMonth, setPaymentMonth] = useState(0);
 };
 
 const Dashboard = () => {
-  const { user, enrolledSchemes, isLoading: authLoading } = useAuth();
+  // No useEffect, no fetchSchemes, no isInitialLoad
+  // Data is already in context from when the app started
+  const { user, enrolledSchemes, isLoading: authLoading, refreshSchemes } = useAuth();
   const navigate = useNavigate();
   const [selectedScheme, setSelectedScheme] = useState<Scheme | null>(null);
-  const [fetching, setFetching] = useState(true);
 
- useEffect(() => {
-  if (!authLoading) {
-    setFetching(false);
-  }
-
-  const refresh = () => {
-    setFetching(true);
-
-    setTimeout(() => {
-      setFetching(false);
-    }, 300);
-  };
-
-  window.addEventListener("schemeUpdated", refresh);
-
-  return () => {
-    window.removeEventListener("schemeUpdated", refresh);
-  };
-}, [authLoading]);
-
-  if (authLoading || fetching) {
+  if (authLoading) {
     return (
       <Layout>
         <div className="h-screen flex items-center justify-center bg-pearl">
@@ -259,9 +234,9 @@ const Dashboard = () => {
     <Layout>
       <section className="pt-32 pb-28 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
-        <div className="absolute inset-0" style={{ background: 'var(--gradient-spotlight)' }} />
+        <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
         <div className="absolute top-0 left-0 right-0 h-48" style={{
-          background: 'linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)',
+          background: "linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)",
         }} />
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30z' fill='none' stroke='%23b8860b' stroke-width='0.5'/%3E%3C/svg%3E")`,
@@ -272,8 +247,8 @@ const Dashboard = () => {
         <div className="relative z-10 max-w-6xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="relative">
             <div className="absolute -top-16 left-0 w-96 h-48 pointer-events-none" style={{
-              background: 'radial-gradient(ellipse at 30% 50%, hsla(43, 70%, 55%, 0.1) 0%, transparent 70%)',
-              filter: 'blur(30px)',
+              background: "radial-gradient(ellipse at 30% 50%, hsla(43, 70%, 55%, 0.1) 0%, transparent 70%)",
+              filter: "blur(30px)",
             }} />
             <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-2 relative">
               Welcome, <span className="text-gold-gradient-shine">{user?.name || "Member"}</span>
@@ -286,21 +261,21 @@ const Dashboard = () => {
 
           {enrolledSchemes.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex items-center justify-center gap-3 mb-8">
-              <div className="h-px flex-1 max-w-24" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--gold-light)))' }} />
+              <div className="h-px flex-1 max-w-24" style={{ background: "linear-gradient(90deg, transparent, hsl(var(--gold-light)))" }} />
               <Sparkles className="w-4 h-4 text-gold-dark animate-glow-pulse" />
               <p className="font-elegant text-sm text-gold-dark/80 italic tracking-wide">Your Active Schemes</p>
               <Sparkles className="w-4 h-4 text-gold-dark animate-glow-pulse" />
-              <div className="h-px flex-1 max-w-24" style={{ background: 'linear-gradient(90deg, hsl(var(--gold-light)), transparent)' }} />
+              <div className="h-px flex-1 max-w-24" style={{ background: "linear-gradient(90deg, hsl(var(--gold-light)), transparent)" }} />
             </motion.div>
           )}
 
           <div className="relative mb-6">
             <h2 className="font-display text-2xl font-bold text-foreground">Your Schemes</h2>
-            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.8, delay: 0.4 }} className="h-0.5 w-24 mt-2 origin-left" style={{ background: 'var(--gradient-gold)' }} />
+            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.8, delay: 0.4 }} className="h-0.5 w-24 mt-2 origin-left" style={{ background: "var(--gradient-gold)" }} />
           </div>
 
           {enrolledSchemes.length === 0 ? (
-            <div className="glass-card rounded-2xl p-8 text-center" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="glass-card rounded-2xl p-8 text-center" style={{ boxShadow: "var(--shadow-card)" }}>
               <p className="font-body text-muted-foreground mb-4">You haven't enrolled in any schemes yet.</p>
               <button onClick={() => navigate("/schemes")} className="btn-gold text-sm px-8 py-3">Explore Schemes</button>
             </div>
@@ -311,13 +286,16 @@ const Dashboard = () => {
                 const isCompleted = (scheme.installmentsPaid || 0) >= (scheme.durationMonths || 1);
                 return (
                   <motion.div
-                    key={scheme.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+                    key={scheme.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
                     onClick={() => setSelectedScheme(scheme)}
                     className="glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300"
-                    style={{ boxShadow: 'var(--shadow-card)' }}
+                    style={{ boxShadow: "var(--shadow-card)" }}
                   >
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-                      style={{ background: 'linear-gradient(135deg, transparent, hsla(43,80%,60%,0.06), transparent)' }} />
+                      style={{ background: "linear-gradient(135deg, transparent, hsla(43,80%,60%,0.06), transparent)" }} />
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-display text-lg font-bold text-foreground">{scheme.name}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-body font-semibold border ${isCompleted ? "bg-emerald/10 text-emerald border-emerald/20" : "bg-gold/10 text-gold-dark border-gold/20"}`}>
@@ -325,9 +303,11 @@ const Dashboard = () => {
                       </span>
                     </div>
                     <p className="font-body text-sm text-muted-foreground mb-1">{formatINR(scheme.monthlyAmount)}/month • {scheme.installmentsPaid}/{scheme.durationMonths} paid</p>
-                    <p className="font-body text-sm text-muted-foreground mb-3">Gold saved: <span className="font-semibold text-gold-gradient">{formatINR(scheme.monthlyAmount * (scheme.installmentsPaid || 0))}</span></p>
+                    <p className="font-body text-sm text-muted-foreground mb-3">
+                      Gold saved: <span className="font-semibold text-gold-gradient">{formatINR(scheme.monthlyAmount * (scheme.installmentsPaid || 0))}</span>
+                    </p>
                     <div className="w-full h-2 rounded-full bg-cream overflow-hidden">
-                      <motion.div className="h-full rounded-full" style={{ background: 'var(--gradient-gold)' }} initial={{ width: "0%" }} animate={{ width: `${progress}%` }} />
+                      <motion.div className="h-full rounded-full" style={{ background: "var(--gradient-gold)" }} initial={{ width: "0%" }} animate={{ width: `${progress}%` }} />
                     </div>
                   </motion.div>
                 );
@@ -338,13 +318,12 @@ const Dashboard = () => {
 
         <AnimatePresence>
           {selectedScheme && (
-  <SchemeDetailModal
-    scheme={
-      enrolledSchemes.find((s) => s.id === selectedScheme.id) || selectedScheme
-    }
-    onClose={() => setSelectedScheme(null)}
-  />
-)}
+            <SchemeDetailModal
+              scheme={enrolledSchemes.find((s) => s.id === selectedScheme.id) || selectedScheme}
+              onClose={() => setSelectedScheme(null)}
+              onPaymentSuccess={refreshSchemes}
+            />
+          )}
         </AnimatePresence>
       </section>
     </Layout>
