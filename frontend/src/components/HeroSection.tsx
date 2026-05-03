@@ -134,9 +134,9 @@ const HeroSection = () => {
 
       <div className="relative z-20 text-center px-4 max-w-5xl mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.3 }}
+          transition={{ duration: 0.4, delay: 0 }}
         >
           <p className="font-elegant text-lg md:text-xl tracking-[0.35em] uppercase text-gold-dark mb-5 drop-shadow-sm">
             ✦ Premium Gold Savings ✦
@@ -144,9 +144,9 @@ const HeroSection = () => {
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
           className="font-display text-5xl sm:text-6xl md:text-8xl font-bold leading-[1.1] mb-8"
           style={{ textShadow: '0 4px 30px hsla(30, 20%, 15%, 0.15)' }}
         >
@@ -158,9 +158,9 @@ const HeroSection = () => {
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.7 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
           className="font-elegant text-xl md:text-2xl text-foreground/70 max-w-2xl mx-auto mb-12 italic"
           style={{ textShadow: '0 1px 10px hsla(40, 20%, 50%, 0.15)' }}
         >
@@ -170,7 +170,7 @@ const HeroSection = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
           className="flex flex-col sm:flex-row gap-5 justify-center"
         >
           <button onClick={() => navigate("/schemes")} className="btn-gold btn-gold-pulse text-base md:text-lg px-12 py-4">
