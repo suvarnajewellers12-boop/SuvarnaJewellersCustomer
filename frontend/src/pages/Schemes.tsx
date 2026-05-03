@@ -7,8 +7,11 @@ import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
 import PaymentModal from "@/components/PaymentModal";
 
-const formatINR = (n: number = 0) =>
-  "₹" + n.toLocaleString("en-IN");
+const formatINR = (n: number = 0) => "₹" + n.toLocaleString("en-IN");
+
+// Module-level cache — survives page navigation, resets on browser refresh
+// Sits outside the component so it's never reset by re-renders
+let _cachedDbSchemes: any[] | null = null;
 
 const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMonths: number }) => {
   const pct = (paidMonths / totalMonths) * 100;
@@ -53,22 +56,26 @@ const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMon
 };
 
 const Schemes = () => {
-  const { isLoggedIn, enrollScheme, enrolledSchemes } = useAuth();
+  const { isLoggedIn, enrollScheme, enrolledSchemes, refreshSchemes } = useAuth();
   const navigate = useNavigate();
-  
-  // 1. Dynamic state for database schemes
-  const [dbSchemes, setDbSchemes] = useState<any[]>([]);
-  const [paymentScheme, setPaymentScheme] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // 2. Fetch all schemes from your Vercel API
+  // Start with cached data if available — no spinner on revisit
+  const [dbSchemes, setDbSchemes] = useState<any[]>(_cachedDbSchemes ?? []);
+  const [paymentScheme, setPaymentScheme] = useState<any | null>(null);
+  // Only show loading if we have no cached data at all
+  const [loading, setLoading] = useState(_cachedDbSchemes === null);
+
   useEffect(() => {
+    // If we already have cached data, skip the network call entirely
+    if (_cachedDbSchemes !== null) return;
+
     const fetchAllSchemes = async () => {
       try {
         const res = await fetch("https://suvarnagold-16e5.vercel.app/api/schemes/all");
         if (res.ok) {
           const data = await res.json();
-          setDbSchemes(data.schemes || []);
+          _cachedDbSchemes = data.schemes || []; // store in module cache
+          setDbSchemes(_cachedDbSchemes!);
         }
       } catch (err) {
         console.error("Failed to fetch royal schemes:", err);
@@ -76,8 +83,9 @@ const Schemes = () => {
         setLoading(false);
       }
     };
+
     fetchAllSchemes();
-  }, []);
+  }, []); // still runs once — but only if cache is empty
 
   const handleEnroll = (scheme: any) => {
     if (!isLoggedIn) {
@@ -89,8 +97,7 @@ const Schemes = () => {
 
   const handlePaymentSuccess = async () => {
     if (paymentScheme) {
-      window.dispatchEvent(new Event("schemeUpdated"));
-
+      await refreshSchemes(); // update context silently — no window event needed
       setPaymentScheme(null);
       navigate("/dashboard");
     }
@@ -134,9 +141,8 @@ const Schemes = () => {
 
           <div className="grid md:grid-cols-3 gap-8">
             {dbSchemes.map((scheme, index) => {
-              // Compare IDs to see if already enrolled
               const isEnrolled = enrolledSchemes.some((s) => s.name === scheme.name);
-              
+
               return (
                 <motion.div
                   key={scheme.id}
@@ -150,7 +156,6 @@ const Schemes = () => {
                   <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
                     style={{ background: 'linear-gradient(135deg, transparent 20%, hsla(43,80%,60%,0.12) 50%, transparent 80%)' }} />
 
-                  {/* Mock progress for display purpose */}
                   <ProgressArc paidMonths={0} totalMonths={scheme.durationMonths} />
 
                   <h3 className="font-display text-xl font-bold text-foreground mt-4 mb-2">{scheme.name}</h3>

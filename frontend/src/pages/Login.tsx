@@ -25,7 +25,7 @@ const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
 const [forgotPassword, setForgotPassword] = useState("");
 const [forgotSuccess, setForgotSuccess] = useState(false);
   
-  const { login } = useAuth();
+  const { login, loginAndLoad } = useAuth();
   const navigate = useNavigate();
   const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -91,10 +91,10 @@ const handleSubmitForm = async (e: React.FormEvent) => {
 
     setVerified(true);
 
-    setTimeout(() => {
-      login(data.user);
-      navigate("/dashboard");
-    }, 1800);
+    setTimeout(async () => {
+  await loginAndLoad(data.user, data.token); // schemes load during animation
+  navigate("/dashboard");
+}, 1800);
   } catch (err: any) {
     setError(err.message);
   }
@@ -146,10 +146,10 @@ const handleSubmitForm = async (e: React.FormEvent) => {
 
     setVerified(true);
 
-    setTimeout(() => {
-      login(data.user);
-      navigate("/dashboard");
-    }, 1800);
+    setTimeout(async () => {
+  await loginAndLoad(data.user, data.token);
+  navigate("/dashboard");
+}, 1800);
   } catch (err: any) {
     setError(err.message);
   }

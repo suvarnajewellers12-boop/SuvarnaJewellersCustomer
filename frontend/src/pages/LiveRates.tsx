@@ -13,74 +13,58 @@ const formatINR = (n: number) =>
     maximumFractionDigits: 2,
   });
 
+const emptyRates = [
+  { metal: "Gold 24K", price: 0, unit: "/gram" },
+  { metal: "Gold 22K", price: 0, unit: "/gram" },
+  { metal: "Gold 18K", price: 0, unit: "/gram" },
+  { metal: "Silver",   price: 0, unit: "/gram" },
+];
+
+// Module-level cache — persists across page navigation
+let _cachedRates: typeof emptyRates | null = null;
+let _ratesFetchedAt: number | null = null;
+const RATES_TTL = 5 * 60 * 1000; // 5 minutes
+
 const LiveRates = () => {
   const { isLoggedIn, enrolledSchemes } = useAuth();
 
+  // Fixed: installmentsPaid not paidMonths
   const totalSaved = enrolledSchemes.reduce(
-    (acc, s) => acc + s.monthlyAmount * s.paidMonths,
+    (acc, s) => acc + s.monthlyAmount * (s.installmentsPaid || 0),
     0
   );
 
-  const [loading, setLoading] = useState(true);
+  const isCacheValid =
+    _cachedRates !== null &&
+    _ratesFetchedAt !== null &&
+    Date.now() - _ratesFetchedAt < RATES_TTL;
 
-  const [rates, setRates] = useState([
-    {
-      metal: "Gold 24K",
-      price: 0,
-      unit: "/gram",
-    },
-    {
-      metal: "Gold 22K",
-      price: 0,
-      unit: "/gram",
-    },
-    {
-      metal: "Gold 18K",
-      price: 0,
-      unit: "/gram",
-    },
-    {
-      metal: "Silver",
-      price: 0,
-      unit: "/gram",
-    },
-  ]);
+  const [rates, setRates] = useState(_cachedRates ?? emptyRates);
+  const [loading, setLoading] = useState(!isCacheValid); // no spinner if cache fresh
 
   useEffect(() => {
+    // Cache is fresh — skip network entirely
+    if (isCacheValid) return;
+
     const fetchRates = async () => {
       try {
         const res = await fetch("https://suvarnagold-16e5.vercel.app/api/rates");
         const data = await res.json();
 
-        setRates([
-          {
-            metal: "Gold 24K",
-            price: cleanPrice(data.gold24),
-            unit: "/gram",
-          },
-          {
-            metal: "Gold 22K",
-            price: cleanPrice(data.gold22),
-            unit: "/gram",
-          },
-          {
-            metal: "Gold 18K",
-            price: cleanPrice(data.gold18),
-            unit: "/gram",
-          },
-          {
-            metal: "Silver",
-            price: cleanPrice(data.silver),
-            unit: "/gram",
-          },
-        ]);
+        const fresh = [
+          { metal: "Gold 24K", price: cleanPrice(data.gold24), unit: "/gram" },
+          { metal: "Gold 22K", price: cleanPrice(data.gold22), unit: "/gram" },
+          { metal: "Gold 18K", price: cleanPrice(data.gold18), unit: "/gram" },
+          { metal: "Silver",   price: cleanPrice(data.silver),  unit: "/gram" },
+        ];
 
-        setTimeout(() => {
-          setLoading(false);
-        }, 1000);
+        _cachedRates = fresh;
+        _ratesFetchedAt = Date.now();
+        setRates(fresh);
       } catch (error) {
         console.error("Rates fetch failed:", error);
-        setLoading(false);
+      } finally {
+        setLoading(false); // removed the fake 1000ms setTimeout
       }
     };
 
@@ -92,17 +76,13 @@ const LiveRates = () => {
       <section className="pt-32 pb-28 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
-
         <div
           className="absolute top-0 left-0 right-0 h-48"
           style={{
-            background:
-              "linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)",
+            background: "linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)",
           }}
         />
-
         <div className="absolute top-0 left-0 right-0 gold-divider" />
-
         <GoldDustParticles />
 
         <div className="relative z-10 max-w-7xl mx-auto">
@@ -115,11 +95,9 @@ const LiveRates = () => {
             <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">
               Market Watch
             </p>
-
             <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground">
               Live <span className="text-gold-gradient-shine">Rates</span>
             </h1>
-
             <p className="font-elegant text-lg text-muted-foreground italic mt-3">
               Today's precious metal prices
             </p>
@@ -134,15 +112,13 @@ const LiveRates = () => {
             <p className="font-elegant text-sm text-gold-dark/70 italic">
               "Today's Gold — Guiding Tomorrow's Celebrations"
             </p>
-
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1, delay: 0.6 }}
               className="h-px w-32 mx-auto mt-4"
               style={{
-                background:
-                  "linear-gradient(90deg, transparent, hsl(var(--gold-light)), transparent)",
+                background: "linear-gradient(90deg, transparent, hsl(var(--gold-light)), transparent)",
               }}
             />
           </motion.div>
@@ -168,11 +144,9 @@ const LiveRates = () => {
                   <h3 className="font-display text-lg font-bold text-foreground mb-1">
                     {rate.metal}
                   </h3>
-
                   <span className="font-display text-3xl font-bold text-gold-gradient">
                     {formatINR(rate.price)}
                   </span>
-
                   <span className="font-body text-sm text-muted-foreground block">
                     {rate.unit}
                   </span>
@@ -186,11 +160,9 @@ const LiveRates = () => {
               <p className="font-elegant text-base text-muted-foreground italic mb-2">
                 Your current gold savings value
               </p>
-
               <span className="font-display text-3xl font-bold text-gold-gradient">
                 {formatINR(totalSaved)}
               </span>
-
               <p className="font-body text-xs text-muted-foreground mt-2">
                 Based on current 22K rate
               </p>

@@ -23,6 +23,7 @@ interface AuthContextType {
   enrolledSchemes: Scheme[];
   setEnrolledSchemes: React.Dispatch<React.SetStateAction<Scheme[]>>;
   login: (user: User) => void;
+  loginAndLoad: (userData: any, token: string) => Promise<void>; // ← ADDED
   logout: () => void;
   enrollScheme: (schemeData: any) => Promise<void>;
   payInstallment: (customerSchemeId: string) => Promise<void>;
@@ -71,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           "Content-Type": "application/json",
         };
 
-        // Both calls fire at the same time — not one after the other
+        // Both calls fire at the same time
         const [userRes, schemesRes] = await Promise.all([
           fetch(`${API_URL}/api/auth/me`, { headers }),
           fetch(`${API_URL}/api/schemes/my`, { headers }),
@@ -98,10 +99,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    checkUser(); // runs ONCE when app starts
+    checkUser();
   }, []);
 
-  // Called after payment or enrollment — silent, no spinner
+  // Silent background refresh — no spinner
   const refreshSchemes = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
@@ -120,6 +121,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       console.error("Schemes refresh failed:", err);
+    }
+  }, []);
+
+  // Called right after login — fetches schemes during the 1.8s animation
+  // so Dashboard is instant when you arrive
+  const loginAndLoad = useCallback(async (userData: any, token: string) => {
+    setUser(userData);
+    setIsLoggedIn(true);
+    try {
+      const res = await fetch(`${API_URL}/api/schemes/my`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEnrolledSchemes((data.schemes || []).map(formatScheme));
+      }
+    } catch (err) {
+      console.error("Post-login schemes fetch failed:", err);
     }
   }, []);
 
@@ -155,7 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }),
       });
       if (!res.ok) throw new Error("Enrollment failed");
-      await refreshSchemes(); // update context silently
+      await refreshSchemes();
     } catch (err: any) {
       console.error("Enrollment failed:", err.message);
     }
@@ -176,7 +198,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const data = await res.json();
         throw new Error(data.message || "Payment failed");
       }
-      await refreshSchemes(); // update context silently
+      await refreshSchemes();
     } catch (err: any) {
       console.error("Payment failed:", err.message);
       throw err;
@@ -192,6 +214,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         enrolledSchemes,
         setEnrolledSchemes,
         login,
+        loginAndLoad, // ← ADDED
         logout,
         enrollScheme,
         payInstallment,
