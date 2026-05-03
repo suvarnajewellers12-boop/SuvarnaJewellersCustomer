@@ -3,11 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, RotateCcw, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-
-
-const API_URL =
-  import.meta.env.VITE_API_URL || "https://suvarna-jewellers-customer-backend.vercel.app";
-
 type Category = "gold" | "silver";
 
 interface Product {
@@ -21,13 +16,15 @@ interface Product {
   subcategory: string;
 }
 
-
 const subcategories: Record<Category, string[]> = {
   gold: ["All", "Gold Rings", "Gold Chains", "Gold Bangles", "Gold Anklets"],
   silver: ["All", "Silver Idols", "Silver Earrings", "Silver Chains", "Silver Anklets"],
 };
 
 const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
+
+// Module-level cache — survives page navigation, resets on browser refresh
+let _cachedProducts: Product[] | null = null;
 
 const ProductModal = ({ product, onClose }: { product: Product; onClose: () => void }) => (
   <motion.div
@@ -48,9 +45,16 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
     >
       <div className="relative">
         <div className="aspect-video overflow-hidden rounded-t-3xl bg-cream spotlight">
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover hover:scale-110 transition-transform duration-700" />
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+          />
         </div>
-        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors"
+        >
           <X className="w-5 h-5" />
         </button>
         <div className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-gold/20 backdrop-blur-sm flex items-center justify-center text-gold-dark">
@@ -79,45 +83,54 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
 
 const ProductsSection = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+
+  // Start with cache if available — no spinner on revisit
+  const [products, setProducts] = useState<Product[]>(_cachedProducts ?? []);
+  const [loading, setLoading] = useState(_cachedProducts === null);
+
   const [activeCategory, setActiveCategory] = useState<Category>("gold");
   const [activeSubcategory, setActiveSubcategory] = useState("All");
 
   useEffect(() => {
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch("https://suvarnagold-16e5.vercel.app/api/productsimgs/list");
-      const data = await res.json();
+    // Cache exists — skip network call entirely
+    if (_cachedProducts !== null) return;
 
-      const mapped = data.map((item: any) => ({
-        name: item.title,
-        grams: `${item.weight} gms`,
-        numgrams: item.weight,
-        image: item.image,
-        description: item.description || "No description available",
-        story: item.description || "Traditional craftsmanship from Suvarna Jewellers.",
-        category:
-          item.metalType?.toLowerCase() === "silver" ? "silver" : "gold",
-        subcategory:
-          item.metalType?.toLowerCase() === "silver"
-            ? "Silver Idols"
-            : "Gold Chains",
-      }));
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("https://suvarnagold-16e5.vercel.app/api/productsimgs/list");
+        const data = await res.json();
 
-      setProducts(mapped);
-    } catch (error) {
-      console.error("Products fetch failed:", error);
-    }
-  };
+        const mapped: Product[] = data.map((item: any) => ({
+          name: item.title,
+          grams: `${item.weight} gms`,
+          numgrams: item.weight,
+          image: item.image,
+          description: item.description || "No description available",
+          story: item.description || "Traditional craftsmanship from Suvarna Jewellers.",
+          category: item.metalType?.toLowerCase() === "silver" ? "silver" : "gold",
+          subcategory:
+            item.metalType?.toLowerCase() === "silver" ? "Silver Idols" : "Gold Chains",
+        }));
 
-  fetchProducts();
-}, []);
+        _cachedProducts = mapped; // store in module cache
+        setProducts(mapped);
+      } catch (error) {
+        console.error("Products fetch failed:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const { isLoggedIn, enrolledSchemes } = useAuth();
+
+  // Fixed: installmentsPaid not paidMonths
   const totalSaved = enrolledSchemes.reduce(
-  (acc, s: any) => acc + s.monthlyAmount * (s.paidMonths || 0),
-  0
-);
+    (acc, s) => acc + s.monthlyAmount * (s.installmentsPaid || 0),
+    0
+  );
 
   const filteredProducts = products.filter(
     (p) =>
@@ -129,6 +142,20 @@ const ProductsSection = () => {
     setActiveCategory(cat);
     setActiveSubcategory("All");
   };
+
+  if (loading) {
+    return (
+      <section id="products" className="py-28 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-cream" />
+        <div className="h-96 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-elegant italic text-gold-dark">Loading Collection...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="products" className="py-28 px-4 relative overflow-hidden">
@@ -144,7 +171,9 @@ const ProductsSection = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">Curated Collection</p>
+          <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">
+            Curated Collection
+          </p>
           <h2 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-4">
             Exquisite <span className="text-gold-gradient-shine">Treasures</span>
           </h2>
@@ -167,18 +196,12 @@ const ProductsSection = () => {
               onClick={() => handleCategoryChange(cat)}
               className="relative px-8 py-2.5 rounded-full font-display text-sm tracking-wider uppercase transition-all duration-400"
               style={{
-                background: activeCategory === cat
-                  ? 'var(--gradient-gold)'
-                  : 'hsla(40, 28%, 97%, 0.6)',
-                color: activeCategory === cat
-                  ? 'hsl(40, 30%, 97%)'
-                  : 'hsl(28, 25%, 15%)',
+                background: activeCategory === cat ? 'var(--gradient-gold)' : 'hsla(40, 28%, 97%, 0.6)',
+                color: activeCategory === cat ? 'hsl(40, 30%, 97%)' : 'hsl(28, 25%, 15%)',
                 border: activeCategory === cat
                   ? '1px solid hsla(43, 80%, 60%, 0.5)'
                   : '1px solid hsla(38, 50%, 65%, 0.3)',
-                boxShadow: activeCategory === cat
-                  ? 'var(--shadow-gold)'
-                  : 'none',
+                boxShadow: activeCategory === cat ? 'var(--shadow-gold)' : 'none',
               }}
             >
               {cat === "gold" ? "Gold Jewellery" : "Silver Jewellery"}
@@ -200,12 +223,8 @@ const ProductsSection = () => {
               onClick={() => setActiveSubcategory(sub)}
               className="px-5 py-1.5 rounded-full font-body text-xs tracking-wide transition-all duration-300"
               style={{
-                background: activeSubcategory === sub
-                  ? 'hsla(43, 80%, 55%, 0.15)'
-                  : 'transparent',
-                color: activeSubcategory === sub
-                  ? 'hsl(38, 72%, 38%)'
-                  : 'hsl(28, 12%, 40%)',
+                background: activeSubcategory === sub ? 'hsla(43, 80%, 55%, 0.15)' : 'transparent',
+                color: activeSubcategory === sub ? 'hsl(38, 72%, 38%)' : 'hsl(28, 12%, 40%)',
                 border: activeSubcategory === sub
                   ? '1px solid hsla(43, 80%, 55%, 0.4)'
                   : '1px solid hsla(38, 50%, 65%, 0.2)',
@@ -242,24 +261,35 @@ const ProductsSection = () => {
                   className="product-card cursor-pointer group spotlight"
                 >
                   <div className="aspect-square overflow-hidden rounded-t-2xl bg-cream relative">
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      loading="lazy"
+                    />
                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-foreground/8 to-transparent pointer-events-none" />
                     {isLoggedIn && totalSaved > 0 && (
                       <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pearl/90 backdrop-blur-sm border border-gold/20">
                         <BadgeCheck className="w-3.5 h-3.5 text-gold-dark" />
-                        <span className="font-body text-[11px] font-semibold text-foreground">Eligible via savings</span>
+                        <span className="font-body text-[11px] font-semibold text-foreground">
+                          Eligible via savings
+                        </span>
                       </div>
                     )}
                   </div>
                   <div className="p-6">
-                    <h3 className="font-display text-lg font-semibold text-foreground mb-1">{product.name}</h3>
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-1">
+                      {product.name}
+                    </h3>
                     <p className="font-display text-xl font-bold text-gold-gradient">{product.grams}</p>
                     {isLoggedIn && totalSaved > 0 && (
                       <p className="font-body text-xs text-gold-dark mt-1">
                         Redeem {formatINR(Math.min(totalSaved, product.numgrams))} from saved gold
                       </p>
                     )}
-                    <p className="font-body text-xs text-muted-foreground mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Click to explore ✦</p>
+                    <p className="font-body text-xs text-muted-foreground mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      Click to explore ✦
+                    </p>
                   </div>
                 </motion.div>
               ))
@@ -268,7 +298,15 @@ const ProductsSection = () => {
         </AnimatePresence>
       </div>
 
-      {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />}
+      <AnimatePresence>
+        {selectedProduct && (
+          <ProductModal
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="absolute bottom-0 left-0 right-0 gold-divider" />
     </section>
   );
