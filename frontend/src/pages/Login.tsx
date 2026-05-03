@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Unlock, Smartphone, Sparkles, UserPlus, KeyRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +6,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://suvarna-jewellers-customer-backend.vercel.app";
 
+// Fires one cheap GET to wake up the Vercel function
+// Called the moment user focuses the phone input
+const warmupBackend = () => {
+  fetch(`${API_URL}/api/warmup`).catch(() => {});
+};
 
 const Login = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -17,21 +25,21 @@ const Login = () => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState("");
-  // ADD these new states after existing ones
-const [forgotMode, setForgotMode] = useState(false);
-const [forgotStep, setForgotStep] = useState<"phone" | "otp" | "password">("phone");
-const [forgotPhone, setForgotPhone] = useState("");
-const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
-const [forgotPassword, setForgotPassword] = useState("");
-const [forgotSuccess, setForgotSuccess] = useState(false);
-  
-  const { login, loginAndLoad } = useAuth();
-  const navigate = useNavigate();
-  const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://suvarna-jewellers-customer-backend.vercel.app";
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotStep, setForgotStep] = useState<"phone" | "otp" | "password">("phone");
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
+  const [forgotPassword, setForgotPassword] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
-  console.log("API_URL:", API_URL);
+  const { loginAndLoad } = useAuth();
+  const navigate = useNavigate();
+
+  // Warm backend immediately when login page mounts
+  // By the time user types phone + password, server is already awake
+  useEffect(() => {
+    warmupBackend();
+  }, []);
 
   const isSignup = mode === "signup";
 
@@ -45,115 +53,85 @@ const [forgotSuccess, setForgotSuccess] = useState(false);
     setError("");
   };
 
-  
-  
-const handleSubmitForm = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmitForm = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (isSignup) {
+    if (isSignup) {
+      setError("");
+      try {
+        const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "OTP send failed");
+        setOtpSent(true);
+      } catch (err: any) {
+        setError(err.message);
+      }
+      return;
+    }
+
     setError("");
-
     try {
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
       });
-
       const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Login failed");
 
-      if (!response.ok) throw new Error(data.message || "OTP send failed");
+      localStorage.setItem("token", data.token);
+      setVerified(true);
 
-      setOtpSent(true);
+      // Start fetching schemes immediately — don't wait for setTimeout
+      // By the time animation finishes, data is ready
+      loginAndLoad(data.user, data.token); // no await — runs in background
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 800); // was 1800 — saved 1 full second
     } catch (err: any) {
       setError(err.message);
     }
-
-    return;
-  }
-
-  setError("");
-
-  try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, password }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) throw new Error(data.message || "Login failed");
-
-    localStorage.setItem("token", data.token);
-
-    setVerified(true);
-
-    setTimeout(async () => {
-  await loginAndLoad(data.user, data.token); // schemes load during animation
-  navigate("/dashboard");
-}, 1800);
-  } catch (err: any) {
-    setError(err.message);
-  }
-};
-
+  };
 
   const handleVerify = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
+    try {
+      const entered = otp.join("");
 
-  try {
-    const entered = otp.join("");
+      const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp: entered }),
+      });
+      const verifyData = await verifyRes.json();
+      if (verifyData.type !== "success") throw new Error("Invalid OTP");
 
-    const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone,
-        otp: entered,
-      }),
-    });
+      const response = await fetch(`${API_URL}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), phone, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Signup failed");
 
-    const verifyData = await verifyRes.json();
+      if (data.token) localStorage.setItem("token", data.token);
+      setVerified(true);
 
-    if (verifyData.type !== "success") {
-      throw new Error("Invalid OTP");
+      // Same pattern — start loading in background during animation
+      loginAndLoad(data.user, data.token); // no await — runs in background
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 800); // was 1800
+    } catch (err: any) {
+      setError(err.message);
     }
-
-    const response = await fetch(`${API_URL}/api/auth/signup`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: name.trim(),
-        phone,
-        password,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) throw new Error(data.message || "Signup failed");
-
-    if (data.token) {
-      localStorage.setItem("token", data.token);
-    }
-
-    setVerified(true);
-
-    setTimeout(async () => {
-  await loginAndLoad(data.user, data.token);
-  navigate("/dashboard");
-}, 1800);
-  } catch (err: any) {
-    setError(err.message);
-  }
-};
+  };
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -161,140 +139,109 @@ const handleSubmitForm = async (e: React.FormEvent) => {
     newOtp[index] = value;
     setOtp(newOtp);
     if (value && index < 5) {
-      const next = document.getElementById(`otp-${index + 1}`);
-      next?.focus();
+      document.getElementById(`otp-${index + 1}`)?.focus();
     }
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      const prev = document.getElementById(`otp-${index - 1}`);
-      prev?.focus();
+      document.getElementById(`otp-${index - 1}`)?.focus();
     }
   };
 
   const handleForgotSendOtp = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
+    if (forgotPhone.length !== 10) {
+      setError("Enter valid 10-digit mobile number");
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone, purpose: "forgot_password" }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to send OTP");
+      setForgotStep("otp");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
-  if (forgotPhone.length !== 10) {
-    setError("Enter valid 10-digit mobile number");
-    return;
-  }
+  const handleForgotVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const entered = forgotOtp.join("");
+    if (entered.length !== 6) {
+      setError("Enter complete 6-digit OTP");
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone, otp: entered, purpose: "forgot_password" }),
+      });
+      const data = await response.json();
+      if (data.type !== "success") throw new Error(data.message || "Invalid OTP");
+      setForgotStep("password");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
-  try {
-    const response = await fetch(`${API_URL}/api/auth/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone: forgotPhone,
-        purpose: "forgot_password",   // ← key difference
-      }),
-    });
+  const handleForgotResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (forgotPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    const entered = forgotOtp.join("");
+    try {
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone, otp: entered, newPassword: forgotPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Reset failed");
+      setForgotSuccess(true);
+      setTimeout(() => {
+        setForgotMode(false);
+        setForgotStep("phone");
+        setForgotPhone("");
+        setForgotOtp(["", "", "", "", "", ""]);
+        setForgotPassword("");
+        setForgotSuccess(false);
+        setError("");
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "Failed to send OTP");
+  const handleForgotOtpChange = (index: number, value: string) => {
+    if (value.length > 1) return;
+    const newOtp = [...forgotOtp];
+    newOtp[index] = value;
+    setForgotOtp(newOtp);
+    if (value && index < 5) {
+      document.getElementById(`fotp-${index + 1}`)?.focus();
+    }
+  };
 
-    setForgotStep("otp");
-  } catch (err: any) {
-    setError(err.message);
-  }
-};
-
-const handleForgotVerifyOtp = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
-
-  const entered = forgotOtp.join("");
-  if (entered.length !== 6) {
-    setError("Enter complete 6-digit OTP");
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone: forgotPhone,
-        otp: entered,
-        purpose: "forgot_password",   // ← key difference
-      }),
-    });
-
-    const data = await response.json();
-    if (data.type !== "success") throw new Error(data.message || "Invalid OTP");
-
-    setForgotStep("password");
-  } catch (err: any) {
-    setError(err.message);
-  }
-};
-
-const handleForgotResetPassword = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
-
-  if (forgotPassword.length < 6) {
-    setError("Password must be at least 6 characters");
-    return;
-  }
-
-  const entered = forgotOtp.join("");
-
-  try {
-    const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone: forgotPhone,
-        otp: entered,
-        newPassword: forgotPassword,
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "Reset failed");
-
-    setForgotSuccess(true);
-
-    // Auto return to login after 2 seconds
-    setTimeout(() => {
-      setForgotMode(false);
-      setForgotStep("phone");
-      setForgotPhone("");
-      setForgotOtp(["", "", "", "", "", ""]);
-      setForgotPassword("");
-      setForgotSuccess(false);
-      setError("");
-    }, 2000);
-  } catch (err: any) {
-    setError(err.message);
-  }
-};
-
-const handleForgotOtpChange = (index: number, value: string) => {
-  if (value.length > 1) return;
-  const newOtp = [...forgotOtp];
-  newOtp[index] = value;
-  setForgotOtp(newOtp);
-  if (value && index < 5) {
-    const next = document.getElementById(`fotp-${index + 1}`);
-    next?.focus();
-  }
-};
-
-const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
-  if (e.key === "Backspace" && !forgotOtp[index] && index > 0) {
-    const prev = document.getElementById(`fotp-${index - 1}`);
-    prev?.focus();
-  }
-};
+  const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !forgotOtp[index] && index > 0) {
+      document.getElementById(`fotp-${index - 1}`)?.focus();
+    }
+  };
 
   return (
     <Layout>
       <section className="min-h-screen flex items-center justify-center px-4 pt-24 pb-16 relative overflow-hidden">
-        {/* Background Visuals */}
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: 'var(--gradient-spotlight)' }} />
         <div className="absolute top-0 left-0 right-0 h-48" style={{
@@ -314,11 +261,10 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.3 }}
             className="relative z-10 w-full max-w-md"
           >
             <div className="glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden" style={{ boxShadow: 'var(--shadow-depth)' }}>
-
               <button
                 onClick={() => {
                   setForgotMode(false);
@@ -361,7 +307,6 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                   </div>
                   <p className="font-body text-sm text-muted-foreground mt-4">Redirecting to login...</p>
                 </motion.div>
-
               ) : forgotStep === "phone" ? (
                 <form onSubmit={handleForgotSendOtp} className="space-y-5">
                   <div className="relative">
@@ -378,11 +323,8 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                     />
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">
-                    Send OTP
-                  </button>
+                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Send OTP</button>
                 </form>
-
               ) : forgotStep === "otp" ? (
                 <form onSubmit={handleForgotVerifyOtp} className="space-y-5">
                   <div className="flex justify-center gap-3">
@@ -397,16 +339,13 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                     ))}
                   </div>
                   {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">
-                    Verify OTP
-                  </button>
+                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Verify OTP</button>
                   <button type="button"
                     onClick={() => { setForgotStep("phone"); setForgotOtp(["","","","","",""]); setError(""); }}
                     className="w-full text-center font-body text-sm text-gold-dark hover:underline">
                     Change number
                   </button>
                 </form>
-
               ) : (
                 <form onSubmit={handleForgotResetPassword} className="space-y-5">
                   <div className="relative">
@@ -422,21 +361,16 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                     />
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">
-                    Reset Password
-                  </button>
+                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Reset Password</button>
                 </form>
               )}
             </div>
           </motion.div>
-
         ) : (
-
-          // ↓ YOUR EXISTING card starts here — no changes inside
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.3 }}
             className="relative z-10 w-full max-w-md"
           >
             <div className="glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden" style={{ boxShadow: 'var(--shadow-depth)' }}>
@@ -444,7 +378,6 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                 background: 'radial-gradient(ellipse at 50% 0%, hsla(43, 70%, 60%, 0.05) 0%, transparent 60%)',
               }} />
 
-              {/* Icon Section */}
               <div className="flex justify-center mb-6 relative">
                 <motion.div
                   className="w-16 h-16 rounded-full bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center relative"
@@ -488,7 +421,10 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                     </div>
                   </motion.div>
                   <div className="w-full h-2 rounded-full bg-cream overflow-hidden">
-                    <motion.div className="h-full rounded-full" style={{ background: 'var(--gradient-gold)' }} initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 1.5, ease: "easeInOut" }} />
+                    <motion.div className="h-full rounded-full" style={{ background: 'var(--gradient-gold)' }}
+                      initial={{ width: "0%" }} animate={{ width: "100%" }}
+                      transition={{ duration: 0.8, ease: "easeInOut" }} // was 1.5
+                    />
                   </div>
                 </motion.div>
               ) : !otpSent ? (
@@ -512,6 +448,7 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                     <input
                       type="tel"
                       value={phone}
+                      onFocus={warmupBackend} // warms up again if first call failed
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
@@ -536,29 +473,24 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                   <div className="text-center pt-2">
                     <p className="font-body text-sm text-muted-foreground">
                       {isSignup ? "Already have an account?" : "Don't have an account?"}
-                      <button type="button" onClick={() => { setMode(isSignup ? "login" : "signup"); resetForm(); }} className="ml-1.5 font-semibold text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2">
+                      <button type="button" onClick={() => { setMode(isSignup ? "login" : "signup"); resetForm(); }}
+                        className="ml-1.5 font-semibold text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2">
                         {isSignup ? "Login" : "Sign Up"}
                       </button>
                     </p>
                   </div>
-                  {/* Forgot Password link */}
                   {!isSignup && (
                     <div className="text-center pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForgotMode(true);
-                          setError("");
-                        }}
-                        className="font-body text-sm text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2"
-                      >
+                      <button type="button" onClick={() => { setForgotMode(true); setError(""); }}
+                        className="font-body text-sm text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2">
                         Forgot Password?
                       </button>
                     </div>
                   )}
                 </form>
               ) : (
-                <motion.form onSubmit={handleVerify} className="space-y-5 relative" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+                <motion.form onSubmit={handleVerify} className="space-y-5 relative"
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
                   <p className="font-body text-sm text-muted-foreground text-center">OTP sent to +91 {phone}</p>
                   <div className="flex justify-center gap-3">
                     {otp.map((digit, i) => (
@@ -572,14 +504,14 @@ const handleForgotOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
                   </div>
                   {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
                   <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Verify OTP</button>
-                  <button type="button" onClick={() => { setOtpSent(false); setOtp(["", "", "", "", "", ""]); setError(""); }} className="w-full text-center font-body text-sm text-gold-dark hover:underline">Change number</button>
-                  <p className="font-body text-xs text-muted-foreground text-center"> Enter OTP sent to your mobile </p>
+                  <button type="button" onClick={() => { setOtpSent(false); setOtp(["", "", "", "", "", ""]); setError(""); }}
+                    className="w-full text-center font-body text-sm text-gold-dark hover:underline">Change number</button>
+                  <p className="font-body text-xs text-muted-foreground text-center">Enter OTP sent to your mobile</p>
                 </motion.form>
               )}
             </div>
           </motion.div>
-
-        )}   {/* ← closes the forgotMode ternary */}
+        )}
       </section>
     </Layout>
   );
