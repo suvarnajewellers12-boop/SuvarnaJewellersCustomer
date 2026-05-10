@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, LayoutDashboard, Gem, TrendingUp, LogOut, Sparkles } from "lucide-react";
+import { User, Gem, Gift, LogOut, Sparkles } from "lucide-react";
 import suvarnaLogo from "@/assets/suvarna-logo.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,27 +19,23 @@ const Navbar = () => {
   const { isLoggedIn, user, logout } = useAuth();
   const isLoginPage = location.pathname === "/login";
 
-  // Shared links visible to all users
   const commonLinks = [
     { label: "Home", href: "/" },
     { label: "Products", href: "/products" },
     { label: "Schemes", href: "/schemes" },
     { label: "Live Rates", href: "/live-rates" },
-      { label: "Contact", href: "/contact" }, // ✅ ADD THIS
+    { label: "Contact", href: "/contact" },
   ];
 
-  // Desktop nav links: add Dashboard when logged in
   const navLinks = isLoggedIn
     ? [...commonLinks, { label: "Dashboard", href: "/dashboard" }]
     : commonLinks;
 
-  // Mobile nav links: same as desktop
   const mobileNavLinks = navLinks;
 
   const profileMenuItems = [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "My Schemes", href: "/my-schemes", icon: Gem },
-    { label: "Live Rates", href: "/live-rates", icon: TrendingUp },
+    { label: "My Schemes", href: "/dashboard", icon: Gem },  // CHANGED: /my-schemes → /dashboard
+    { label: "My Coupons", href: "/coupons", icon: Gift },
   ];
 
   useEffect(() => {
@@ -94,59 +90,31 @@ const Navbar = () => {
           scrolled ? "glass-nav-scrolled shadow-lg" : "glass-nav"
         }`}
       >
-        {/* Mobile: centered brand capsule + menu trigger */}
+        {/* Mobile */}
         <div className="flex md:hidden items-center justify-between w-full relative">
-          {/* Left spacer for symmetry */}
           <div className="w-9" />
-          
-          {/* Centered brand */}
           <button onClick={() => navigate("/")} className="flex items-center gap-2.5 group">
-            <motion.div
-              animate={{ y: [0, -3, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <img
-  src={suvarnaLogo}
-  alt="Suvarna Jewellers"
-  className="w-9 h-9 md:w-10 md:h-10 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain"
-/>
-
+            <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+              <img src={suvarnaLogo} alt="Suvarna Jewellers" className="w-9 h-9 md:w-10 md:h-10 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain" />
             </motion.div>
-            <span className="font-display text-lg font-bold text-gold-gradient">
-              Suvarna Jewellers
-            </span>
+            <span className="font-display text-lg font-bold text-gold-gradient">Suvarna Jewellers</span>
           </button>
-
-          {/* Menu trigger */}
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300"
-            style={{
-              background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.08))",
-              border: "1px solid hsla(43,80%,60%,0.3)",
-            }}
+            style={{ background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.08))", border: "1px solid hsla(43,80%,60%,0.3)" }}
           >
             <Sparkles className="w-4 h-4 text-gold" />
           </button>
         </div>
 
-        {/* Desktop: full navigation */}
+        {/* Desktop */}
         <div className="hidden md:flex items-center justify-between w-full">
           <button onClick={() => navigate("/")} className="flex items-center gap-2.5 group">
-            <motion.div
-              animate={{ y: [0, -3, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            >
-             <img
-  src={suvarnaLogo}
-  alt="Suvarna Jewellers"
-  className="w-10 h-10 lg:w-11 lg:h-11 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain"
-/>
-
+            <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+              <img src={suvarnaLogo} alt="Suvarna Jewellers" className="w-10 h-10 lg:w-11 lg:h-11 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain" />
             </motion.div>
-            <span className="font-display text-xl font-bold text-gold-gradient">
-              Suvarna Jewellers
-            </span>
+            <span className="font-display text-xl font-bold text-gold-gradient">Suvarna Jewellers</span>
           </button>
 
           <div className="flex items-center gap-8">
@@ -159,10 +127,11 @@ const Navbar = () => {
                 }`}
               >
                 {link.label}
-                <span className={`absolute -bottom-0.5 left-0 h-[2px] rounded-full transition-all duration-500 ${
-                  location.pathname === link.href ? "w-full" : "w-0 group-hover:w-full"
-                }`}
-                  style={{ background: 'linear-gradient(90deg, hsl(43 80% 52%), hsl(38 72% 38%), hsl(43 80% 52%))' }}
+                <span
+                  className={`absolute -bottom-0.5 left-0 h-[2px] rounded-full transition-all duration-500 ${
+                    location.pathname === link.href ? "w-full" : "w-0 group-hover:w-full"
+                  }`}
+                  style={{ background: "linear-gradient(90deg, hsl(43 80% 52%), hsl(38 72% 38%), hsl(43 80% 52%))" }}
                 />
               </button>
             ))}
@@ -171,23 +140,14 @@ const Navbar = () => {
           <div>
             {isLoggedIn ? (
               <div ref={profileRef} className="relative">
-                <button
-                  onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2.5 group"
-                >
+                <button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center gap-2.5 group">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-105"
-                    style={{
-                      background: "var(--gradient-gold)",
-                      boxShadow: "var(--shadow-gold)",
-                      border: "2px solid hsla(43,80%,60%,0.4)",
-                    }}
+                    style={{ background: "var(--gradient-gold)", boxShadow: "var(--shadow-gold)", border: "2px solid hsla(43,80%,60%,0.4)" }}
                   >
                     <User className="w-5 h-5 text-primary-foreground" />
                   </div>
-                  <span className="font-body text-sm font-medium text-foreground/80">
-                    {user?.name?.split(" ")[0]}
-                  </span>
+                  <span className="font-body text-sm font-medium text-foreground/80">{user?.name?.split(" ")[0]}</span>
                 </button>
 
                 <AnimatePresence>
@@ -251,7 +211,7 @@ const Navbar = () => {
         </div>
       </motion.nav>
 
-      {/* Mobile full-screen royal overlay */}
+      {/* Mobile overlay */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -265,61 +225,34 @@ const Navbar = () => {
               backdropFilter: "blur(40px)",
             }}
           >
-            {/* Gold dust particles */}
-            <div className="absolute inset-0 overflow-hidden">
-              <GoldDustParticles />
-            </div>
+            <div className="absolute inset-0 overflow-hidden"><GoldDustParticles /></div>
+            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, hsla(43,80%,50%,0.08) 0%, transparent 60%)" }} />
 
-            {/* Velvet spotlight */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: "radial-gradient(ellipse at 50% 30%, hsla(43,80%,50%,0.08) 0%, transparent 60%)",
-              }}
-            />
-
-            {/* Close button */}
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
               onClick={() => setMobileMenuOpen(false)}
               className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center z-10"
-              style={{
-                background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.05))",
-                border: "1px solid hsla(43,80%,60%,0.25)",
-              }}
+              style={{ background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.05))", border: "1px solid hsla(43,80%,60%,0.25)" }}
             >
               <span className="font-display text-gold text-lg">✕</span>
             </motion.button>
 
-            {/* Brand header */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
               className="flex flex-col items-center pt-16 pb-8"
             >
-              <img
-  src={suvarnaLogo}
-  alt="Suvarna Jewellers"
-  className="w-14 h-14 mb-4 object-contain"
-/>
-
-              <span className="font-display text-xl font-bold text-gold-gradient">
-                Suvarna Jewellers
-              </span>
+              <img src={suvarnaLogo} alt="Suvarna Jewellers" className="w-14 h-14 mb-4 object-contain" />
+              <span className="font-display text-xl font-bold text-gold-gradient">Suvarna Jewellers</span>
             </motion.div>
 
-            {/* Decorative divider */}
             <div className="flex justify-center mb-6">
-              <div
-                className="w-24 h-[1px]"
-                style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.4), transparent)" }}
-              />
+              <div className="w-24 h-[1px]" style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.4), transparent)" }} />
             </div>
 
-            {/* Navigation items */}
             <nav className="flex flex-col items-center gap-2 px-8 relative z-10">
               {mobileNavLinks.map((link, i) => (
                 <motion.button
@@ -329,37 +262,22 @@ const Navbar = () => {
                   transition={{ delay: 0.2 + i * 0.07, duration: 0.4, ease: "easeOut" }}
                   onClick={() => { navigate(link.href); setMobileMenuOpen(false); }}
                   className="relative w-full max-w-xs py-4 font-display text-lg tracking-wide text-center transition-all duration-300 group rounded-xl overflow-hidden"
-                  style={{
-                    color: location.pathname === link.href
-                      ? "hsla(43, 80%, 55%, 1)"
-                      : "hsla(39, 50%, 88%, 0.9)",
-                  }}
+                  style={{ color: location.pathname === link.href ? "hsla(43, 80%, 55%, 1)" : "hsla(39, 50%, 88%, 0.9)" }}
                 >
-                  <span
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300"
-                    style={{
-                      background: "linear-gradient(90deg, hsla(43,80%,55%,0.04), hsla(43,80%,55%,0.1), hsla(43,80%,55%,0.04))",
-                    }}
-                  />
+                  <span className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300"
+                    style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.04), hsla(43,80%,55%,0.1), hsla(43,80%,55%,0.04))" }} />
                   <span className="relative z-10">{link.label}</span>
                   {location.pathname === link.href && (
-                    <motion.div
-                      layoutId="mobile-active"
-                      className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full"
-                      style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.6), hsla(43,80%,55%,1), hsla(43,80%,55%,0.6))" }}
-                    />
+                    <motion.div layoutId="mobile-active" className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full"
+                      style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.6), hsla(43,80%,55%,1), hsla(43,80%,55%,0.6))" }} />
                   )}
                 </motion.button>
               ))}
 
-              {/* Logout option for logged-in users */}
               {isLoggedIn && (
                 <>
                   <div className="flex justify-center my-2">
-                    <div
-                      className="w-16 h-[1px]"
-                      style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.25), transparent)" }}
-                    />
+                    <div className="w-16 h-[1px]" style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.25), transparent)" }} />
                   </div>
                   <motion.button
                     initial={{ opacity: 0, y: 20 }}
@@ -369,12 +287,8 @@ const Navbar = () => {
                     className="relative w-full max-w-xs py-4 font-display text-lg tracking-wide text-center transition-all duration-300 group rounded-xl overflow-hidden"
                     style={{ color: "hsla(39, 50%, 88%, 0.85)" }}
                   >
-                    <span
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300"
-                      style={{
-                        background: "linear-gradient(90deg, hsla(350,60%,50%,0.03), hsla(350,60%,50%,0.06), hsla(350,60%,50%,0.03))",
-                      }}
-                    />
+                    <span className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300"
+                      style={{ background: "linear-gradient(90deg, hsla(350,60%,50%,0.03), hsla(350,60%,50%,0.06), hsla(350,60%,50%,0.03))" }} />
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       <LogOut className="w-4 h-4" />
                       Logout
@@ -383,7 +297,6 @@ const Navbar = () => {
                 </>
               )}
 
-              {/* Login for non-logged-in users (hide on login page) */}
               {!isLoggedIn && !isLoginPage && (
                 <motion.button
                   initial={{ opacity: 0, y: 20 }}
@@ -400,11 +313,7 @@ const Navbar = () => {
         )}
       </AnimatePresence>
 
-      <LogoutModal
-        open={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={handleLogoutConfirm}
-      />
+      <LogoutModal open={showLogoutModal} onClose={() => setShowLogoutModal(false)} onConfirm={handleLogoutConfirm} />
     </>
   );
 };
