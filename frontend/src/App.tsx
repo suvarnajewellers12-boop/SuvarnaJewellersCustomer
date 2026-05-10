@@ -16,6 +16,7 @@ import Schemes from "./pages/Schemes";
 import Dashboard from "./pages/Dashboard";
 import MySchemes from "./pages/MySchemes";
 import LiveRates from "./pages/LiveRates";
+import Coupons from "./pages/Coupons";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const AnimatedRoutes = () => {
         <Route path="/dashboard" element={<PageTransition><ProtectedRoute><Dashboard /></ProtectedRoute></PageTransition>} />
         <Route path="/my-schemes" element={<PageTransition><ProtectedRoute><MySchemes /></ProtectedRoute></PageTransition>} />
         <Route path="/live-rates" element={<PageTransition><LiveRates /></PageTransition>} />
+        <Route path="/coupons" element={<PageTransition><ProtectedRoute><Coupons /></ProtectedRoute></PageTransition>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>

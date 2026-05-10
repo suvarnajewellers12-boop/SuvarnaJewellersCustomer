@@ -133,15 +133,7 @@ const HeroSection = () => {
       <SparkleParticles />
 
       <div className="relative z-20 text-center px-4 max-w-5xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0 }}
-        >
-          <p className="font-elegant text-lg md:text-xl tracking-[0.35em] uppercase text-gold-dark mb-5 drop-shadow-sm">
-            ✦ Premium Gold Savings ✦
-          </p>
-        </motion.div>
+        {/* REMOVED: ✦ Premium Gold Savings ✦ */}
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -157,20 +149,12 @@ const HeroSection = () => {
           <span className="text-gold-gradient">Trust</span>
         </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="font-elegant text-xl md:text-2xl text-foreground/70 max-w-2xl mx-auto mb-12 italic"
-          style={{ textShadow: '0 1px 10px hsla(40, 20%, 50%, 0.15)' }}
-        >
-          India's most elegant gold savings experience designed for your dreams.
-        </motion.p>
+        {/* REMOVED: India's most elegant gold savings experience... */}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
           className="flex flex-col sm:flex-row gap-5 justify-center"
         >
           <button onClick={() => navigate("/schemes")} className="btn-gold btn-gold-pulse text-base md:text-lg px-12 py-4">
