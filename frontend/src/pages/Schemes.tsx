@@ -10,10 +10,15 @@ import PaymentModal from "@/components/PaymentModal";
 const formatINR = (n: number = 0) => "₹" + n.toLocaleString("en-IN");
 
 // Module-level cache — survives page navigation, resets on browser refresh
-// Sits outside the component so it's never reset by re-renders
 let _cachedDbSchemes: any[] | null = null;
 
-const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMonths: number }) => {
+const ProgressArc = ({
+  paidMonths,
+  totalMonths,
+}: {
+  paidMonths: number;
+  totalMonths: number;
+}) => {
   const pct = (paidMonths / totalMonths) * 100;
   const r = 40;
   const circ = 2 * Math.PI * r;
@@ -21,15 +26,35 @@ const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMon
 
   return (
     <div className="relative">
-      <div className="absolute inset-0 rounded-full" style={{
-        background: 'radial-gradient(circle, hsla(43, 80%, 55%, 0.15) 0%, transparent 70%)',
-        filter: 'blur(8px)',
-        transform: 'scale(1.4)',
-      }} />
-      <svg width="100" height="100" viewBox="0 0 100 100" className="mx-auto relative z-10">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="hsla(38,40%,70%,0.2)" strokeWidth="6" />
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, hsla(43, 80%, 55%, 0.15) 0%, transparent 70%)",
+          filter: "blur(8px)",
+          transform: "scale(1.4)",
+        }}
+      />
+
+      <svg
+        width="100"
+        height="100"
+        viewBox="0 0 100 100"
+        className="mx-auto relative z-10"
+      >
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke="hsla(38,40%,70%,0.2)"
+          strokeWidth="6"
+        />
+
         <motion.circle
-          cx="50" cy="50" r={r}
+          cx="50"
+          cy="50"
+          r={r}
           fill="none"
           stroke="url(#goldGrad)"
           strokeWidth="6"
@@ -41,13 +66,22 @@ const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMon
           transition={{ duration: 1.5, ease: "easeOut" }}
           transform="rotate(-90 50 50)"
         />
+
         <defs>
           <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="hsl(43, 85%, 58%)" />
             <stop offset="100%" stopColor="hsl(38, 72%, 42%)" />
           </linearGradient>
         </defs>
-        <text x="50" y="50" textAnchor="middle" dy="0.35em" className="font-display text-sm font-bold" fill="hsl(28, 25%, 15%)">
+
+        <text
+          x="50"
+          y="50"
+          textAnchor="middle"
+          dy="0.35em"
+          className="font-display text-sm font-bold"
+          fill="hsl(28, 25%, 15%)"
+        >
           {paidMonths}/{totalMonths}
         </text>
       </svg>
@@ -56,25 +90,41 @@ const ProgressArc = ({ paidMonths, totalMonths }: { paidMonths: number; totalMon
 };
 
 const Schemes = () => {
-  const { isLoggedIn, enrollScheme, enrolledSchemes, refreshSchemes } = useAuth();
+  const {
+    isLoggedIn,
+    enrolledSchemes,
+    refreshSchemes,
+  } = useAuth();
+
   const navigate = useNavigate();
 
-  // Start with cached data if available — no spinner on revisit
-  const [dbSchemes, setDbSchemes] = useState<any[]>(_cachedDbSchemes ?? []);
+  const [dbSchemes, setDbSchemes] = useState<any[]>(
+    _cachedDbSchemes ?? []
+  );
+
   const [paymentScheme, setPaymentScheme] = useState<any | null>(null);
-  // Only show loading if we have no cached data at all
-  const [loading, setLoading] = useState(_cachedDbSchemes === null);
+
+  const [loading, setLoading] = useState(
+    _cachedDbSchemes === null
+  );
+
+  // NEW
+  const [showGold, setShowGold] = useState(true);
 
   useEffect(() => {
-    // If we already have cached data, skip the network call entirely
     if (_cachedDbSchemes !== null) return;
 
     const fetchAllSchemes = async () => {
       try {
-        const res = await fetch("https://suvarnagold-16e5.vercel.app/api/schemes/all");
+        const res = await fetch(
+          "https://suvarnagold-16e5.vercel.app/api/schemes/all"
+        );
+
         if (res.ok) {
           const data = await res.json();
-          _cachedDbSchemes = data.schemes || []; // store in module cache
+
+          _cachedDbSchemes = data.schemes || [];
+
           setDbSchemes(_cachedDbSchemes!);
         }
       } catch (err) {
@@ -85,20 +135,30 @@ const Schemes = () => {
     };
 
     fetchAllSchemes();
-  }, []); // still runs once — but only if cache is empty
+  }, []);
+
+  // NEW FILTERING
+  const filteredSchemes = dbSchemes.filter((scheme) =>
+    showGold
+      ? scheme.isWeightBased === true
+      : scheme.isWeightBased === false
+  );
 
   const handleEnroll = (scheme: any) => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
+
     setPaymentScheme(scheme);
   };
 
   const handlePaymentSuccess = async () => {
     if (paymentScheme) {
-      await refreshSchemes(); // update context silently — no window event needed
+      await refreshSchemes();
+
       setPaymentScheme(null);
+
       navigate("/dashboard");
     }
   };
@@ -109,7 +169,10 @@ const Schemes = () => {
         <div className="h-screen flex items-center justify-center bg-pearl">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="font-elegant italic text-gold-dark">Loading Royal Collections...</p>
+
+            <p className="font-elegant italic text-gold-dark">
+              Loading Royal Collections...
+            </p>
           </div>
         </div>
       </Layout>
@@ -120,76 +183,183 @@ const Schemes = () => {
     <Layout>
       <section className="pt-32 pb-28 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
-        <div className="absolute inset-0" style={{ background: 'var(--gradient-spotlight)' }} />
-        <div className="absolute top-0 left-0 right-0 h-48" style={{
-          background: 'linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)',
-        }} />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30z' fill='none' stroke='%23b8860b' stroke-width='0.5'/%3E%3C/svg%3E")`,
-        }} />
+
+        <div
+          className="absolute inset-0"
+          style={{ background: "var(--gradient-spotlight)" }}
+        />
+
+        <div
+          className="absolute top-0 left-0 right-0 h-48"
+          style={{
+            background:
+              "linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)",
+          }}
+        />
+
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30z' fill='none' stroke='%23b8860b' stroke-width='0.5'/%3E%3C/svg%3E")`,
+          }}
+        />
+
         <div className="absolute top-0 left-0 right-0 gold-divider" />
+
         <GoldDustParticles />
 
         <div className="relative z-10 max-w-6xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="text-center mb-8">
-            <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">Investment Plans</p>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-8"
+          >
+            <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">
+              Investment Plans
+            </p>
+
             <h1 className="font-display text-4xl md:text-6xl font-bold text-foreground mb-4">
-              <span className="text-gold-gradient-shine">Golden</span> Savings Plans
+              <span className="text-gold-gradient-shine">
+                Golden
+              </span>{" "}
+              Savings Plans
             </h1>
-            <p className="font-elegant text-xl text-muted-foreground italic">Invest today. Adorn tomorrow.</p>
+
+            <p className="font-elegant text-xl text-muted-foreground italic">
+              Invest today. Adorn tomorrow.
+            </p>
+
+            {/* NEW TOGGLE */}
+            <div className="mt-8 max-w-md mx-auto">
+              <div className="bg-pearl/70 p-1 rounded-2xl flex border border-gold/10">
+                <button
+                  onClick={() => setShowGold(true)}
+                  className={`flex-1 py-3 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
+                    showGold
+                      ? "bg-gold text-white shadow-lg"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  ✦ Gold Schemes
+                </button>
+
+                <button
+                  onClick={() => setShowGold(false)}
+                  className={`flex-1 py-3 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
+                    !showGold
+                      ? "bg-gold text-white shadow-lg"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  ₹ Cash Schemes
+                </button>
+              </div>
+            </div>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {dbSchemes.map((scheme, index) => {
-              const isEnrolled = enrolledSchemes.some((s) => s.name === scheme.name);
+          {filteredSchemes.length === 0 ? (
+            <div className="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto">
+              <p className="font-body text-muted-foreground">
+                {showGold
+                  ? "No gold schemes available"
+                  : "No cash schemes available"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8">
+              {filteredSchemes.map((scheme, index) => {
+                const isEnrolled = enrolledSchemes.some(
+                  (s) => s.name === scheme.name
+                );
 
-              return (
-                <motion.div
-                  key={scheme.id}
-                  initial={{ opacity: 0, y: 50 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.15 }}
-                  className="glass-card rounded-3xl p-8 flex flex-col items-center text-center spotlight relative overflow-hidden group"
-                  style={{ boxShadow: 'var(--shadow-luxury)' }}
-                >
-                  <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-                    style={{ background: 'linear-gradient(135deg, transparent 20%, hsla(43,80%,60%,0.12) 50%, transparent 80%)' }} />
+                return (
+                  <motion.div
+                    key={scheme.id}
+                    initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      duration: 0.6,
+                      delay: index * 0.15,
+                    }}
+                    className="glass-card rounded-3xl p-8 flex flex-col items-center text-center spotlight relative overflow-hidden group"
+                    style={{
+                      boxShadow: "var(--shadow-luxury)",
+                    }}
+                  >
+                    <div
+                      className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, transparent 20%, hsla(43,80%,60%,0.12) 50%, transparent 80%)",
+                      }}
+                    />
 
-                  <ProgressArc paidMonths={0} totalMonths={scheme.durationMonths} />
+                    <ProgressArc
+                      paidMonths={0}
+                      totalMonths={scheme.durationMonths}
+                    />
 
-                  <h3 className="font-display text-xl font-bold text-foreground mt-4 mb-2">{scheme.name}</h3>
+                    <h3 className="font-display text-xl font-bold text-foreground mt-4 mb-2">
+                      {scheme.name}
+                    </h3>
 
-                  <div className="mb-4">
-                    <span className="font-display text-3xl font-bold text-gold-gradient">{formatINR(scheme.monthlyAmount)}</span>
-                    <span className="font-body text-sm text-muted-foreground">/month</span>
-                  </div>
+                    <div className="mb-4">
+                      <span className="font-display text-3xl font-bold text-gold-gradient">
+                        {formatINR(scheme.monthlyAmount)}
+                      </span>
 
-                  <div className="space-y-2 mb-6 w-full">
-                    <div className="flex items-center gap-2 font-body text-sm text-foreground">
-                      <Check className="w-4 h-4 text-gold-dark" /> {scheme.durationMonths} monthly installments
+                      <span className="font-body text-sm text-muted-foreground">
+                        /month
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
-                      <Sparkles className="w-4 h-4 text-gold-dark" /> Get Maturity Value: {formatINR(scheme.monthlyAmount * scheme.durationMonths)}
-                    </div>
-                  </div>
 
-                  {isEnrolled ? (
-                    <div className="btn-gold w-full text-center py-3.5 opacity-80 cursor-default flex items-center justify-center gap-2">
-                      <Check className="w-4 h-4" /> Enrolled
+                    <div className="space-y-2 mb-6 w-full">
+                      <div className="flex items-center gap-2 font-body text-sm text-foreground">
+                        <Check className="w-4 h-4 text-gold-dark" />
+
+                        {scheme.durationMonths} monthly installments
+                      </div>
+
+                      {scheme.isWeightBased ? (
+                        <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
+                          <Sparkles className="w-4 h-4 text-gold-dark" />
+
+                          Gold accumulation based savings plan
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
+                          <Sparkles className="w-4 h-4 text-gold-dark" />
+
+                          Get Maturity Value:{" "}
+                          {formatINR(
+                            scheme.monthlyAmount *
+                              scheme.durationMonths
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEnroll(scheme)}
-                      className="btn-gold btn-gold-pulse w-full text-base py-3.5"
-                    >
-                      Enroll Now
-                    </button>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
+
+                    {isEnrolled ? (
+                      <div className="btn-gold w-full text-center py-3.5 opacity-80 cursor-default flex items-center justify-center gap-2">
+                        <Check className="w-4 h-4" />
+
+                        Enrolled
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleEnroll(scheme)}
+                        className="btn-gold btn-gold-pulse w-full text-base py-3.5"
+                      >
+                        Enroll Now
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
