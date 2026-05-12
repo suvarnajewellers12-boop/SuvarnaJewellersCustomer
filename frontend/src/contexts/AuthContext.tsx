@@ -2,12 +2,30 @@ import { createContext, useContext, useState, ReactNode, useEffect, useCallback 
 
 export interface Scheme {
   id: string;
-  schemeId: string;
+  schemeId?: string;
+
   name: string;
+
   monthlyAmount: number;
+
   durationMonths: number;
-  enrolledDate: string;
+
+  maturityAmount?: number;
+
+  enrolledDate?: string;
+
   installmentsPaid: number;
+
+  // NEW FIELDS
+  isWeightBased?: boolean;
+
+  accumulatedGrams?: number;
+
+  totalPaid?: number;
+
+  remainingAmount?: number;
+
+  startDate?: string;
 }
 
 interface User {
