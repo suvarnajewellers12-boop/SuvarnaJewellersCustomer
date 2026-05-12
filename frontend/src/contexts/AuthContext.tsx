@@ -1,31 +1,25 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
 
 export interface Scheme {
   id: string;
-  schemeId?: string;
-
   name: string;
-
   monthlyAmount: number;
-
   durationMonths: number;
-
   maturityAmount?: number;
-
-  enrolledDate?: string;
-
+  enrolledDate: string;
   installmentsPaid: number;
 
-  // NEW FIELDS
+  // NEW
   isWeightBased?: boolean;
-
   accumulatedGrams?: number;
-
   totalPaid?: number;
-
-  remainingAmount?: number;
-
-  startDate?: string;
+  schemeId?: string;
 }
 
 interface User {
@@ -38,80 +32,184 @@ interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
   isLoading: boolean;
+
   enrolledSchemes: Scheme[];
-  setEnrolledSchemes: React.Dispatch<React.SetStateAction<Scheme[]>>;
+  setEnrolledSchemes: React.Dispatch<
+    React.SetStateAction<Scheme[]>
+  >;
+
   login: (user: User) => void;
-  loginAndLoad: (userData: any, token: string) => Promise<void>; // ← ADDED
   logout: () => void;
+
   enrollScheme: (schemeData: any) => Promise<void>;
-  payInstallment: (customerSchemeId: string) => Promise<void>;
+  payInstallment: (
+    customerSchemeId: string
+  ) => Promise<void>;
+
   refreshSchemes: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext =
+  createContext<AuthContextType | null>(null);
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+
+  if (!ctx) {
+    throw new Error(
+      "useAuth must be used within AuthProvider"
+    );
+  }
+
   return ctx;
 };
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://suvarna-jewellers-customer-backend.vercel.app";
+export const AuthProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
+  const [isLoggedIn, setIsLoggedIn] =
+    useState(false);
 
-const formatScheme = (s: any): Scheme => ({
-  id: s.id,
-  schemeId: s.schemeId,
-  name: s.Scheme?.name || "Active Scheme",
-  monthlyAmount: s.Scheme?.monthlyAmount || 0,
-  durationMonths: s.Scheme?.durationMonths || 11,
-  enrolledDate: s.startDate,
-  installmentsPaid: s.installmentsPaid,
-});
+  const [user, setUser] =
+    useState<User | null>(null);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [enrolledSchemes, setEnrolledSchemes] = useState<Scheme[]>([]);
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [enrolledSchemes, setEnrolledSchemes] =
+    useState<Scheme[]>([]);
+
+  const API_URL =
+    import.meta.env.VITE_API_URL ||
+    "https://suvarna-jewellers-customer-backend.vercel.app";
+
+  // =====================================================
+  // REFRESH SCHEMES
+  // =====================================================
+
+  const refreshSchemes = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) return;
+
+      const res = await fetch(
+        `${API_URL}/api/schemes/my`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      // IMPORTANT FIX
+      const mappedSchemes = (
+        data.schemes || []
+      ).map((e: any) => {
+        const scheme = e.Scheme || {};
+
+        return {
+          id: e.id,
+          schemeId: e.schemeId,
+
+          name:
+            scheme.name || "Unnamed Scheme",
+
+          monthlyAmount: Number(
+            scheme.monthlyAmount || 0
+          ),
+
+          durationMonths: Number(
+            scheme.durationMonths || 1
+          ),
+
+          installmentsPaid: Number(
+            e.installmentsPaid || 0
+          ),
+
+          enrolledDate:
+            e.startDate ||
+            new Date().toISOString(),
+
+          // NEW FIELDS
+          isWeightBased:
+            scheme.isWeightBased === true,
+
+          accumulatedGrams: Number(
+            e.accumulatedGrams || 0
+          ),
+
+          totalPaid: Number(
+            e.totalPaid || 0
+          ),
+        };
+      });
+
+      setEnrolledSchemes(mappedSchemes);
+    } catch (err) {
+      console.error(
+        "Failed to refresh schemes",
+        err
+      );
+    }
+  };
+
+  // =====================================================
+  // CHECK USER
+  // =====================================================
 
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token =
+          localStorage.getItem("token");
+
         if (!token) {
+          setIsLoggedIn(false);
           setIsLoading(false);
           return;
         }
 
-        const headers = {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        };
+        const res = await fetch(
+          `${API_URL}/api/auth/me`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
 
-        // Both calls fire at the same time
-        const [userRes, schemesRes] = await Promise.all([
-          fetch(`${API_URL}/api/auth/me`, { headers }),
-          fetch(`${API_URL}/api/schemes/my`, { headers }),
-        ]);
+        if (res.ok) {
+          const data = await res.json();
 
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          if (userData.user) {
-            setUser(userData.user);
+          if (data.user) {
+            setUser(data.user);
             setIsLoggedIn(true);
+
+            // LOAD USER SCHEMES
+            await refreshSchemes();
           } else {
             localStorage.removeItem("token");
+
+            setIsLoggedIn(false);
           }
         }
-
-        if (schemesRes.ok) {
-          const schemesData = await schemesRes.json();
-          setEnrolledSchemes((schemesData.schemes || []).map(formatScheme));
-        }
       } catch (err) {
-        console.error("Session check failed");
+        console.error(
+          "Session check failed",
+          err
+        );
       } finally {
         setIsLoading(false);
       }
@@ -120,105 +218,142 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkUser();
   }, []);
 
-  // Silent background refresh — no spinner
-  const refreshSchemes = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
+  // =====================================================
+  // LOGIN
+  // =====================================================
 
-      const res = await fetch(`${API_URL}/api/schemes/my`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setEnrolledSchemes((data.schemes || []).map(formatScheme));
-      }
-    } catch (err) {
-      console.error("Schemes refresh failed:", err);
-    }
-  }, []);
-
-  // Called right after login — fetches schemes during the 1.8s animation
-  // so Dashboard is instant when you arrive
-  const loginAndLoad = useCallback(async (userData: any, token: string) => {
+  const login = async (userData: any) => {
     setUser(userData);
-    setIsLoggedIn(true);
-    try {
-      const res = await fetch(`${API_URL}/api/schemes/my`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setEnrolledSchemes((data.schemes || []).map(formatScheme));
-      }
-    } catch (err) {
-      console.error("Post-login schemes fetch failed:", err);
-    }
-  }, []);
 
-  const login = (userData: any) => {
-    setUser(userData);
     setIsLoggedIn(true);
+
+    await refreshSchemes();
   };
+
+  // =====================================================
+  // LOGOUT
+  // =====================================================
 
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, { method: "POST" });
-    } catch {}
-    setUser(null);
-    setIsLoggedIn(false);
-    setEnrolledSchemes([]);
-    localStorage.removeItem("token");
-    window.location.href = "/login";
-  };
+      await fetch(
+        `${API_URL}/api/auth/logout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+        }
+      );
 
-  const enrollScheme = async (schemeData: any) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/schemes/enroll`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          schemeId: schemeData.id,
-          monthlyAmount: schemeData.monthlyAmount,
-          durationMonths: schemeData.durationMonths,
-        }),
-      });
-      if (!res.ok) throw new Error("Enrollment failed");
-      await refreshSchemes();
-    } catch (err: any) {
-      console.error("Enrollment failed:", err.message);
+      setUser(null);
+
+      setIsLoggedIn(false);
+
+      setEnrolledSchemes([]);
+
+      localStorage.removeItem("token");
+
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout failed", err);
     }
   };
 
-  const payInstallment = async (customerSchemeId: string) => {
+  // =====================================================
+  // ENROLL SCHEME
+  // =====================================================
+
+  const enrollScheme = async (
+    schemeData: any
+  ) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/schemes/pay`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ customerSchemeId }),
-      });
+      const token =
+        localStorage.getItem("token");
+
+      const res = await fetch(
+        `${API_URL}/api/schemes/enroll`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            schemeId: schemeData.id,
+            monthlyAmount:
+              schemeData.monthlyAmount,
+            durationMonths:
+              schemeData.durationMonths,
+          }),
+        }
+      );
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Payment failed");
+        throw new Error(
+          "Enrollment failed"
+        );
       }
+
+      // REFRESH SCHEMES
       await refreshSchemes();
     } catch (err: any) {
-      console.error("Payment failed:", err.message);
+      console.error(
+        "Enrollment failed:",
+        err.message
+      );
+    }
+  };
+
+  // =====================================================
+  // PAY INSTALLMENT
+  // =====================================================
+
+  const payInstallment = async (
+    customerSchemeId: string
+  ) => {
+    try {
+      const token =
+        localStorage.getItem("token");
+
+      const res = await fetch(
+        `${API_URL}/api/schemes/pay`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            customerSchemeId,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+
+        throw new Error(
+          data.message || "Payment failed"
+        );
+      }
+
+      // REFRESH
+      await refreshSchemes();
+    } catch (err: any) {
+      console.error(
+        "Payment failed:",
+        err.message
+      );
+
       throw err;
     }
   };
@@ -229,13 +364,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoggedIn,
         user,
         isLoading,
+
         enrolledSchemes,
         setEnrolledSchemes,
+
         login,
-        loginAndLoad, // ← ADDED
         logout,
+
         enrollScheme,
         payInstallment,
+
         refreshSchemes,
       }}
     >
