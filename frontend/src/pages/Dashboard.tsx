@@ -6,9 +6,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Coins,
+  Scale,
   Wallet,
-  Gem,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -44,7 +43,7 @@ const getSchemeDetails = (scheme: Scheme) => {
 
   const isCompleted = installments >= duration;
 
-  const isPayable = true;
+  const isPayable = !isCompleted;
 
   return {
     lastPaymentDate:
@@ -62,8 +61,11 @@ const getSchemeDetails = (scheme: Scheme) => {
       }),
 
     amountDue: scheme.monthlyAmount,
+
     isCompleted,
+
     isPayable,
+
     isDue: !isCompleted,
   };
 };
@@ -78,7 +80,9 @@ const SchemeDetailModal = ({
   onPaymentSuccess: () => Promise<void>;
 }) => {
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentMonth, setPaymentMonth] = useState(0);
+
+  const [paymentMonth, setPaymentMonth] =
+    useState(0);
 
   const details = getSchemeDetails(scheme);
 
@@ -87,19 +91,20 @@ const SchemeDetailModal = ({
       (scheme.durationMonths || 1)) *
     100;
 
-  const handleInstallmentSuccess = async () => {
-    alert(
-      `Payment for Month ${
-        paymentMonth + 1
-      } was successful!`
-    );
+  const handleInstallmentSuccess =
+    async () => {
+      alert(
+        `Payment for Month ${
+          paymentMonth + 1
+        } was successful!`
+      );
 
-    await onPaymentSuccess();
+      await onPaymentSuccess();
 
-    setIsPaying(false);
+      setIsPaying(false);
 
-    onClose();
-  };
+      onClose();
+    };
 
   return (
     <AnimatePresence mode="wait">
@@ -142,7 +147,9 @@ const SchemeDetailModal = ({
               damping: 22,
               stiffness: 260,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) =>
+              e.stopPropagation()
+            }
             className="glass-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-0"
             style={{
               boxShadow:
@@ -165,7 +172,7 @@ const SchemeDetailModal = ({
                 {scheme.name}
               </h3>
 
-              <div className="mt-1">
+              <div className="mt-2">
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
                     details.isCompleted
@@ -183,7 +190,7 @@ const SchemeDetailModal = ({
             <div className="px-8 pb-6">
               <div className="w-full h-3 rounded-full bg-cream overflow-hidden mb-2">
                 <motion.div
-                  className="h-full rounded-full relative overflow-hidden"
+                  className="h-full rounded-full"
                   style={{
                     background:
                       "var(--gradient-gold)",
@@ -192,27 +199,13 @@ const SchemeDetailModal = ({
                   animate={{
                     width: `${progress}%`,
                   }}
-                  transition={{
-                    duration: 1.2,
-                    ease: "easeOut",
-                  }}
-                >
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, transparent, hsla(40, 40%, 97%, 0.4), transparent)",
-                      animation:
-                        "light-sweep 3s ease-in-out infinite",
-                    }}
-                  />
-                </motion.div>
+                />
               </div>
 
               <p className="font-body text-sm text-muted-foreground text-center">
                 {scheme.installmentsPaid} of{" "}
-                {scheme.durationMonths} installments
-                completed
+                {scheme.durationMonths}{" "}
+                installments completed
               </p>
             </div>
 
@@ -233,13 +226,14 @@ const SchemeDetailModal = ({
                 <p className="font-body text-xs text-muted-foreground mb-1">
                   {scheme.isWeightBased
                     ? "Gold Accumulated"
-                    : "Amount Saved"}
+                    : "Cash Saved"}
                 </p>
 
                 <p className="font-display text-lg font-bold text-gold-gradient">
                   {scheme.isWeightBased
                     ? `${(
-                        scheme.accumulatedGrams || 0
+                        scheme.accumulatedGrams ||
+                        0
                       ).toFixed(3)} g`
                     : formatINR(
                         scheme.totalPaid || 0
@@ -253,21 +247,19 @@ const SchemeDetailModal = ({
                 </p>
 
                 <p className="font-body text-sm font-semibold text-foreground">
-                  {details.lastPaymentDate}
+                  {
+                    details.lastPaymentDate
+                  }
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
                 <p className="font-body text-xs text-muted-foreground mb-1">
-                  {details.isCompleted
-                    ? "Completed On"
-                    : "Next Due"}
+                  Next Due
                 </p>
 
                 <p className="font-body text-sm font-semibold text-foreground">
-                  {details.isCompleted
-                    ? details.lastPaymentDate
-                    : details.nextDueDate}
+                  {details.nextDueDate}
                 </p>
               </div>
             </div>
@@ -300,35 +292,16 @@ const SchemeDetailModal = ({
                         {isPaid ? (
                           <CheckCircle2 className="w-4 h-4 text-gold-dark flex-shrink-0" />
                         ) : isCurrent ? (
-                          <AlertCircle className="w-4 h-4 text-gold flex-shrink-0 animate-glow-pulse" />
+                          <AlertCircle className="w-4 h-4 text-gold flex-shrink-0" />
                         ) : (
                           <Clock className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
                         )}
 
-                        <span
-                          className={`font-body text-xs ${
-                            isPaid
-                              ? "text-foreground"
-                              : isCurrent
-                              ? "text-gold-dark font-semibold"
-                              : "text-muted-foreground/50"
-                          }`}
-                        >
-                          Month {i + 1} —{" "}
-                          {formatINR(
-                            scheme.monthlyAmount
-                          )}
+                        <span className="font-body text-xs">
+                          Month {i + 1}
                         </span>
 
-                        <span
-                          className={`ml-auto font-body text-xs ${
-                            isPaid
-                              ? "text-gold-dark"
-                              : isCurrent
-                              ? "text-gold-dark"
-                              : "text-muted-foreground/40"
-                          }`}
-                        >
+                        <span className="ml-auto text-xs">
                           {isPaid
                             ? "Paid"
                             : isCurrent
@@ -344,25 +317,10 @@ const SchemeDetailModal = ({
 
             {details.isDue && (
               <div className="px-8 pb-8">
-                <div
-                  className="p-4 rounded-xl border border-gold/20 mb-4"
-                  style={{
-                    background:
-                      "hsla(43, 80%, 55%, 0.05)",
-                  }}
-                >
-                  <p className="font-body text-sm text-foreground text-center">
-                    Amount Due:{" "}
-                    <span className="font-display font-bold text-gold-gradient">
-                      {formatINR(
-                        details.amountDue
-                      )}
-                    </span>
-                  </p>
-                </div>
-
                 <button
-                  disabled={!details.isPayable}
+                  disabled={
+                    !details.isPayable
+                  }
                   onClick={() => {
                     setPaymentMonth(
                       scheme.installmentsPaid
@@ -372,12 +330,14 @@ const SchemeDetailModal = ({
                   }}
                   className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
                     details.isPayable
-                      ? "btn-gold btn-gold-pulse opacity-100 cursor-pointer shadow-lg"
-                      : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed opacity-70"
+                      ? "btn-gold btn-gold-pulse"
+                      : "bg-pearl border border-gold/20 text-muted-foreground/50"
                   }`}
                 >
                   {details.isPayable
-                    ? "Pay Now"
+                    ? `Pay Now — ${formatINR(
+                        details.amountDue
+                      )}`
                     : `Next Due: ${details.nextDueDate}`}
                 </button>
               </div>
@@ -405,39 +365,6 @@ const Dashboard = () => {
   const [showGold, setShowGold] =
     useState(true);
 
-  const goldSchemes = enrolledSchemes.filter(
-    (s: any) => s.isWeightBased
-  );
-
-  const cashSchemes = enrolledSchemes.filter(
-    (s: any) => !s.isWeightBased
-  );
-
-  const displayedSchemes = showGold
-    ? goldSchemes
-    : cashSchemes;
-
-  const totalGoldGrams =
-    goldSchemes.reduce(
-      (sum: number, s: any) =>
-        sum + (s.accumulatedGrams || 0),
-      0
-    );
-
-  const totalCashSaved =
-    cashSchemes.reduce(
-      (sum: number, s: any) =>
-        sum + (s.totalPaid || 0),
-      0
-    );
-
-  const totalGoldPaid =
-    goldSchemes.reduce(
-      (sum: number, s: any) =>
-        sum + (s.totalPaid || 0),
-      0
-    );
-
   if (authLoading) {
     return (
       <Layout>
@@ -454,6 +381,13 @@ const Dashboard = () => {
     );
   }
 
+  const filteredSchemes =
+    enrolledSchemes.filter((scheme) =>
+      showGold
+        ? scheme.isWeightBased
+        : !scheme.isWeightBased
+    );
+
   return (
     <Layout>
       <section className="pt-32 pb-28 px-4 relative overflow-hidden">
@@ -464,21 +398,6 @@ const Dashboard = () => {
           style={{
             background:
               "var(--gradient-spotlight)",
-          }}
-        />
-
-        <div
-          className="absolute top-0 left-0 right-0 h-48"
-          style={{
-            background:
-              "linear-gradient(180deg, hsla(38, 40%, 75%, 0.08) 0%, transparent 100%)",
-          }}
-        />
-
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30z' fill='none' stroke='%23b8860b' stroke-width='0.5'/%3E%3C/svg%3E")`,
           }}
         />
 
@@ -499,192 +418,54 @@ const Dashboard = () => {
             transition={{
               duration: 0.8,
             }}
-            className="relative"
           >
-            <div
-              className="absolute -top-16 left-0 w-96 h-48 pointer-events-none"
-              style={{
-                background:
-                  "radial-gradient(ellipse at 30% 50%, hsla(43, 70%, 55%, 0.1) 0%, transparent 70%)",
-                filter: "blur(30px)",
-              }}
-            />
-
-            <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-2 relative">
+            <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-2">
               Welcome,{" "}
               <span className="text-gold-gradient-shine">
-                {user?.name || "Member"}
+                {user?.name ||
+                  "Member"}
               </span>
             </h1>
 
-            <p className="font-elegant text-lg text-muted-foreground italic mb-3 relative">
-              Your scheme control room
-            </p>
-
-            <p className="font-elegant text-sm text-gold-dark/70 italic mb-12 relative">
-              "Every gram you save today
-              becomes tomorrow's
-              celebration."
+            <p className="font-elegant text-lg text-muted-foreground italic mb-10">
+              Your scheme dashboard
             </p>
           </motion.div>
 
-          <div className="relative mb-6">
-            <h2 className="font-display text-2xl font-bold text-foreground">
-              Your Schemes
-            </h2>
-
-            <motion.div
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{
-                duration: 0.8,
-                delay: 0.4,
-              }}
-              className="h-0.5 w-24 mt-2 origin-left"
-              style={{
-                background:
-                  "var(--gradient-gold)",
-              }}
-            />
-          </div>
-
-          <div className="mb-8 flex justify-center">
-            <div className="bg-pearl rounded-2xl p-2 flex gap-2 border border-gold/10">
+          <div className="mb-8">
+            <div className="flex gap-3">
               <button
                 onClick={() =>
                   setShowGold(true)
                 }
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`px-5 py-2 rounded-xl font-semibold transition-all ${
                   showGold
                     ? "btn-gold"
-                    : "text-muted-foreground"
+                    : "bg-pearl border border-gold/20"
                 }`}
               >
-                Gold Schemes
+                ✦ Gold Schemes
               </button>
 
               <button
                 onClick={() =>
                   setShowGold(false)
                 }
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`px-5 py-2 rounded-xl font-semibold transition-all ${
                   !showGold
                     ? "btn-gold"
-                    : "text-muted-foreground"
+                    : "bg-pearl border border-gold/20"
                 }`}
               >
-                Cash Schemes
+                ₹ Cash Schemes
               </button>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5 mb-10">
-            <div
-              className="glass-card rounded-3xl p-6"
-              style={{
-                boxShadow:
-                  "var(--shadow-card)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Active Schemes
-                  </p>
-
-                  <h3 className="font-display text-3xl font-bold text-foreground">
-                    {
-                      displayedSchemes.length
-                    }
-                  </h3>
-                </div>
-
-                <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center">
-                  <Wallet className="w-6 h-6 text-gold-dark" />
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="glass-card rounded-3xl p-6"
-              style={{
-                boxShadow:
-                  "var(--shadow-card)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    {showGold
-                      ? "Gold Saved"
-                      : "Cash Saved"}
-                  </p>
-
-                  <h3 className="font-display text-3xl font-bold text-gold-gradient">
-                    {showGold
-                      ? `${totalGoldGrams.toFixed(
-                          3
-                        )} g`
-                      : formatINR(
-                          totalCashSaved
-                        )}
-                  </h3>
-                </div>
-
-                <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center">
-                  {showGold ? (
-                    <Gem className="w-6 h-6 text-gold-dark" />
-                  ) : (
-                    <Coins className="w-6 h-6 text-gold-dark" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="glass-card rounded-3xl p-6"
-              style={{
-                boxShadow:
-                  "var(--shadow-card)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Invested
-                  </p>
-
-                  <h3 className="font-display text-3xl font-bold text-foreground">
-                    {formatINR(
-                      showGold
-                        ? totalGoldPaid
-                        : totalCashSaved
-                    )}
-                  </h3>
-                </div>
-
-                <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-gold-dark" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {displayedSchemes.length ===
-          0 ? (
-            <div
-              className="glass-card rounded-2xl p-8 text-center"
-              style={{
-                boxShadow:
-                  "var(--shadow-card)",
-              }}
-            >
+          {filteredSchemes.length === 0 ? (
+            <div className="glass-card rounded-2xl p-8 text-center">
               <p className="font-body text-muted-foreground mb-4">
-                No{" "}
-                {showGold
-                  ? "gold"
-                  : "cash"}{" "}
-                schemes enrolled yet.
+                No schemes available
               </p>
 
               <button
@@ -698,8 +479,8 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayedSchemes.map(
-                (scheme: any, i) => {
+              {filteredSchemes.map(
+                (scheme, i) => {
                   const progress =
                     ((scheme.installmentsPaid ||
                       0) /
@@ -727,93 +508,39 @@ const Dashboard = () => {
                       transition={{
                         delay: i * 0.1,
                       }}
-                      onClick={() =>
-                        setSelectedScheme(
-                          scheme
-                        )
-                      }
-                      className="glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300"
-                      style={{
-                        boxShadow:
-                          "var(--shadow-card)",
-                      }}
+                      className="space-y-3"
                     >
                       <div
-                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, transparent, hsla(43,80%,60%,0.06), transparent)",
-                        }}
-                      />
+                        onClick={() =>
+                          setSelectedScheme(
+                            scheme
+                          )
+                        }
+                        className="glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-display text-lg font-bold text-foreground">
+                            {scheme.name}
+                          </h3>
 
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-display text-lg font-bold text-foreground">
-                          {scheme.name}
-                        </h3>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-body font-semibold border ${
+                              isCompleted
+                                ? "bg-emerald/10 text-emerald border-emerald/20"
+                                : "bg-gold/10 text-gold-dark border-gold/20"
+                            }`}
+                          >
+                            {isCompleted
+                              ? "Completed"
+                              : "Active"}
+                          </span>
+                        </div>
 
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-body font-semibold border ${
-                            isCompleted
-                              ? "bg-emerald/10 text-emerald border-emerald/20"
-                              : "bg-gold/10 text-gold-dark border-gold/20"
-                          }`}
-                        >
-                          {isCompleted
-                            ? "Completed"
-                            : "Active"}
-                        </span>
-                      </div>
-
-                      <p className="font-body text-sm text-muted-foreground mb-1">
-                        {formatINR(
-                          scheme.monthlyAmount
-                        )}
-                        /month
-                      </p>
-
-                      <p className="font-body text-sm text-muted-foreground mb-3">
-                        {scheme.isWeightBased ? (
-                          <>
-                            Gold Saved:{" "}
-                            <span className="font-semibold text-gold-gradient">
-                              {(
-                                scheme.accumulatedGrams ||
-                                0
-                              ).toFixed(3)}{" "}
-                              g
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            Amount Saved:{" "}
-                            <span className="font-semibold text-gold-gradient">
-                              {formatINR(
-                                scheme.totalPaid ||
-                                  0
-                              )}
-                            </span>
-                          </>
-                        )}
-                      </p>
-
-                      <div className="w-full h-2 rounded-full bg-cream overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{
-                            background:
-                              "var(--gradient-gold)",
-                          }}
-                          initial={{
-                            width: "0%",
-                          }}
-                          animate={{
-                            width: `${progress}%`,
-                          }}
-                        />
-                      </div>
-
-                      <div className="mt-3 flex justify-between text-xs text-muted-foreground">
-                        <span>
+                        <p className="font-body text-sm text-muted-foreground mb-1">
+                          {formatINR(
+                            scheme.monthlyAmount
+                          )}
+                          /month •{" "}
                           {
                             scheme.installmentsPaid
                           }
@@ -822,14 +549,63 @@ const Dashboard = () => {
                             scheme.durationMonths
                           }{" "}
                           paid
-                        </span>
+                        </p>
 
-                        <span>
-                          {Math.round(
-                            progress
-                          )}
-                          %
-                        </span>
+                        <div className="w-full h-2 rounded-full bg-cream overflow-hidden mt-4">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{
+                              background:
+                                "var(--gradient-gold)",
+                            }}
+                            initial={{
+                              width: "0%",
+                            }}
+                            animate={{
+                              width: `${progress}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl p-5 bg-[#2E2118] border border-gold/20">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center">
+                            {scheme.isWeightBased ? (
+                              <Scale className="w-6 h-6 text-gold-dark" />
+                            ) : (
+                              <Wallet className="w-6 h-6 text-gold-dark" />
+                            )}
+                          </div>
+
+                          <div className="flex-1">
+                            <p className="text-xs text-gold-dark/70 uppercase tracking-wider">
+                              {scheme.isWeightBased
+                                ? "Gold Accumulated"
+                                : "Cash Saved"}
+                            </p>
+
+                            <h3 className="font-display text-2xl font-bold text-gold-gradient-shine">
+                              {scheme.isWeightBased
+                                ? `${(
+                                    scheme.accumulatedGrams ||
+                                    0
+                                  ).toFixed(
+                                    3
+                                  )} g`
+                                : formatINR(
+                                    scheme.totalPaid ||
+                                      0
+                                  )}
+                            </h3>
+                          </div>
+
+                          <div className="px-3 py-1 rounded-full bg-gold/10 text-gold-dark text-xs font-semibold">
+                            {scheme.isWeightBased
+                              ? "Gold"
+                              : "Cash"}
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -850,9 +626,7 @@ const Dashboard = () => {
                 ) || selectedScheme
               }
               onClose={() =>
-                setSelectedScheme(
-                  null
-                )
+                setSelectedScheme(null)
               }
               onPaymentSuccess={
                 refreshSchemes
