@@ -155,19 +155,6 @@ const LiveRates = () => {
             </div>
           )}
 
-          {isLoggedIn && totalSaved > 0 && (
-            <motion.div className="glass-card rounded-2xl p-8 text-center max-w-md mx-auto">
-              <p className="font-elegant text-base text-muted-foreground italic mb-2">
-                Your current gold savings value
-              </p>
-              <span className="font-display text-3xl font-bold text-gold-gradient">
-                {formatINR(totalSaved)}
-              </span>
-              <p className="font-body text-xs text-muted-foreground mt-2">
-                Based on current 22K rate
-              </p>
-            </motion.div>
-          )}
         </div>
       </section>
     </Layout>
