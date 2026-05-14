@@ -20,6 +20,7 @@ export interface Scheme {
   accumulatedGrams?: number;
   totalPaid?: number;
   schemeId?: string;
+  lastPaymentGrams?: number;
 }
 
 interface User {
@@ -144,12 +145,24 @@ export const AuthProvider = ({
             scheme.isWeightBased === true,
 
           accumulatedGrams: Number(
-            e.accumulatedGrams || 0
-          ),
+  e.accumulatedGrams || 0
+),
 
-          totalPaid: Number(
-            e.totalPaid || 0
-          ),
+totalPaid: Number(
+  e.totalPaid || 0
+),
+
+lastPaymentGrams: (() => {
+  const history = e.PaymentHistory ?? [];
+
+  if (history.length === 0) {
+    return 0;
+  }
+
+  return Number(
+    history[0]?.gramsAdded || 0
+  );
+})(),
         };
       });
 

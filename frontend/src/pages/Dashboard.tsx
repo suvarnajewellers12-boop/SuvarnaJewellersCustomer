@@ -569,44 +569,57 @@ const Dashboard = () => {
                       </div>
 
                       <div className="rounded-2xl p-5 bg-[#2E2118] border border-gold/20">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center">
-                            {scheme.isWeightBased ? (
-                              <Scale className="w-6 h-6 text-gold-dark" />
-                            ) : (
-                              <Wallet className="w-6 h-6 text-gold-dark" />
-                            )}
-                          </div>
+  <div className="flex items-center gap-4">
+    <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0">
+      {scheme.isWeightBased ? (
+        <Scale className="w-6 h-6 text-gold-dark" />
+      ) : (
+        <Wallet className="w-6 h-6 text-gold-dark" />
+      )}
+    </div>
 
-                          <div className="flex-1">
-                            <p className="text-xs text-gold-dark/70 uppercase tracking-wider">
-                              {scheme.isWeightBased
-                                ? "Gold Accumulated"
-                                : "Cash Saved"}
-                            </p>
+    <div className="flex-1 min-w-0">
+      <p className="text-xs text-gold-dark/70 uppercase tracking-wider mb-0.5">
+        {scheme.isWeightBased
+          ? "Total Gold Accumulated"
+          : "Total Cash Saved"}
+      </p>
 
-                            <h3 className="font-display text-2xl font-bold text-gold-gradient-shine">
-                              {scheme.isWeightBased
-                                ? `${(
-                                    scheme.accumulatedGrams ||
-                                    0
-                                  ).toFixed(
-                                    3
-                                  )} g`
-                                : formatINR(
-                                    scheme.totalPaid ||
-                                      0
-                                  )}
-                            </h3>
-                          </div>
+      <h3 className="font-display text-2xl font-bold text-gold-gradient-shine">
+        {scheme.isWeightBased
+          ? `${(
+              scheme.accumulatedGrams || 0
+            ).toFixed(3)} g`
+          : formatINR(
+              scheme.totalPaid || 0
+            )}
+      </h3>
 
-                          <div className="px-3 py-1 rounded-full bg-gold/10 text-gold-dark text-xs font-semibold">
-                            {scheme.isWeightBased
-                              ? "Gold"
-                              : "Cash"}
-                          </div>
-                        </div>
-                      </div>
+      {scheme.isWeightBased &&
+        (scheme.lastPaymentGrams ?? 0) > 0 && (
+          <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gold/10 w-fit">
+            <span className="text-gold-dark text-xs">
+              ↑
+            </span>
+
+            <span className="text-xs text-gold-dark/90 font-medium">
+              This month: +
+              {(
+                scheme.lastPaymentGrams ?? 0
+              ).toFixed(3)}{" "}
+              g
+            </span>
+          </div>
+        )}
+    </div>
+
+    <div className="px-3 py-1 rounded-full bg-gold/10 text-gold-dark text-xs font-semibold flex-shrink-0">
+      {scheme.isWeightBased
+        ? "Gold"
+        : "Cash"}
+    </div>
+  </div>
+</div>
                     </motion.div>
                   );
                 }
