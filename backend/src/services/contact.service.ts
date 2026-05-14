@@ -16,7 +16,7 @@ export async function sendContactMail(
       subject: "New Customer Inquiry: Suvarna Jewellers",
       html: `
         <div style="font-family: 'Playfair Display', serif; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px;">
-          <h2 style="color: #D4AF37; border-bottom: 1px solid #D4AF37; padding-bottom: 10px;">New Website Inquiry</h2>
+          <h2 style="color: #D4AF37; border-bottom: 1px solid #D4AF37; padding-bottom: 10px;">New Inquiry</h2>
           <p><strong>Customer Name:</strong> ${name}</p>
           <p><strong>Customer Email:</strong> ${email}</p>
           <div style="background-color: #fcfcfc; padding: 15px; border-radius: 5px; margin-top: 10px;">
