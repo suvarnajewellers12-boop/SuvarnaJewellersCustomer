@@ -23,29 +23,35 @@ export async function GET(req: Request) {
   const origin = req.headers.get("origin") || "";
   try {
     const authHeader = req.headers.get("Authorization");
-    
-    // ✅ SAFETY CHECK: Prevent 500 crash if header is missing
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ schemes: [] }, { 
-        status: 401, 
-        headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" } 
+      return NextResponse.json({ schemes: [] }, {
+        status: 401,
+        headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" },
       });
     }
 
-    const token = authHeader.split(" ")[1]; 
+    const token = authHeader.split(" ")[1];
     const decoded: any = verifyToken(token);
     const currentUserId = decoded?.userId || decoded?.id;
 
     if (!currentUserId) {
-      return NextResponse.json({ schemes: [] }, { 
-        status: 401, 
-        headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" } 
+      return NextResponse.json({ schemes: [] }, {
+        status: 401,
+        headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" },
       });
     }
 
     const myEnrollments = await prisma.customerScheme.findMany({
       where: { customerId: currentUserId.toString() },
-      include: { Scheme: true },
+      include: {
+        Scheme: true,
+        // ADDED: include payment history so frontend can show per-month grams
+        PaymentHistory: {
+          orderBy: { paidAt: "desc" },
+          take: 1, // only most recent payment
+        },
+      },
       orderBy: { startDate: "desc" },
     });
 
@@ -54,9 +60,9 @@ export async function GET(req: Request) {
       headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" },
     });
   } catch (error) {
-    return NextResponse.json({ schemes: [] }, { 
-      status: 401, // Return 401 instead of 500 on token failure
-      headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" } 
+    return NextResponse.json({ schemes: [] }, {
+      status: 401,
+      headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" },
     });
   }
 }
