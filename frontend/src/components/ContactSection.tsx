@@ -111,7 +111,7 @@ const ContactSection = () => {
                 <div>
                   <p className="font-body text-sm text-muted-foreground">Email</p>
                   <p className="font-body font-semibold text-foreground">
-                    support@suvarnajewellers.com
+                    suvarnajewellers12@gmail.com
                   </p>
                 </div>
               </div>
@@ -124,9 +124,9 @@ const ContactSection = () => {
                   <p className="font-body text-sm text-muted-foreground">Address</p>
                   <p className="font-body font-semibold text-foreground">
                     Suvarna Jewellers Showroom<br />
-                    D.No 10-45, Main Road, Gajuwaka<br />
-                    Visakhapatnam, Andhra Pradesh – 530026<br />
-                    India
+D.No. 13-1-12, Main Road, Near YSR Statue, New Gajuwaka<br />
+Visakhapatnam, Andhra Pradesh – 530026<br />
+India
                   </p>
                 </div>
               </div>
