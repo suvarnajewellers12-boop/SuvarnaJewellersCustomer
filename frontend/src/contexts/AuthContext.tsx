@@ -40,6 +40,7 @@ interface AuthContextType {
   >;
 
   login: (user: User) => void;
+  loginAndLoad: (user: User, token: string) => Promise<void>;
   logout: () => void;
 
   enrollScheme: (schemeData: any) => Promise<void>;
@@ -244,11 +245,27 @@ lastPaymentGrams: (() => {
   };
 
   // =====================================================
+  // LOGIN AND LOAD (Background hydration fix for Login.tsx)
+  // =====================================================
+
+  const loginAndLoad = async (userData: any, token: string) => {
+    localStorage.setItem("token", token);
+    setUser(userData);
+    setIsLoggedIn(true);
+    await refreshSchemes();
+  };
+
+  // =====================================================
   // LOGOUT
   // =====================================================
 
   const logout = async () => {
     try {
+      setUser(null);
+      setIsLoggedIn(false);
+      setEnrolledSchemes([]);
+      localStorage.removeItem("token");
+
       await fetch(
         `${API_URL}/api/auth/logout`,
         {
@@ -259,16 +276,6 @@ lastPaymentGrams: (() => {
           },
         }
       );
-
-      setUser(null);
-
-      setIsLoggedIn(false);
-
-      setEnrolledSchemes([]);
-
-      localStorage.removeItem("token");
-
-      window.location.href = "/login";
     } catch (err) {
       console.error("Logout failed", err);
     }
@@ -382,6 +389,7 @@ lastPaymentGrams: (() => {
         setEnrolledSchemes,
 
         login,
+        loginAndLoad,
         logout,
 
         enrollScheme,

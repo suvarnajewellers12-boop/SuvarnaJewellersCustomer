@@ -58,8 +58,8 @@ const Navbar = () => {
     setShowLogoutModal(false);
     setProfileOpen(false);
     setLogoutSuccess(true);
+    logout(); // React state changes instantly here
     setTimeout(() => {
-      logout();
       navigate("/", { state: { loggedOut: true } });
       setTimeout(() => setLogoutSuccess(false), 2500);
     }, 600);
