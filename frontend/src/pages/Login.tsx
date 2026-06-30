@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Unlock, Smartphone, Sparkles, UserPlus, KeyRound } from "lucide-react";
+import { Lock, Unlock, Smartphone, Sparkles, UserPlus, KeyRound, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -31,6 +31,7 @@ const Login = () => {
   const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
   const [forgotPassword, setForgotPassword] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false); // Loading indicator state
 
   const { loginAndLoad } = useAuth();
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ const Login = () => {
     setOtp(["", "", "", "", "", ""]);
     setVerified(false);
     setError("");
+    setIsLoggingIn(false);
   };
 
   const handleSubmitForm = async (e: React.FormEvent) => {
@@ -74,6 +76,7 @@ const Login = () => {
     }
 
     setError("");
+    setIsLoggingIn(true); // Start small loading wheel indicator
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
@@ -95,11 +98,13 @@ const Login = () => {
       }, 800); // was 1800 — saved 1 full second
     } catch (err: any) {
       setError(err.message);
+      setIsLoggingIn(false); // Stop loader if backend fails
     }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoggingIn(true); // Start small loading indicator during registration pipeline
     try {
       const entered = otp.join("");
 
@@ -130,6 +135,7 @@ const Login = () => {
       }, 800); // was 1800
     } catch (err: any) {
       setError(err.message);
+      setIsLoggingIn(false);
     }
   };
 
@@ -434,6 +440,7 @@ const Login = () => {
                       <input
                         type="text"
                         value={name}
+                        disabled={isLoggingIn}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Full Name"
                         className="w-full px-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
@@ -448,6 +455,7 @@ const Login = () => {
                     <input
                       type="tel"
                       value={phone}
+                      disabled={isLoggingIn}
                       onFocus={warmupBackend} // warms up again if first call failed
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
@@ -461,28 +469,36 @@ const Login = () => {
                     <input
                       type="password"
                       value={password}
+                      disabled={isLoggingIn}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={isSignup ? "Create Password" : "Enter Password"}
                       className="w-full pl-12 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">
-                    {isSignup ? "Send OTP" : "Login"}
+                  <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Authenticating...
+                      </>
+                    ) : (
+                      isSignup ? "Send OTP" : "Login"
+                    )}
                   </button>
                   <div className="text-center pt-2">
                     <p className="font-body text-sm text-muted-foreground">
                       {isSignup ? "Already have an account?" : "Don't have an account?"}
-                      <button type="button" onClick={() => { setMode(isSignup ? "login" : "signup"); resetForm(); }}
-                        className="ml-1.5 font-semibold text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2">
+                      <button type="button" disabled={isLoggingIn} onClick={() => { setMode(isSignup ? "login" : "signup"); resetForm(); }}
+                        className="ml-1.5 font-semibold text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2 disabled:opacity-50">
                         {isSignup ? "Login" : "Sign Up"}
                       </button>
                     </p>
                   </div>
                   {!isSignup && (
                     <div className="text-center pt-1">
-                      <button type="button" onClick={() => { setForgotMode(true); setError(""); }}
-                        className="font-body text-sm text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2">
+                      <button type="button" disabled={isLoggingIn} onClick={() => { setForgotMode(true); setError(""); }}
+                        className="font-body text-sm text-gold-dark hover:text-gold transition-colors duration-300 hover:underline underline-offset-2 disabled:opacity-50">
                         Forgot Password?
                       </button>
                     </div>
@@ -496,6 +512,7 @@ const Login = () => {
                     {otp.map((digit, i) => (
                       <input
                         key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
+                        disabled={isLoggingIn}
                         onChange={(e) => handleOtpChange(i, e.target.value.replace(/\D/g, ""))}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
                         className="w-12 h-14 text-center text-xl font-display font-bold rounded-xl bg-pearl/60 border border-gold/20 text-foreground focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20 transition-all"
@@ -503,9 +520,18 @@ const Login = () => {
                     ))}
                   </div>
                   {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Verify OTP</button>
-                  <button type="button" onClick={() => { setOtpSent(false); setOtp(["", "", "", "", "", ""]); setError(""); }}
-                    className="w-full text-center font-body text-sm text-gold-dark hover:underline">Change number</button>
+                  <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify OTP"
+                    )}
+                  </button>
+                  <button type="button" disabled={isLoggingIn} onClick={() => { setOtpSent(false); setOtp(["", "", "", "", "", ""]); setError(""); }}
+                    className="w-full text-center font-body text-sm text-gold-dark hover:underline disabled:opacity-50">Change number</button>
                   <p className="font-body text-xs text-muted-foreground text-center">Enter OTP sent to your mobile</p>
                 </motion.form>
               )}
