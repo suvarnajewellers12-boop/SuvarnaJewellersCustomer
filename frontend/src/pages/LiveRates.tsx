@@ -98,7 +98,7 @@ const LiveRates = () => {
             <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground">
               Live <span className="text-gold-gradient-shine">Rates</span>
             </h1>
-            <p className="font-elegant text-lg text-muted-foreground italic mt-3">
+            <p className="font-body text-lg text-muted-foreground mt-3">
               Today's precious metal prices
             </p>
           </motion.div>
@@ -109,7 +109,7 @@ const LiveRates = () => {
             transition={{ delay: 0.4 }}
             className="text-center mb-16"
           >
-            <p className="font-elegant text-sm text-gold-dark/70 italic">
+            <p className="font-body text-sm text-gold-dark/70">
               "Today's Gold — Guiding Tomorrow's Celebrations"
             </p>
             <motion.div
