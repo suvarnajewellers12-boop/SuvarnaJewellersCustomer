@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ScrollToTop from "@/components/ScrollToTop"; // 1. IMPORT YOUR NEW COMPONENT
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import About from "./pages/About";
@@ -49,6 +50,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          {/* 2. ADD IT HERE (Inside BrowserRouter, above the routes) */}
+          <ScrollToTop />
           <AnimatedRoutes />
         </AuthProvider>
       </BrowserRouter>
