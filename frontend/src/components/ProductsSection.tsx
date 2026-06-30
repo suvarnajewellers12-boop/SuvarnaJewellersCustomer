@@ -84,7 +84,7 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
 const ProductsSection = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Start with cache if available — no spinner on revisit
+  // Start with cache if available — no layout jump spinner on revisit
   const [products, setProducts] = useState<Product[]>(_cachedProducts ?? []);
   const [loading, setLoading] = useState(_cachedProducts === null);
 
@@ -100,17 +100,46 @@ const ProductsSection = () => {
         const res = await fetch("https://suvarnagold-16e5.vercel.app/api/productsimgs/list");
         const data = await res.json();
 
-        const mapped: Product[] = data.map((item: any) => ({
-          name: item.title,
-          grams: `${item.weight} gms`,
-          numgrams: item.weight,
-          image: item.image,
-          description: item.description || "No description available",
-          story: item.description || "Traditional craftsmanship from Suvarna Jewellers.",
-          category: item.metalType?.toLowerCase() === "silver" ? "silver" : "gold",
-          subcategory:
-            item.metalType?.toLowerCase() === "silver" ? "Silver Idols" : "Gold Chains",
-        }));
+        const mapped: Product[] = data.map((item: any) => {
+          const isSilver = item.metalType?.toLowerCase() === "silver";
+          const metalCategory: Category = isSilver ? "silver" : "gold";
+          const titleLower = (item.title || "").toLowerCase();
+
+          // DYNAMIC SUBCATEGORY RESOLUTION DETECTOR
+          let determinedSubcategory = isSilver ? "Silver Idols" : "Gold Chains";
+
+          if (isSilver) {
+            if (titleLower.includes("ring")) determinedSubcategory = "Silver Rings"; 
+            else if (titleLower.includes("earring")) determinedSubcategory = "Silver Earrings";
+            else if (titleLower.includes("chain")) determinedSubcategory = "Silver Chains";
+            else if (titleLower.includes("anklet") || titleLower.includes("payal")) determinedSubcategory = "Silver Anklets";
+            else if (titleLower.includes("idol") || titleLower.includes("coin") || item.category?.toLowerCase().includes("idol")) determinedSubcategory = "Silver Idols";
+          } else {
+            if (titleLower.includes("ring")) determinedSubcategory = "Gold Rings";
+            else if (titleLower.includes("chain") || titleLower.includes("necklace")) determinedSubcategory = "Gold Chains";
+            else if (titleLower.includes("bangle") || titleLower.includes("kangan") || titleLower.includes("bracelet")) determinedSubcategory = "Gold Bangles";
+            else if (titleLower.includes("anklet")) determinedSubcategory = "Gold Anklets";
+          }
+
+          // Fallback override if backend provides an explicit category property that matches chips exactly
+          const directMatch = subcategories[metalCategory].find(
+            (sub) => sub.toLowerCase() === item.category?.toLowerCase()
+          );
+          if (directMatch) {
+            determinedSubcategory = directMatch;
+          }
+
+          return {
+            name: item.title,
+            grams: `${item.weight} gms`,
+            numgrams: item.weight,
+            image: item.image,
+            description: item.description || "No description available",
+            story: item.description || "Traditional craftsmanship from Suvarna Jewellers.",
+            category: metalCategory,
+            subcategory: determinedSubcategory,
+          };
+        });
 
         _cachedProducts = mapped; // store in module cache
         setProducts(mapped);
@@ -126,7 +155,6 @@ const ProductsSection = () => {
 
   const { isLoggedIn, enrolledSchemes } = useAuth();
 
-  // Fixed: installmentsPaid not paidMonths
   const totalSaved = enrolledSchemes.reduce(
     (acc, s) => acc + s.monthlyAmount * (s.installmentsPaid || 0),
     0
