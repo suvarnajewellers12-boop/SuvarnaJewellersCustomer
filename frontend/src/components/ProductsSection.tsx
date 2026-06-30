@@ -18,7 +18,7 @@ interface Product {
 
 const subcategories: Record<Category, string[]> = {
   gold: ["All", "Gold Rings", "Gold Chains", "Gold Bangles", "Gold Anklets"],
-  silver: ["All", "Silver Idols", "Silver Earrings", "Silver Chains", "Silver Anklets"],
+  silver: ["All", "Silver Idols", "Silver Bangles", "Silver Earrings", "Silver Chains", "Silver Anklets"],
 };
 
 const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
@@ -111,8 +111,9 @@ const ProductsSection = () => {
           if (isSilver) {
             if (titleLower.includes("ring")) determinedSubcategory = "Silver Rings"; 
             else if (titleLower.includes("earring")) determinedSubcategory = "Silver Earrings";
-            else if (titleLower.includes("chain")) determinedSubcategory = "Silver Chains";
+            else if (titleLower.includes("chain") || titleLower.includes("necklace")) determinedSubcategory = "Silver Chains";
             else if (titleLower.includes("anklet") || titleLower.includes("payal")) determinedSubcategory = "Silver Anklets";
+            else if (titleLower.includes("bangle") || titleLower.includes("kangan") || titleLower.includes("bracelet")) determinedSubcategory = "Silver Bangles";
             else if (titleLower.includes("idol") || titleLower.includes("coin") || item.category?.toLowerCase().includes("idol")) determinedSubcategory = "Silver Idols";
           } else {
             if (titleLower.includes("ring")) determinedSubcategory = "Gold Rings";
