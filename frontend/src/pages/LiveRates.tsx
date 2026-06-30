@@ -73,7 +73,8 @@ const LiveRates = () => {
 
   return (
     <Layout>
-      <section className="pt-32 pb-28 px-4 relative overflow-hidden">
+      {/* ADDED: flex flex-col justify-between min-h-[calc(100vh-8rem)] to push layout heights down correctly */}
+      <section className="pt-32 pb-28 px-4 relative overflow-hidden flex flex-col justify-between min-h-[calc(100vh-8rem)]">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
         <div
@@ -85,7 +86,8 @@ const LiveRates = () => {
         <div className="absolute top-0 left-0 right-0 gold-divider" />
         <GoldDustParticles />
 
-        <div className="relative z-10 max-w-7xl mx-auto">
+        {/* ADDED: flex-grow w-full to fill out inner space bounds natively */}
+        <div className="relative z-10 max-w-7xl mx-auto w-full flex-grow">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
