@@ -226,7 +226,7 @@ const Schemes = () => {
               Savings Plans
             </h1>
 
-            <p className="font-elegant text-xl text-muted-foreground italic">
+            <p className="font-body text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
               Invest today. Adorn tomorrow.
             </p>
 
