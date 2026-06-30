@@ -17,10 +17,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         2. flex-grow forces the main content window to expand and fill all remaining space, 
            automatically pinning the footer to the absolute bottom when content size is small.
       */}
-      <main className="flex-grow w-full">
-        {children}
-      </main>
-
+      {/* Force the main block to take up all remaining space and flow downward */}
+<main className="flex-1 flex flex-col w-full">
+  {children}
+</main>
       {/* Sticky Footer */}
       <Footer />
     </div>
