@@ -133,8 +133,6 @@ const HeroSection = () => {
       <SparkleParticles />
 
       <div className="relative z-20 text-center px-4 max-w-5xl mx-auto">
-        {/* REMOVED: ✦ Premium Gold Savings ✦ */}
-
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,8 +147,6 @@ const HeroSection = () => {
           <span className="text-gold-gradient">Trust</span>
         </motion.h1>
 
-        {/* REMOVED: India's most elegant gold savings experience... */}
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -160,7 +156,9 @@ const HeroSection = () => {
           <button onClick={() => navigate("/schemes")} className="btn-gold btn-gold-pulse text-base md:text-lg px-12 py-4">
             Explore Schemes
           </button>
-          <button onClick={() => navigate("/products")} className="btn-rose-outline text-base md:text-lg px-12 py-4">
+          
+          {/* UPDATED: Changed from btn-rose-outline to btn-gold btn-gold-pulse to stand out clearly from the background */}
+          <button onClick={() => navigate("/products")} className="btn-gold btn-gold-pulse text-base md:text-lg px-12 py-4">
             Start Gold Journey
           </button>
         </motion.div>
