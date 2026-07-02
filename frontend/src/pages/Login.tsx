@@ -10,10 +10,10 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 
-const RESET_PASS_BASE_URL = "https://suvarnagold-16e5.vercel.app";
+// Your new dedicated endpoints base URL for password operations
+const RESET_API_URL = "https://suvarnagold-16e5.vercel.app";
 
 // Fires one cheap GET to wake up the Vercel function
-// Called the moment user focuses the phone input
 const warmupBackend = () => {
   fetch(`${API_URL}/api/warmup`).catch(() => {});
 };
@@ -23,7 +23,7 @@ const Login = () => {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // Eye toggle state for general form
+  const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [verified, setVerified] = useState(false);
@@ -33,15 +33,13 @@ const Login = () => {
   const [forgotPhone, setForgotPhone] = useState("");
   const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
   const [forgotPassword, setForgotPassword] = useState("");
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Eye toggle state for forgot form
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false); // Loading indicator state
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const { loginAndLoad } = useAuth();
   const navigate = useNavigate();
 
-  // Warm backend immediately when login page mounts
-  // By the time user types phone + password, server is already awake
   useEffect(() => {
     warmupBackend();
   }, []);
@@ -65,7 +63,7 @@ const Login = () => {
 
     if (isSignup) {
       setError("");
-      setIsLoggingIn(true); // Start loading animation on Signup submit
+      setIsLoggingIn(true);
       try {
         const response = await fetch(`${API_URL}/api/auth/send-otp`, {
           method: "POST",
@@ -78,13 +76,13 @@ const Login = () => {
       } catch (err: any) {
         setError(err.message);
       } finally {
-        setIsLoggingIn(false); // Reset loading state when process settles
+        setIsLoggingIn(false);
       }
       return;
     }
 
     setError("");
-    setIsLoggingIn(true); // Start small loading wheel indicator
+    setIsLoggingIn(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
@@ -97,22 +95,20 @@ const Login = () => {
       localStorage.setItem("token", data.token);
       setVerified(true);
 
-      // Start fetching schemes immediately — don't wait for setTimeout
-      // By the time animation finishes, data is ready
-      loginAndLoad(data.user, data.token); // no await — runs in background
+      loginAndLoad(data.user, data.token);
 
       setTimeout(() => {
         navigate("/dashboard");
-      }, 800); // was 1800 — saved 1 full second
+      }, 800);
     } catch (err: any) {
       setError(err.message);
-      setIsLoggingIn(false); // Stop loader if backend fails
+      setIsLoggingIn(false);
     }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoggingIn(true); // Start small loading indicator during registration pipeline
+    setIsLoggingIn(true);
     try {
       const entered = otp.join("");
 
@@ -135,12 +131,11 @@ const Login = () => {
       if (data.token) localStorage.setItem("token", data.token);
       setVerified(true);
 
-      // Same pattern — start loading in background during animation
-      loginAndLoad(data.user, data.token); // no await — runs in background
+      loginAndLoad(data.user, data.token);
 
       setTimeout(() => {
         navigate("/dashboard");
-      }, 800); // was 1800
+      }, 800);
     } catch (err: any) {
       setError(err.message);
       setIsLoggingIn(false);
@@ -163,6 +158,11 @@ const Login = () => {
     }
   };
 
+  /* ==========================================
+     UPDATED APIS FOR PASSWORD RESET PIPELINE
+     ========================================== */
+
+  // 1. Send OTP for Resetting Password
   const handleForgotSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -170,9 +170,9 @@ const Login = () => {
       setError("Enter valid 10-digit mobile number");
       return;
     }
-    setIsLoggingIn(true); // Show loader wheel on reset password form
+    setIsLoggingIn(true);
     try {
-      const response = await fetch(`${RESET_PASS_BASE_URL}/api/otp/resetpass`, {
+      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone }),
@@ -187,6 +187,7 @@ const Login = () => {
     }
   };
 
+  // 2. Verify OTP for Password Reset
   const handleForgotVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -197,16 +198,15 @@ const Login = () => {
     }
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${RESET_PASS_BASE_URL}/api/otp/resetpass/verify`, {
+      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, otp: entered }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Invalid OTP verification response");
       
-      // Checking success standard formats based on typical implementation structures
-      if (data.type === "error" || data.status === "error") {
+      // Checking for typical success payloads based on standard structures
+      if (!response.ok || data.type === "error" || data.status === "fail") {
         throw new Error(data.message || "Invalid OTP");
       }
       
@@ -218,6 +218,7 @@ const Login = () => {
     }
   };
 
+  // 3. Set the New Password
   const handleForgotResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -228,13 +229,15 @@ const Login = () => {
     const entered = forgotOtp.join("");
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${RESET_PASS_BASE_URL}/api/otp/resetpass`, {
-        method: "PUT",
+      // Directs payload containing token/otp tracking back to the confirmation handler
+      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass/confirm`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, otp: entered, newPassword: forgotPassword }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Reset failed");
+      
       setForgotSuccess(true);
       setTimeout(() => {
         setForgotMode(false);
