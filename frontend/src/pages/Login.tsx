@@ -430,7 +430,7 @@ const Login = () => {
               <h2 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2 relative">
                 {verified ? "Welcome!" : isSignup ? "Create Account" : "Login"}
               </h2>
-              <p className="font-elegant text-base text-center text-muted-foreground mb-8 italic relative">
+              <p className="font-elegant text-base text-center text-muted-foreground mb-12 italic relative">
                 {verified ? "Entering your golden chamber..." : isSignup ? "Join the Suvarna family" : "Enter your credentials to continue"}
               </p>
 
