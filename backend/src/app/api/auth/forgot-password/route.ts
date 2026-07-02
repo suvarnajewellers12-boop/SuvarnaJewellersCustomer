@@ -28,9 +28,17 @@ function getCorsHeaders(req: Request) {
 }
 
 export async function OPTIONS(req: Request) {
+  const origin = req.headers.get("origin") || req.headers.get("Origin") || "";
+  const dynamicOrigin = allowedOrigins.includes(origin) ? origin : "https://www.suvarnajewellers.in";
+
   return new NextResponse(null, {
     status: 200,
-    headers: getCorsHeaders(req),
+    headers: {
+      "Access-Control-Allow-Origin": dynamicOrigin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
+      "Access-Control-Allow-Credentials": "true",
+    },
   });
 }
 
