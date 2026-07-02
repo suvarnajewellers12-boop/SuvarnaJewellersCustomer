@@ -235,8 +235,8 @@ const Coupons = () => {
         <GoldDustParticles />
 
         <div className="relative z-10 max-w-3xl mx-auto">
-          {/* STICKY CONTAINER FOR HEADER & TABS */}
-          <div className="sticky top-[75px] z-30 pt-8 pb-4 mb-6 backdrop-blur-md bg-gradient-to-b from-cream/90 via-cream/70 to-transparent">
+          {/* CLEAN & SOLID STICKY HEADER BELOW NAVBAR */}
+          <div className="sticky top-[80px] z-30 pt-4 pb-6 bg-gradient-to-b from-cream via-cream to-transparent">
             {/* Page header */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -261,7 +261,7 @@ const Coupons = () => {
 
             {/* Tab switcher */}
             <div
-              className="flex p-1 rounded-2xl w-fit shadow-sm"
+              className="flex p-1 rounded-2xl w-fit"
               style={{ background: "hsla(38,40%,88%,0.8)", border: "1px solid hsla(38,40%,70%,0.3)" }}
             >
               {(["active", "redeemed"] as const).map((tab) => (
