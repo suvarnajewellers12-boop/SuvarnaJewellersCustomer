@@ -63,6 +63,7 @@ const Login = () => {
 
     if (isSignup) {
       setError("");
+      setIsLoggingIn(true); // Start loading animation on Signup submit
       try {
         const response = await fetch(`${API_URL}/api/auth/send-otp`, {
           method: "POST",
@@ -74,6 +75,8 @@ const Login = () => {
         setOtpSent(true);
       } catch (err: any) {
         setError(err.message);
+      } finally {
+        setIsLoggingIn(false); // Reset loading state when process settles
       }
       return;
     }
@@ -503,7 +506,7 @@ const Login = () => {
                     {isLoggingIn ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Authenticating...
+                        {isSignup ? "Sending OTP..." : "Authenticating..."}
                       </>
                     ) : (
                       isSignup ? "Send OTP" : "Login"
