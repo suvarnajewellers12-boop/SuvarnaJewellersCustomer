@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, RotateCcw, BadgeCheck } from "lucide-react";
+import { X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Category = "gold" | "silver";
@@ -15,11 +15,6 @@ interface Product {
   category: Category;
   subcategory: string;
 }
-
-const subcategories: Record<Category, string[]> = {
-  gold: ["All", "Gold Rings", "Gold Chains", "Gold Bangles", "Gold Anklets"],
-  silver: ["All", "Silver Idols", "Silver Bangles", "Silver Earrings", "Silver Chains", "Silver Anklets"],
-};
 
 const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
@@ -44,11 +39,11 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
       style={{ boxShadow: '0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)' }}
     >
       <div className="relative">
-        <div className="aspect-video overflow-hidden rounded-t-3xl bg-cream spotlight">
+        <div className="aspect-video overflow-hidden rounded-t-3xl bg-cream spotlight flex items-center justify-center p-2">
           <img
             src={product.image}
             alt={product.name}
-            className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+            className="max-w-full max-h-full w-auto h-auto object-contain hover:scale-105 transition-transform duration-700"
           />
         </div>
         <button
@@ -57,9 +52,6 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
         >
           <X className="w-5 h-5" />
         </button>
-        <div className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-gold/20 backdrop-blur-sm flex items-center justify-center text-gold-dark">
-          <RotateCcw className="w-5 h-5" />
-        </div>
       </div>
       <div className="p-8">
         <div className="flex items-center justify-between mb-4">
@@ -70,11 +62,6 @@ const ProductModal = ({ product, onClose }: { product: Product; onClose: () => v
         <div className="border-t border-gold/20 pt-6">
           <h4 className="font-elegant text-lg italic text-gold-dark mb-2">Cultural Inspiration</h4>
           <p className="font-body text-sm text-muted-foreground">{product.story}</p>
-        </div>
-        <div className="mt-6 p-4 rounded-xl bg-gold/5 border border-gold/15">
-          <p className="font-body text-sm text-center text-muted-foreground">
-            ✦ Available through our exclusive savings schemes ✦
-          </p>
         </div>
       </div>
     </motion.div>
@@ -87,9 +74,6 @@ const ProductsSection = () => {
   // Start with cache if available — no layout jump spinner on revisit
   const [products, setProducts] = useState<Product[]>(_cachedProducts ?? []);
   const [loading, setLoading] = useState(_cachedProducts === null);
-
-  const [activeCategory, setActiveCategory] = useState<Category>("gold");
-  const [activeSubcategory, setActiveSubcategory] = useState("All");
 
   useEffect(() => {
     // Cache exists — skip network call entirely
@@ -120,14 +104,6 @@ const ProductsSection = () => {
             else if (titleLower.includes("chain") || titleLower.includes("necklace")) determinedSubcategory = "Gold Chains";
             else if (titleLower.includes("bangle") || titleLower.includes("kangan") || titleLower.includes("bracelet")) determinedSubcategory = "Gold Bangles";
             else if (titleLower.includes("anklet")) determinedSubcategory = "Gold Anklets";
-          }
-
-          // Fallback override if backend provides an explicit category property that matches chips exactly
-          const directMatch = subcategories[metalCategory].find(
-            (sub) => sub.toLowerCase() === item.category?.toLowerCase()
-          );
-          if (directMatch) {
-            determinedSubcategory = directMatch;
           }
 
           return {
@@ -161,17 +137,6 @@ const ProductsSection = () => {
     0
   );
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.category === activeCategory &&
-      (activeSubcategory === "All" || p.subcategory === activeSubcategory)
-  );
-
-  const handleCategoryChange = (cat: Category) => {
-    setActiveCategory(cat);
-    setActiveSubcategory("All");
-  };
-
   if (loading) {
     return (
       <section id="products" className="py-28 px-4 relative overflow-hidden">
@@ -198,7 +163,7 @@ const ProductsSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
           <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">
             Curated Collection
@@ -211,76 +176,22 @@ const ProductsSection = () => {
           </p>
         </motion.div>
 
-        {/* Category tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="flex justify-center gap-4 mb-6"
-        >
-          {(["gold", "silver"] as Category[]).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryChange(cat)}
-              className="relative px-8 py-2.5 rounded-full font-display text-sm tracking-wider uppercase transition-all duration-400"
-              style={{
-                background: activeCategory === cat ? 'var(--gradient-gold)' : 'hsla(40, 28%, 97%, 0.6)',
-                color: activeCategory === cat ? 'hsl(40, 30%, 97%)' : 'hsl(28, 25%, 15%)',
-                border: activeCategory === cat
-                  ? '1px solid hsla(43, 80%, 60%, 0.5)'
-                  : '1px solid hsla(38, 50%, 65%, 0.3)',
-                boxShadow: activeCategory === cat ? 'var(--shadow-gold)' : 'none',
-              }}
-            >
-              {cat === "gold" ? "Gold Jewellery" : "Silver Jewellery"}
-            </button>
-          ))}
-        </motion.div>
-
-        {/* Subcategory chips */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-wrap justify-center gap-2 mb-16"
-        >
-          {subcategories[activeCategory].map((sub) => (
-            <button
-              key={sub}
-              onClick={() => setActiveSubcategory(sub)}
-              className="px-5 py-1.5 rounded-full font-body text-xs tracking-wide transition-all duration-300"
-              style={{
-                background: activeSubcategory === sub ? 'hsla(43, 80%, 55%, 0.15)' : 'transparent',
-                color: activeSubcategory === sub ? 'hsl(38, 72%, 38%)' : 'hsl(28, 12%, 40%)',
-                border: activeSubcategory === sub
-                  ? '1px solid hsla(43, 80%, 55%, 0.4)'
-                  : '1px solid hsla(38, 50%, 65%, 0.2)',
-              }}
-            >
-              {sub}
-            </button>
-          ))}
-        </motion.div>
-
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeCategory + activeSubcategory}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            {filteredProducts.length === 0 ? (
+            {products.length === 0 ? (
               <div className="col-span-full text-center py-16">
                 <p className="font-elegant text-lg italic text-muted-foreground">
                   New pieces arriving soon. Stay tuned for our latest creations.
                 </p>
               </div>
             ) : (
-              filteredProducts.map((product, index) => (
+              products.map((product, index) => (
                 <motion.div
                   key={product.name}
                   initial={{ opacity: 0, y: 50 }}
@@ -297,14 +208,6 @@ const ProductsSection = () => {
                       loading="lazy"
                     />
                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-foreground/8 to-transparent pointer-events-none" />
-                    {isLoggedIn && totalSaved > 0 && (
-                      <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pearl/90 backdrop-blur-sm border border-gold/20">
-                        <BadgeCheck className="w-3.5 h-3.5 text-gold-dark" />
-                        <span className="font-body text-[11px] font-semibold text-foreground">
-                          Eligible via savings
-                        </span>
-                      </div>
-                    )}
                   </div>
                   <div className="p-6">
                     <h3 className="font-display text-lg font-semibold text-foreground mb-1">
