@@ -386,7 +386,7 @@ const Login = () => {
           </motion.div>
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
             className="relative z-10 w-full max-w-md"
@@ -455,6 +455,7 @@ const Login = () => {
                         disabled={isLoggingIn}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Full Name"
+                        required={isSignup}
                         className="w-full px-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                       />
                     </motion.div>
@@ -471,6 +472,7 @@ const Login = () => {
                       onFocus={warmupBackend} // warms up again if first call failed
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
+                      required
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
                     />
                   </div>
@@ -484,6 +486,7 @@ const Login = () => {
                       disabled={isLoggingIn}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={isSignup ? "Create Password" : "Enter Password"}
+                      required
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
                     <button
