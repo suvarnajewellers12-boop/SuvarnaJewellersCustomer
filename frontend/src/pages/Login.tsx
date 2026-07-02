@@ -225,7 +225,8 @@ const Login = () => {
     const entered = forgotOtp.join("");
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+      // CORRECTED: Pointed to RESET_API_URL and targets /api/otp/resetpass/confirm instead of API_URL
+      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, otp: entered, newPassword: forgotPassword }),
