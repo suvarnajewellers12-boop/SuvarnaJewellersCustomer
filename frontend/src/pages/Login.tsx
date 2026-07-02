@@ -170,13 +170,13 @@ const Login = () => {
     }
     setIsLoggingIn(true); // Show loader wheel on reset password form
     try {
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+      const response = await fetch("https://suvarnagold-16e5.vercel.app/api/otp/resetpass", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, purpose: "forgot_password" }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to send OTP");
+      if (!response.ok) throw new Error(data.error || data.message || "Failed to send OTP");
       setForgotStep("otp");
     } catch (err: any) {
       setError(err.message);
@@ -195,13 +195,13 @@ const Login = () => {
     }
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      const response = await fetch("https://suvarnagold-16e5.vercel.app/api/otp/resetpass/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, otp: entered, purpose: "forgot_password" }),
       });
       const data = await response.json();
-      if (data.type !== "success") throw new Error(data.message || "Invalid OTP");
+      if (!response.ok) throw new Error(data.error || data.message || "Invalid OTP");
       setForgotStep("password");
     } catch (err: any) {
       setError(err.message);
