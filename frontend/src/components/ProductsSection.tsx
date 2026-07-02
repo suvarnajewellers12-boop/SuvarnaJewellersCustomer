@@ -75,6 +75,8 @@ const ProductsSection = () => {
   const [products, setProducts] = useState<Product[]>(_cachedProducts ?? []);
   const [loading, setLoading] = useState(_cachedProducts === null);
 
+  const [activeCategory, setActiveCategory] = useState<Category>("gold");
+
   useEffect(() => {
     // Cache exists — skip network call entirely
     if (_cachedProducts !== null) return;
@@ -137,6 +139,8 @@ const ProductsSection = () => {
     0
   );
 
+  const filteredProducts = products.filter((p) => p.category === activeCategory);
+
   if (loading) {
     return (
       <section id="products" className="py-28 px-4 relative overflow-hidden">
@@ -163,7 +167,7 @@ const ProductsSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
           <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">
             Curated Collection
@@ -176,22 +180,50 @@ const ProductsSection = () => {
           </p>
         </motion.div>
 
+        {/* Category tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="flex justify-center gap-4 mb-16"
+        >
+          {(["gold", "silver"] as Category[]).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className="relative px-8 py-2.5 rounded-full font-display text-sm tracking-wider uppercase transition-all duration-400"
+              style={{
+                background: activeCategory === cat ? 'var(--gradient-gold)' : 'hsla(40, 28%, 97%, 0.6)',
+                color: activeCategory === cat ? 'hsl(40, 30%, 97%)' : 'hsl(28, 25%, 15%)',
+                border: activeCategory === cat
+                  ? '1px solid hsla(43, 80%, 60%, 0.5)'
+                  : '1px solid hsla(38, 50%, 65%, 0.3)',
+                boxShadow: activeCategory === cat ? 'var(--shadow-gold)' : 'none',
+              }}
+            >
+              {cat === "gold" ? "Gold Jewellery" : "Silver Jewellery"}
+            </button>
+          ))}
+        </motion.div>
+
         <AnimatePresence mode="wait">
           <motion.div
+            key={activeCategory}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            {products.length === 0 ? (
+            {filteredProducts.length === 0 ? (
               <div className="col-span-full text-center py-16">
                 <p className="font-elegant text-lg italic text-muted-foreground">
                   New pieces arriving soon. Stay tuned for our latest creations.
                 </p>
               </div>
             ) : (
-              products.map((product, index) => (
+              filteredProducts.map((product, index) => (
                 <motion.div
                   key={product.name}
                   initial={{ opacity: 0, y: 50 }}
