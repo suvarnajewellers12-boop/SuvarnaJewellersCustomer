@@ -225,7 +225,9 @@ const Coupons = () => {
 
   return (
     <Layout>
-      <section className="pt-32 pb-28 px-4 relative overflow-clip">
+      {/* 1. ISOLATED BACKGROUND LAYER */}
+      {/* Moved background elements into a fixed container so they don't break sticky scrolling */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
         <div className="absolute top-0 left-0 right-0 h-48" style={{
@@ -233,11 +235,16 @@ const Coupons = () => {
         }} />
         <div className="absolute top-0 left-0 right-0 gold-divider" />
         <GoldDustParticles />
+      </div>
 
-        <div className="relative z-10 max-w-3xl mx-auto">
+      {/* 2. MAIN CONTENT - OVERFLOW VISIBLE */}
+      {/* Kept z-10 and removed all overflow hidden/clip rules so sticky natively works */}
+      <section className="pt-24 md:pt-32 pb-28 relative z-10 overflow-visible">
+        <div className="relative max-w-3xl mx-auto px-4">
           
-          {/* Header and Tabs container — set to standard layout structure to fix it strictly in place */}
-          <div className="pt-4 pb-6 mb-8 px-4 bg-cream/90 backdrop-blur-md rounded-2xl shadow-sm border border-gold/15">
+          {/* 3. BULLETPROOF STICKY HEADER - NO BOX */}
+          {/* Removed the box borders/shadows. Added a seamless transparent fade so text stays readable without looking like a block. */}
+          <div className="sticky top-16 md:top-20 z-50 pt-8 pb-8 -mx-4 px-4 sm:mx-0 sm:px-0 bg-gradient-to-b from-cream via-cream/95 to-transparent">
             {/* Page header */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -300,7 +307,7 @@ const Coupons = () => {
             </div>
           </div>
 
-          {/* Coupon list */}
+          {/* 4. COUPON LIST */}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -308,9 +315,10 @@ const Coupons = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
+              className="relative z-0"
             >
               {displayed.length === 0 ? (
-                <div className="glass-card rounded-2xl p-12 text-center" style={{ boxShadow: "var(--shadow-card)" }}>
+                <div className="glass-card rounded-2xl p-12 text-center mt-2" style={{ boxShadow: "var(--shadow-card)" }}>
                   {activeTab === "active" ? (
                     <Gift className="w-12 h-12 text-gold/40 mx-auto mb-4" />
                   ) : (
@@ -326,7 +334,7 @@ const Coupons = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 pt-2">
                   {displayed.map((coupon, i) => (
                     <motion.div
                       key={coupon.id}
