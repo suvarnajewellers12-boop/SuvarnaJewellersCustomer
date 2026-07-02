@@ -11,52 +11,42 @@ const allowedOrigins = [
   "https://www.suvarnajewellers.in",
 ];
 
-function getCorsHeaders(req: Request) {
-  // Read origin with case-insensitivity fallback
-  const origin = req.headers.get("origin") || req.headers.get("Origin") || "";
-  
-  // If the origin matches any of our allowed ones, reflect it back exactly.
-  // Otherwise, default explicitly to the www production domain where the error is happening.
-  const dynamicOrigin = allowedOrigins.includes(origin) ? origin : "https://www.suvarnajewellers.in";
-
+function getCorsHeaders(origin: string) {
   return {
-    "Access-Control-Allow-Origin": dynamicOrigin,
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin)
+      ? origin
+      : allowedOrigins[0],
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
 
 export async function OPTIONS(req: Request) {
-  const origin = req.headers.get("origin") || req.headers.get("Origin") || "";
-  const dynamicOrigin = allowedOrigins.includes(origin) ? origin : "https://www.suvarnajewellers.in";
-
+  const origin = req.headers.get("origin") || "";
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": dynamicOrigin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
-      "Access-Control-Allow-Credentials": "true",
-    },
+    headers: getCorsHeaders(origin),
   });
 }
 
 export async function POST(req: Request) {
+  const origin = req.headers.get("origin") || "";
+
   try {
     const { phone, otp, newPassword } = await req.json();
 
     if (!phone || !otp || !newPassword) {
       return NextResponse.json(
         { message: "Phone, OTP and new password are required" },
-        { status: 400, headers: getCorsHeaders(req) }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
     if (newPassword.length < 6) {
       return NextResponse.json(
         { message: "Password must be at least 6 characters" },
-        { status: 400, headers: getCorsHeaders(req) }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -73,7 +63,7 @@ export async function POST(req: Request) {
     if (!record) {
       return NextResponse.json(
         { message: "OTP not verified. Please verify OTP first." },
-        { status: 400, headers: getCorsHeaders(req) }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -82,7 +72,7 @@ export async function POST(req: Request) {
     if (!record.verifiedAt || record.verifiedAt < tenMinutesAgo) {
       return NextResponse.json(
         { message: "Session expired. Please start again." },
-        { status: 400, headers: getCorsHeaders(req) }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -98,7 +88,7 @@ export async function POST(req: Request) {
     if (updated.count === 0) {
       return NextResponse.json(
         { message: "Account not found" },
-        { status: 404, headers: getCorsHeaders(req) }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -112,13 +102,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { message: "Password reset successful" },
-      { status: 200, headers: getCorsHeaders(req) }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
 
   } catch (error: any) {
     return NextResponse.json(
       { message: error.message || "Password reset failed" },
-      { status: 500, headers: getCorsHeaders(req) }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

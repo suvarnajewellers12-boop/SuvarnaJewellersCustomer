@@ -10,9 +10,6 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 
-// Dedicated backend for password reset OTP flow
-const RESET_API_URL = "https://suvarnagold-16e5.vercel.app";
-
 // Fires one cheap GET to wake up the Vercel function
 // Called the moment user focuses the phone input
 const warmupBackend = () => {
@@ -173,10 +170,10 @@ const Login = () => {
     }
     setIsLoggingIn(true); // Show loader wheel on reset password form
     try {
-      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass`, {
+      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone }),
+        body: JSON.stringify({ phone: forgotPhone, purpose: "forgot_password" }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Failed to send OTP");
@@ -198,15 +195,13 @@ const Login = () => {
     }
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass/verify`, {
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone, otp: entered }),
+        body: JSON.stringify({ phone: forgotPhone, otp: entered, purpose: "forgot_password" }),
       });
       const data = await response.json();
-      if (!response.ok || data.type === "error" || data.status === "fail") {
-        throw new Error(data.message || "Invalid OTP");
-      }
+      if (data.type !== "success") throw new Error(data.message || "Invalid OTP");
       setForgotStep("password");
     } catch (err: any) {
       setError(err.message);
@@ -225,8 +220,7 @@ const Login = () => {
     const entered = forgotOtp.join("");
     setIsLoggingIn(true);
     try {
-      // CORRECTED: Pointed to RESET_API_URL and targets /api/otp/resetpass/confirm instead of API_URL
-      const response = await fetch(`${RESET_API_URL}/api/otp/resetpass/confirm`, {
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, otp: entered, newPassword: forgotPassword }),
