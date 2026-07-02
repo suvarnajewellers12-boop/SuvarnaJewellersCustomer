@@ -168,6 +168,7 @@ const Login = () => {
       setError("Enter valid 10-digit mobile number");
       return;
     }
+    setIsLoggingIn(true); // Show loader wheel on reset password form
     try {
       const response = await fetch(`${API_URL}/api/auth/send-otp`, {
         method: "POST",
@@ -179,6 +180,8 @@ const Login = () => {
       setForgotStep("otp");
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -190,6 +193,7 @@ const Login = () => {
       setError("Enter complete 6-digit OTP");
       return;
     }
+    setIsLoggingIn(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
         method: "POST",
@@ -201,6 +205,8 @@ const Login = () => {
       setForgotStep("password");
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -212,6 +218,7 @@ const Login = () => {
       return;
     }
     const entered = forgotOtp.join("");
+    setIsLoggingIn(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
         method: "POST",
@@ -233,6 +240,8 @@ const Login = () => {
       }, 2000);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -289,7 +298,8 @@ const Login = () => {
                   setForgotSuccess(false);
                   setError("");
                 }}
-                className="flex items-center gap-1 font-body text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+                disabled={isLoggingIn}
+                className="flex items-center gap-1 font-body text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors disabled:opacity-50"
               >
                 ← Back to Login
               </button>
@@ -304,7 +314,7 @@ const Login = () => {
               <h2 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
                 {forgotSuccess ? "Password Reset!" : "Reset Password"}
               </h2>
-              <p className="font-elegant text-base text-center text-muted-foreground mb-8 italic">
+              <p className="font-elegant text-lg text-center text-muted-foreground/90 mb-8 italic">
                 {forgotStep === "phone" && "Enter your registered mobile number"}
                 {forgotStep === "otp" && `OTP sent to +91 ${forgotPhone}`}
                 {forgotStep === "password" && "Set your new password"}
@@ -331,13 +341,23 @@ const Login = () => {
                     <input
                       type="tel"
                       value={forgotPhone}
+                      disabled={isLoggingIn}
                       onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
                     />
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Send OTP</button>
+                  <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Sending OTP...
+                      </>
+                    ) : (
+                      "Send OTP"
+                    )}
+                  </button>
                 </form>
               ) : forgotStep === "otp" ? (
                 <form onSubmit={handleForgotVerifyOtp} className="space-y-5">
@@ -346,6 +366,7 @@ const Login = () => {
                       <input
                         key={i} id={`fotp-${i}`} type="text" inputMode="numeric"
                         maxLength={1} value={digit}
+                        disabled={isLoggingIn}
                         onChange={(e) => handleForgotOtpChange(i, e.target.value.replace(/\D/g, ""))}
                         onKeyDown={(e) => handleForgotOtpKeyDown(i, e)}
                         className="w-12 h-14 text-center text-xl font-display font-bold rounded-xl bg-pearl/60 border border-gold/20 text-foreground focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20 transition-all"
@@ -353,10 +374,20 @@ const Login = () => {
                     ))}
                   </div>
                   {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Verify OTP</button>
+                  <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify OTP"
+                    )}
+                  </button>
                   <button type="button"
+                    disabled={isLoggingIn}
                     onClick={() => { setForgotStep("phone"); setForgotOtp(["","","","","",""]); setError(""); }}
-                    className="w-full text-center font-body text-sm text-gold-dark hover:underline">
+                    className="w-full text-center font-body text-sm text-gold-dark hover:underline disabled:opacity-50">
                     Change number
                   </button>
                 </form>
@@ -369,20 +400,31 @@ const Login = () => {
                     <input
                       type={showForgotPassword ? "text" : "password"}
                       value={forgotPassword}
+                      disabled={isLoggingIn}
                       onChange={(e) => setForgotPassword(e.target.value)}
                       placeholder="New Password (min 6 characters)"
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
                     <button
                       type="button"
+                      disabled={isLoggingIn}
                       onClick={() => setShowForgotPassword(!showForgotPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors focus:outline-none"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors focus:outline-none disabled:opacity-50"
                     >
                       {showForgotPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
-                  <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Reset Password</button>
+                  <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Reset Password"
+                    )}
+                  </button>
                 </form>
               )}
             </div>
@@ -430,7 +472,7 @@ const Login = () => {
               <h2 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2 relative">
                 {verified ? "Welcome!" : isSignup ? "Create Account" : "Login"}
               </h2>
-              <p className="font-elegant text-base text-center text-muted-foreground mb-12 italic relative">
+              <p className="font-elegant text-lg text-center text-muted-foreground/90 mb-8 italic relative">
                 {verified ? "Entering your golden chamber..." : isSignup ? "Join the Suvarna family" : "Enter your credentials to continue"}
               </p>
 
@@ -444,7 +486,7 @@ const Login = () => {
                   <div className="w-full h-2 rounded-full bg-cream overflow-hidden">
                     <motion.div className="h-full rounded-full" style={{ background: 'var(--gradient-gold)' }}
                       initial={{ width: "0%" }} animate={{ width: "100%" }}
-                      transition={{ duration: 0.8, ease: "easeInOut" }} // was 1.5
+                      transition={{ duration: 0.8, ease: "easeInOut" }}
                     />
                   </div>
                 </motion.div>
@@ -472,7 +514,7 @@ const Login = () => {
                       type="tel"
                       value={phone}
                       disabled={isLoggingIn}
-                      onFocus={warmupBackend} // warms up again if first call failed
+                      onFocus={warmupBackend}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
                       required
