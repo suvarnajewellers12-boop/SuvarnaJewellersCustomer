@@ -37,7 +37,7 @@ const Footer = () => {
             <span className="font-display text-2xl font-bold text-gold-gradient">Suvarna Jewellers</span>
           </motion.div>
 
-          <p className="font-elegant text-base font-medium text-muted-foreground mb-8 max-w-md">
+          <p className="font-elegant text-base font-medium text-muted-foreground mb-10 max-w-md">
             Crafting golden dreams, preserving timeless traditions.
           </p>
 
