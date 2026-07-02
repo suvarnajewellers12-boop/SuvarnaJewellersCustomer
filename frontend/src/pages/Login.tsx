@@ -10,6 +10,8 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 
+const RESET_PASS_BASE_URL = "https://suvarnagold-16e5.vercel.app";
+
 // Fires one cheap GET to wake up the Vercel function
 // Called the moment user focuses the phone input
 const warmupBackend = () => {
@@ -170,10 +172,10 @@ const Login = () => {
     }
     setIsLoggingIn(true); // Show loader wheel on reset password form
     try {
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+      const response = await fetch(`${RESET_PASS_BASE_URL}/api/otp/resetpass`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone, purpose: "forgot_password" }),
+        body: JSON.stringify({ phone: forgotPhone }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Failed to send OTP");
@@ -195,13 +197,19 @@ const Login = () => {
     }
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      const response = await fetch(`${RESET_PASS_BASE_URL}/api/otp/resetpass/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone, otp: entered, purpose: "forgot_password" }),
+        body: JSON.stringify({ phone: forgotPhone, otp: entered }),
       });
       const data = await response.json();
-      if (data.type !== "success") throw new Error(data.message || "Invalid OTP");
+      if (!response.ok) throw new Error(data.message || "Invalid OTP verification response");
+      
+      // Checking success standard formats based on typical implementation structures
+      if (data.type === "error" || data.status === "error") {
+        throw new Error(data.message || "Invalid OTP");
+      }
+      
       setForgotStep("password");
     } catch (err: any) {
       setError(err.message);
@@ -220,8 +228,8 @@ const Login = () => {
     const entered = forgotOtp.join("");
     setIsLoggingIn(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
-        method: "POST",
+      const response = await fetch(`${RESET_PASS_BASE_URL}/api/otp/resetpass`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone, otp: entered, newPassword: forgotPassword }),
       });
