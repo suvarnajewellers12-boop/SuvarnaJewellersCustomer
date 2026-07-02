@@ -37,7 +37,7 @@ const Footer = () => {
             <span className="font-display text-2xl font-bold text-gold-gradient">Suvarna Jewellers</span>
           </motion.div>
 
-          <p className="font-elegant text-muted-foreground mb-8 max-w-md">
+          <p className="font-elegant text-base font-medium text-muted-foreground mb-8 max-w-md">
             Crafting golden dreams, preserving timeless traditions.
           </p>
 
@@ -55,7 +55,7 @@ const Footer = () => {
 
           <div className="gold-divider w-48 mb-6" />
 
-          <p className="font-body text-xs text-muted-foreground">
+          <p className="font-body text-sm font-semibold text-muted-foreground">
             © {new Date().getFullYear()} Suvarna Jewellers. All rights reserved. Crafted with ♥ in India.
           </p>
         </div>
