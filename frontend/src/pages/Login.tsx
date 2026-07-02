@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Unlock, Smartphone, Sparkles, UserPlus, KeyRound, Loader2 } from "lucide-react";
+import { Lock, Unlock, Smartphone, Sparkles, UserPlus, KeyRound, Loader2, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -21,6 +21,7 @@ const Login = () => {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // Eye toggle state for general form
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [verified, setVerified] = useState(false);
@@ -30,6 +31,7 @@ const Login = () => {
   const [forgotPhone, setForgotPhone] = useState("");
   const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
   const [forgotPassword, setForgotPassword] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // Eye toggle state for forgot form
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false); // Loading indicator state
 
@@ -48,6 +50,7 @@ const Login = () => {
     setPhone("");
     setName("");
     setPassword("");
+    setShowPassword(false);
     setOtpSent(false);
     setOtp(["", "", "", "", "", ""]);
     setVerified(false);
@@ -221,6 +224,7 @@ const Login = () => {
         setForgotPhone("");
         setForgotOtp(["", "", "", "", "", ""]);
         setForgotPassword("");
+        setShowForgotPassword(false);
         setForgotSuccess(false);
         setError("");
       }, 2000);
@@ -278,6 +282,7 @@ const Login = () => {
                   setForgotOtp(["", "", "", "", "", ""]);
                   setForgotPhone("");
                   setForgotPassword("");
+                  setShowForgotPassword(false);
                   setForgotSuccess(false);
                   setError("");
                 }}
@@ -359,12 +364,19 @@ const Login = () => {
                       <KeyRound className="w-4 h-4" />
                     </div>
                     <input
-                      type="password"
+                      type={showForgotPassword ? "text" : "password"}
                       value={forgotPassword}
                       onChange={(e) => setForgotPassword(e.target.value)}
                       placeholder="New Password (min 6 characters)"
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
+                      className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(!showForgotPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors focus:outline-none"
+                    >
+                      {showForgotPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
                   <button type="submit" className="btn-gold btn-gold-pulse w-full text-base py-4">Reset Password</button>
@@ -467,13 +479,21 @@ const Login = () => {
                       <KeyRound className="w-4 h-4" />
                     </div>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={password}
                       disabled={isLoggingIn}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={isSignup ? "Create Password" : "Enter Password"}
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
+                      className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
+                    <button
+                      type="button"
+                      disabled={isLoggingIn}
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors focus:outline-none disabled:opacity-50"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   {error && <p className="font-body text-sm text-destructive">{error}</p>}
                   <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
