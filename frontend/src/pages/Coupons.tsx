@@ -225,7 +225,6 @@ const Coupons = () => {
 
   return (
     <Layout>
-      {/* Changed overflow-hidden to overflow-clip here */}
       <section className="pt-32 pb-28 px-4 relative overflow-clip">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
@@ -237,8 +236,8 @@ const Coupons = () => {
 
         <div className="relative z-10 max-w-3xl mx-auto">
           
-          {/* Sticky wrapper for Header and Tabs */}
-          <div className="sticky top-20 z-50 pt-4 pb-6 mb-4 -mx-4 px-4 sm:mx-0 sm:px-4 bg-cream/90 backdrop-blur-md rounded-b-2xl shadow-sm border-b border-gold/10">
+          {/* Header and Tabs container — set to standard layout structure to fix it strictly in place */}
+          <div className="pt-4 pb-6 mb-8 px-4 bg-cream/90 backdrop-blur-md rounded-2xl shadow-sm border border-gold/15">
             {/* Page header */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -311,7 +310,7 @@ const Coupons = () => {
               transition={{ duration: 0.2 }}
             >
               {displayed.length === 0 ? (
-                <div className="glass-card rounded-2xl p-12 text-center mt-4" style={{ boxShadow: "var(--shadow-card)" }}>
+                <div className="glass-card rounded-2xl p-12 text-center" style={{ boxShadow: "var(--shadow-card)" }}>
                   {activeTab === "active" ? (
                     <Gift className="w-12 h-12 text-gold/40 mx-auto mb-4" />
                   ) : (
@@ -327,7 +326,7 @@ const Coupons = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-4">
                   {displayed.map((coupon, i) => (
                     <motion.div
                       key={coupon.id}
