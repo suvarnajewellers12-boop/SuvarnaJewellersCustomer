@@ -225,7 +225,8 @@ const Coupons = () => {
 
   return (
     <Layout>
-      <section className="pt-32 pb-28 px-4 relative overflow-hidden">
+      {/* Changed overflow-hidden to overflow-clip here */}
+      <section className="pt-32 pb-28 px-4 relative overflow-clip">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
         <div className="absolute top-0 left-0 right-0 h-48" style={{
@@ -235,65 +236,69 @@ const Coupons = () => {
         <GoldDustParticles />
 
         <div className="relative z-10 max-w-3xl mx-auto">
-          {/* Page header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mb-10"
-          >
-            <p className="font-elegant text-sm tracking-[0.2em] uppercase text-gold-dark mb-2">
-              Rewards
-            </p>
-            <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-2">
-              My <span className="text-gold-gradient-shine">Coupons</span>
-            </h1>
+          
+          {/* Sticky wrapper for Header and Tabs */}
+          <div className="sticky top-20 z-50 pt-4 pb-6 mb-4 -mx-4 px-4 sm:mx-0 sm:px-4 bg-cream/90 backdrop-blur-md rounded-b-2xl shadow-sm border-b border-gold/10">
+            {/* Page header */}
             <motion.div
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="h-0.5 w-20 mt-3 origin-left"
-              style={{ background: "var(--gradient-gold)" }}
-            />
-          </motion.div>
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-6"
+            >
+              <p className="font-elegant text-sm tracking-[0.2em] uppercase text-gold-dark mb-2">
+                Rewards
+              </p>
+              <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-2">
+                My <span className="text-gold-gradient-shine">Coupons</span>
+              </h1>
+              <motion.div
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="h-0.5 w-20 mt-3 origin-left"
+                style={{ background: "var(--gradient-gold)" }}
+              />
+            </motion.div>
 
-          {/* Tab switcher */}
-          <div
-            className="flex p-1 rounded-2xl mb-8 w-fit"
-            style={{ background: "hsla(38,40%,88%,0.6)", border: "1px solid hsla(38,40%,70%,0.3)" }}
-          >
-            {(["active", "redeemed"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="relative px-8 py-2.5 rounded-xl font-body text-sm font-semibold transition-all duration-300 capitalize"
-                style={{
-                  color: activeTab === tab ? "white" : "hsl(28, 25%, 35%)",
-                }}
-              >
-                {activeTab === tab && (
-                  <motion.div
-                    layoutId="coupon-tab"
-                    className="absolute inset-0 rounded-xl"
-                    style={{ background: "var(--gradient-gold)" }}
-                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2">
-                  {tab === "active" ? (
-                    <><Gift className="w-3.5 h-3.5" /> Active
-                      {activeCoupons.length > 0 && (
-                        <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full">
-                          {activeCoupons.length}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <><History className="w-3.5 h-3.5" /> Redeemed</>
+            {/* Tab switcher */}
+            <div
+              className="flex p-1 rounded-2xl w-fit"
+              style={{ background: "hsla(38,40%,88%,0.6)", border: "1px solid hsla(38,40%,70%,0.3)" }}
+            >
+              {(["active", "redeemed"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className="relative px-8 py-2.5 rounded-xl font-body text-sm font-semibold transition-all duration-300 capitalize"
+                  style={{
+                    color: activeTab === tab ? "white" : "hsl(28, 25%, 35%)",
+                  }}
+                >
+                  {activeTab === tab && (
+                    <motion.div
+                      layoutId="coupon-tab"
+                      className="absolute inset-0 rounded-xl"
+                      style={{ background: "var(--gradient-gold)" }}
+                      transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                    />
                   )}
-                </span>
-              </button>
-            ))}
+                  <span className="relative z-10 flex items-center gap-2">
+                    {tab === "active" ? (
+                      <><Gift className="w-3.5 h-3.5" /> Active
+                        {activeCoupons.length > 0 && (
+                          <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full">
+                            {activeCoupons.length}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <><History className="w-3.5 h-3.5" /> Redeemed</>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Coupon list */}
@@ -306,7 +311,7 @@ const Coupons = () => {
               transition={{ duration: 0.2 }}
             >
               {displayed.length === 0 ? (
-                <div className="glass-card rounded-2xl p-12 text-center" style={{ boxShadow: "var(--shadow-card)" }}>
+                <div className="glass-card rounded-2xl p-12 text-center mt-4" style={{ boxShadow: "var(--shadow-card)" }}>
                   {activeTab === "active" ? (
                     <Gift className="w-12 h-12 text-gold/40 mx-auto mb-4" />
                   ) : (
@@ -322,7 +327,7 @@ const Coupons = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 pt-2">
                   {displayed.map((coupon, i) => (
                     <motion.div
                       key={coupon.id}

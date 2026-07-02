@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 
 type Category = "gold" | "silver";
 
@@ -15,8 +14,6 @@ interface Product {
   category: Category;
   subcategory: string;
 }
-
-const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
 // Module-level cache — survives page navigation, resets on browser refresh
 let _cachedProducts: Product[] | null = null;
@@ -132,13 +129,6 @@ const ProductsSection = () => {
     fetchProducts();
   }, []);
 
-  const { isLoggedIn, enrolledSchemes } = useAuth();
-
-  const totalSaved = enrolledSchemes.reduce(
-    (acc, s) => acc + s.monthlyAmount * (s.installmentsPaid || 0),
-    0
-  );
-
   const filteredProducts = products.filter((p) => p.category === activeCategory);
 
   if (loading) {
@@ -246,11 +236,6 @@ const ProductsSection = () => {
                       {product.name}
                     </h3>
                     <p className="font-display text-xl font-bold text-gold-gradient">{product.grams}</p>
-                    {isLoggedIn && totalSaved > 0 && (
-                      <p className="font-body text-xs text-gold-dark mt-1">
-                        Redeem {formatINR(Math.min(totalSaved, product.numgrams))} from saved gold
-                      </p>
-                    )}
                     <p className="font-body text-xs text-muted-foreground mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       Click to explore ✦
                     </p>
