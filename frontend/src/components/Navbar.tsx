@@ -34,7 +34,7 @@ const Navbar = () => {
   const mobileNavLinks = navLinks;
 
   const profileMenuItems = [
-    { label: "My Schemes", href: "/dashboard", icon: Gem },  // CHANGED: /my-schemes → /dashboard
+    { label: "My Schemes", href: "/dashboard", icon: Gem },
     { label: "My Coupons", href: "/coupons", icon: Gift },
   ];
 
@@ -58,7 +58,7 @@ const Navbar = () => {
     setShowLogoutModal(false);
     setProfileOpen(false);
     setLogoutSuccess(true);
-    logout(); // React state changes instantly here
+    logout();
     setTimeout(() => {
       navigate("/", { state: { loggedOut: true } });
       setTimeout(() => setLogoutSuccess(false), 2500);
@@ -95,7 +95,6 @@ const Navbar = () => {
           <div className="w-9" />
           <button onClick={() => navigate("/")} className="flex items-center gap-2.5 group">
             <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-              {/* FIXED: Changed alt text to empty and added aria-hidden="true" to prevent redundant announcement */}
               <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-9 h-9 md:w-10 md:h-10 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain" />
             </motion.div>
             <span className="font-display text-lg font-bold text-gold-gradient">Suvarna Jewellers</span>
@@ -113,7 +112,6 @@ const Navbar = () => {
         <div className="hidden md:flex items-center justify-between w-full">
           <button onClick={() => navigate("/")} className="flex items-center gap-2.5 group">
             <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-              {/* FIXED: Changed alt text to empty and added aria-hidden="true" to prevent redundant announcement */}
               <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-10 h-10 lg:w-11 lg:h-11 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain" />
             </motion.div>
             <span className="font-display text-xl font-bold text-gold-gradient">Suvarna Jewellers</span>
@@ -142,14 +140,22 @@ const Navbar = () => {
           <div>
             {isLoggedIn ? (
               <div ref={profileRef} className="relative">
-                <button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center gap-2.5 group">
+                {/* ACCESSIBILITY FIX: Added custom informative aria-label name and aria-expanded tracking status properties */}
+                <button 
+                  onClick={() => setProfileOpen(!profileOpen)} 
+                  aria-label={`Profile: ${user?.name}`}
+                  aria-expanded={profileOpen}
+                  className="flex items-center gap-2.5 group"
+                >
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-105"
                     style={{ background: "var(--gradient-gold)", boxShadow: "var(--shadow-gold)", border: "2px solid hsla(43,80%,60%,0.4)" }}
                   >
                     <User className="w-5 h-5 text-primary-foreground" />
                   </div>
-                  <span className="font-body text-sm font-medium text-foreground/80">{user?.name?.split(" ")[0]}</span>
+                  <span className="font-body text-sm font-medium text-foreground/80" aria-hidden="true">
+                    {user?.name?.split(" ")[0]}
+                  </span>
                 </button>
 
                 <AnimatePresence>
@@ -247,7 +253,6 @@ const Navbar = () => {
               transition={{ delay: 0.15, duration: 0.5 }}
               className="flex flex-col items-center pt-16 pb-8"
             >
-              {/* FIXED: Changed alt to empty and hidden on mobile modal presentation wrapper too */}
               <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-14 h-14 mb-4 object-contain" />
               <span className="font-display text-xl font-bold text-gold-gradient">Suvarna Jewellers</span>
             </motion.div>
