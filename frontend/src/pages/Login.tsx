@@ -10,8 +10,6 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 
-// Fires one cheap GET to wake up the Vercel function
-// Called the moment user focuses the phone input
 const warmupBackend = () => {
   fetch(`${API_URL}/api/warmup`).catch(() => {});
 };
@@ -21,7 +19,7 @@ const Login = () => {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // Eye toggle state for general form
+  const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [verified, setVerified] = useState(false);
@@ -31,15 +29,13 @@ const Login = () => {
   const [forgotPhone, setForgotPhone] = useState("");
   const [forgotOtp, setForgotOtp] = useState(["", "", "", "", "", ""]);
   const [forgotPassword, setForgotPassword] = useState("");
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Eye toggle state for forgot form
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false); // Loading indicator state
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const { loginAndLoad } = useAuth();
   const navigate = useNavigate();
 
-  // Warm backend immediately when login page mounts
-  // By the time user types phone + password, server is already awake
   useEffect(() => {
     warmupBackend();
   }, []);
@@ -63,7 +59,7 @@ const Login = () => {
 
     if (isSignup) {
       setError("");
-      setIsLoggingIn(true); // Start loading animation on Signup submit
+      setIsLoggingIn(true);
       try {
         const response = await fetch(`${API_URL}/api/auth/send-otp`, {
           method: "POST",
@@ -76,13 +72,13 @@ const Login = () => {
       } catch (err: any) {
         setError(err.message);
       } finally {
-        setIsLoggingIn(false); // Reset loading state when process settles
+        setIsLoggingIn(false);
       }
       return;
     }
 
     setError("");
-    setIsLoggingIn(true); // Start small loading wheel indicator
+    setIsLoggingIn(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
@@ -94,23 +90,20 @@ const Login = () => {
 
       localStorage.setItem("token", data.token);
       setVerified(true);
-
-      // Start fetching schemes immediately — don't wait for setTimeout
-      // By the time animation finishes, data is ready
-      loginAndLoad(data.user, data.token); // no await — runs in background
+      loginAndLoad(data.user, data.token);
 
       setTimeout(() => {
         navigate("/dashboard");
-      }, 800); // was 1800 — saved 1 full second
+      }, 800);
     } catch (err: any) {
       setError(err.message);
-      setIsLoggingIn(false); // Stop loader if backend fails
+      setIsLoggingIn(false);
     }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoggingIn(true); // Start small loading indicator during registration pipeline
+    setIsLoggingIn(true);
     try {
       const entered = otp.join("");
 
@@ -132,13 +125,11 @@ const Login = () => {
 
       if (data.token) localStorage.setItem("token", data.token);
       setVerified(true);
-
-      // Same pattern — start loading in background during animation
-      loginAndLoad(data.user, data.token); // no await — runs in background
+      loginAndLoad(data.user, data.token);
 
       setTimeout(() => {
         navigate("/dashboard");
-      }, 800); // was 1800
+      }, 800);
     } catch (err: any) {
       setError(err.message);
       setIsLoggingIn(false);
@@ -168,7 +159,7 @@ const Login = () => {
       setError("Enter valid 10-digit mobile number");
       return;
     }
-    setIsLoggingIn(true); // Show loader wheel on reset password form
+    setIsLoggingIn(true);
     try {
       const response = await fetch("https://suvarnagold-16e5.vercel.app/api/otp/resetpass", {
         method: "POST",
@@ -311,7 +302,7 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* FIX: Heading level 2 updated to Heading level 1 */}
+              {/* FIX: Heading upgraded to Level 1 for document consistency */}
               <h1 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
                 {forgotSuccess ? "Password Reset!" : "Reset Password"}
               </h1>
@@ -339,7 +330,7 @@ const Login = () => {
                       <Smartphone className="w-4 h-4" />
                       <span className="font-body text-sm">+91</span>
                     </div>
-                    {/* FIX: Added missing aria-label attribute */}
+                    {/* FIX: Required attributes fully configured for accessibility */}
                     <input
                       type="tel"
                       value={forgotPhone}
@@ -347,10 +338,11 @@ const Login = () => {
                       onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
                       aria-label="Mobile Number"
+                      required
+                      aria-required="true"
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
                     />
                   </div>
-                  {/* FIX: Encapsulated runtime form exceptions with aria-live container */}
                   <div aria-live="polite" className="min-h-[20px]">
                     {error && <p className="font-body text-sm text-destructive">{error}</p>}
                   </div>
@@ -369,11 +361,14 @@ const Login = () => {
                 <form onSubmit={handleForgotVerifyOtp} className="space-y-5">
                   <div className="flex justify-center gap-3">
                     {forgotOtp.map((digit, i) => (
+                      /* FIX: Explicit layout context indices specified within the verification label templates */
                       <input
                         key={i} id={`fotp-${i}`} type="text" inputMode="numeric"
                         maxLength={1} value={digit}
                         disabled={isLoggingIn}
-                        aria-label={`OTP Digit ${i + 1}`}
+                        aria-label={`Enter digit ${i + 1} of 6`}
+                        required
+                        aria-required="true"
                         onChange={(e) => handleForgotOtpChange(i, e.target.value.replace(/\D/g, ""))}
                         onKeyDown={(e) => handleForgotOtpKeyDown(i, e)}
                         className="w-12 h-14 text-center text-xl font-display font-bold rounded-xl bg-pearl/60 border border-gold/20 text-foreground focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20 transition-all"
@@ -406,7 +401,7 @@ const Login = () => {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                       <KeyRound className="w-4 h-4" />
                     </div>
-                    {/* FIX: Added missing aria-label attribute */}
+                    {/* FIX: Appended appropriate structural accessibility metrics */}
                     <input
                       type={showForgotPassword ? "text" : "password"}
                       value={forgotPassword}
@@ -414,6 +409,8 @@ const Login = () => {
                       onChange={(e) => setForgotPassword(e.target.value)}
                       placeholder="New Password (min 6 characters)"
                       aria-label="New Password"
+                      required
+                      aria-required="true"
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
                     <button
@@ -444,7 +441,7 @@ const Login = () => {
           </motion.div>
         ) : (
           <motion.div
-            initial={{opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
             className="relative z-10 w-full max-w-md"
@@ -482,7 +479,7 @@ const Login = () => {
                 </motion.div>
               </div>
 
-              {/* FIX: Heading level 2 updated to Heading level 1 */}
+              {/* FIX: Heading levels consistently mapped to Level 1 hierarchy guidelines */}
               <h1 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2 relative">
                 {verified ? "Welcome!" : isSignup ? "Create Account" : "Login"}
               </h1>
@@ -508,7 +505,7 @@ const Login = () => {
                 <form onSubmit={handleSubmitForm} className="space-y-5 relative">
                   {isSignup && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.3 }}>
-                      {/* FIX: Added explicit accessible layout identifier */}
+                      {/* FIX: Name marked explicitly mandatory via required and aria-required descriptors */}
                       <input
                         type="text"
                         value={name}
@@ -516,7 +513,8 @@ const Login = () => {
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Full Name"
                         aria-label="Full Name"
-                        required={isSignup}
+                        required
+                        aria-required="true"
                         className="w-full px-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                       />
                     </motion.div>
@@ -526,7 +524,7 @@ const Login = () => {
                       <Smartphone className="w-4 h-4" />
                       <span className="font-body text-sm">+91</span>
                     </div>
-                    {/* FIX: Added explicit accessible layout identifier */}
+                    {/* FIX: Handled standard screen reader required announcement logic flags */}
                     <input
                       type="tel"
                       value={phone}
@@ -536,6 +534,7 @@ const Login = () => {
                       placeholder="98765 43210"
                       aria-label="Mobile Number"
                       required
+                      aria-required="true"
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
                     />
                   </div>
@@ -543,7 +542,7 @@ const Login = () => {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                       <KeyRound className="w-4 h-4" />
                     </div>
-                    {/* FIX: Added explicit accessible layout identifier */}
+                    {/* FIX: Password field converted to strict mandatory constraint during signup flow execution */}
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
@@ -552,6 +551,7 @@ const Login = () => {
                       placeholder={isSignup ? "Create Password" : "Enter Password"}
                       aria-label={isSignup ? "Create Password" : "Password"}
                       required
+                      aria-required="true"
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
                     <button
@@ -600,10 +600,13 @@ const Login = () => {
                   <p className="font-body text-sm text-muted-foreground text-center">OTP sent to +91 {phone}</p>
                   <div className="flex justify-center gap-3">
                     {otp.map((digit, i) => (
+                      /* FIX: Standardized dynamic positional labels explicitly bound to each sequential code input block */
                       <input
                         key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
                         disabled={isLoggingIn}
-                        aria-label={`OTP Digit ${i + 1}`}
+                        aria-label={`Enter digit ${i + 1} of 6`}
+                        required
+                        aria-required="true"
                         onChange={(e) => handleOtpChange(i, e.target.value.replace(/\D/g, ""))}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
                         className="w-12 h-14 text-center text-xl font-display font-bold rounded-xl bg-pearl/60 border border-gold/20 text-foreground focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20 transition-all"
