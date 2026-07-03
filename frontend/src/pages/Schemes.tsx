@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,6 +94,57 @@ Email: suvarnajewellers12@gmail.com
 // Module-level cache — survives page navigation, resets on browser refresh
 let _cachedDbSchemes: any[] | null = null;
 
+// Accessible focus trap hook for dialog modals
+const useFocusTrap = (isActive: boolean) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActive) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const previousActiveElement = document.activeElement as HTMLElement;
+
+    const focusableElements = container.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    if (focusableElements.length > 0) {
+      focusableElements[0].focus();
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousActiveElement && typeof previousActiveElement.focus === "function") {
+        previousActiveElement.focus();
+      }
+    };
+  }, [isActive]);
+
+  return containerRef;
+};
+
 const ProgressArc = ({
   paidMonths,
   totalMonths,
@@ -118,7 +169,6 @@ const ProgressArc = ({
         }}
       />
 
-      {/* ACCESSIBILITY FIX: Configured semantic role="img" and added descriptive dynamic aria-label text */}
       <svg
         width="100"
         height="100"
@@ -180,56 +230,65 @@ interface TermsModalProps {
   onAgree: () => void;
 }
 
-const TermsModal = ({ onClose, onAgree }: TermsModalProps) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
-    onClick={onClose}
-  >
+const TermsModal = ({ onClose, onAgree }: TermsModalProps) => {
+  const modalRef = useFocusTrap(true);
+
+  return (
     <motion.div
-      initial={{ scale: 0.85, opacity: 0, y: 40 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      exit={{ scale: 0.85, opacity: 0, y: 40 }}
-      transition={{ type: "spring", damping: 22, stiffness: 260 }}
-      onClick={(e) => e.stopPropagation()}
-      className="glass-card rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden"
-      style={{ boxShadow: "0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
+      onClick={onClose}
     >
-      <div className="p-6 border-b border-gold/20 flex items-center justify-between bg-pearl/50">
-        <h3 className="font-display text-xl font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-gold-dark" /> Terms & Conditions
-        </h3>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-full bg-cream hover:bg-gold/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="terms-heading"
+        initial={{ scale: 0.85, opacity: 0, y: 40 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.85, opacity: 0, y: 40 }}
+        transition={{ type: "spring", damping: 22, stiffness: 260 }}
+        onClick={(e) => e.stopPropagation()}
+        className="glass-card rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden"
+        style={{ boxShadow: "0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)" }}
+      >
+        <div className="p-6 border-b border-gold/20 flex items-center justify-between bg-pearl/50">
+          <h2 id="terms-heading" className="font-display text-xl font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-gold-dark" /> Terms & Conditions
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close Terms and Conditions"
+            className="w-8 h-8 rounded-full bg-cream hover:bg-gold/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </div>
 
-      <div className="p-6 overflow-y-auto font-body text-sm text-muted-foreground space-y-4 bg-cream/30 whitespace-pre-line leading-relaxed">
-        {_termsAndConditionsContent}
-      </div>
+        <div className="p-6 overflow-y-auto font-body text-sm text-muted-foreground space-y-4 bg-cream/30 whitespace-pre-line leading-relaxed">
+          {_termsAndConditionsContent}
+        </div>
 
-      <div className="p-4 border-t border-gold/20 bg-pearl/50 flex gap-3 justify-end">
-        <button
-          onClick={onClose}
-          className="px-5 py-2.5 rounded-xl border border-gold/30 font-body text-sm text-foreground hover:bg-gold/5 transition-colors"
-        >
-          Decline
-        </button>
-        <button
-          onClick={onAgree}
-          className="btn-gold px-6 py-2.5 rounded-xl font-body text-sm font-semibold"
-        >
-          Agree & Proceed
-        </button>
-      </div>
+        <div className="p-4 border-t border-gold/20 bg-pearl/50 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl border border-gold/30 font-body text-sm text-foreground hover:bg-gold/5 transition-colors"
+          >
+            Decline
+          </button>
+          <button
+            onClick={onAgree}
+            className="btn-gold px-6 py-2.5 rounded-xl font-body text-sm font-semibold"
+          >
+            Agree & Proceed
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
-  </motion.div>
-);
+  );
+};
 
 const Schemes = () => {
   const {
@@ -356,7 +415,6 @@ const Schemes = () => {
               Invest today. Adorn tomorrow.
             </p>
 
-            {/* ACCESSIBILITY FIX: Wrapped option selectors in full tablist landmarks and updated tab item bindings */}
             <nav className="mt-8 max-w-md mx-auto" aria-label="Savings Schemes Filters">
               <div 
                 role="tablist" 
@@ -430,7 +488,6 @@ const Schemes = () => {
 
                       <ProgressArc paidMonths={0} totalMonths={scheme.durationMonths} />
 
-                      {/* ACCESSIBILITY FIX: Changed layout heading structure from h3 to h2 */}
                       <h2 className="font-display text-xl font-bold text-foreground mt-4 mb-2">
                         {scheme.name}
                       </h2>

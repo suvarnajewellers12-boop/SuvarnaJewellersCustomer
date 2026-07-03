@@ -13,7 +13,6 @@ const MySchemes = () => {
 
   // Helper to handle payment navigation or modal
   const handlePayment = (schemeId: string) => {
-    // You can navigate to a specific payment page or open your payment modal here
     console.log("Processing payment for:", schemeId);
   };
 
@@ -108,7 +107,7 @@ const MySchemes = () => {
                     />
 
                     <div className="flex items-center justify-between mb-4 relative">
-                      <h3 className="font-display text-xl font-bold text-foreground">{scheme.name}</h3>
+                      <h2 className="font-display text-xl font-bold text-foreground">{scheme.name}</h2>
                       <span className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
                         status === "Active"
                           ? "bg-gold/10 text-gold-dark border-gold/20"
