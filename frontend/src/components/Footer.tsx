@@ -33,7 +33,6 @@ const Footer = () => {
             viewport={{ once: true }}
             className="flex items-center gap-2.5 mb-6"
           >
-            {/* FIXED: Removed duplicate alt string content and hid the redundant graphic node from screen readers */}
             <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-8 h-8 drop-shadow-sm object-contain" />
             <span className="font-display text-2xl font-bold text-gold-gradient">Suvarna Jewellers</span>
           </motion.div>
@@ -42,15 +41,20 @@ const Footer = () => {
             Crafting golden dreams, preserving timeless traditions.
           </p>
 
-          <nav className="flex flex-wrap justify-center gap-6 mb-8">
+          {/* FIXED: Switched from buttons to semantic navigation anchor links */}
+          <nav className="flex flex-wrap justify-center gap-6 mb-8" aria-label="Footer Navigation">
             {footerLinks.map((link) => (
-              <button
+              <a
                 key={link.label}
-                onClick={() => navigate(link.href)}
+                href={link.href}
+                onClick={(e) => {
+                  e.preventDefault(); // Prevents full page reload
+                  navigate(link.href);
+                }}
                 className="font-body text-sm text-muted-foreground hover:text-gold-dark transition-colors duration-300"
               >
                 {link.label}
-              </button>
+              </a>
             ))}
           </nav>
 
