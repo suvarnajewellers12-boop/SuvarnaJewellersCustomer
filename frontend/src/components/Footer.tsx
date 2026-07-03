@@ -34,7 +34,10 @@ const Footer = () => {
             className="flex items-center gap-2.5 mb-6"
           >
             <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-8 h-8 drop-shadow-sm object-contain" />
-            <span className="font-display text-2xl font-bold text-gold-gradient">Suvarna Jewellers</span>
+            {/* FIX: Changed <span> to a semantic <h2> heading tag */}
+            <h2 className="font-display text-2xl font-bold text-gold-gradient">
+              Suvarna Jewellers
+            </h2>
           </motion.div>
 
           <p className="font-elegant text-base font-medium text-muted-foreground mb-10 max-w-md">
