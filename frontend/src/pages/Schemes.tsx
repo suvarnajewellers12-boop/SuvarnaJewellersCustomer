@@ -525,6 +525,7 @@ const Schemes = () => {
                       ) : (
                         <button
                           onClick={() => handleEnrollClick(scheme)}
+                          aria-haspopup="dialog"
                           className="btn-gold btn-gold-pulse w-full text-base py-3.5"
                         >
                           Enroll Now
