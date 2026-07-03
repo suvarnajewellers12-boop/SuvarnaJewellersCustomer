@@ -13,24 +13,30 @@ const ContactSection = () => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Dedicated state for accessible screen reader live status announcements
+  const [srStatus, setSrStatus] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSrStatus("");
 
     // All fields mandatory
     if (!formData.name.trim() || !formData.email.trim() ||
         !formData.phone.trim() || !formData.message.trim()) {
       setError("All fields are required.");
+      setSrStatus("Submission failed. All fields are required.");
       return;
     }
 
     if (formData.phone.replace(/\D/g, "").length < 10) {
       setError("Enter a valid 10-digit phone number.");
+      setSrStatus("Submission failed. Enter a valid 10-digit phone number.");
       return;
     }
 
     setLoading(true);
+    setSrStatus("Sending your message...");
     try {
       const API_URL =
         import.meta.env.VITE_API_URL ||
@@ -47,10 +53,13 @@ const ContactSection = () => {
       if (!response.ok) throw new Error(data.message || "Failed to send");
 
       setSubmitted(true);
+      setSrStatus("Your message has been sent successfully.");
       setFormData({ name: "", email: "", phone: "", message: "" });
       setTimeout(() => setSubmitted(false), 3000);
     } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+      const errMsg = err.message || "Something went wrong. Please try again.";
+      setError(errMsg);
+      setSrStatus(`Submission error: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -58,6 +67,11 @@ const ContactSection = () => {
 
   return (
     <section id="contact" className="py-28 px-4 relative overflow-hidden">
+      {/* Hidden Live Region for Assistive Technologies */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {srStatus}
+      </div>
+
       <div className="absolute inset-0 bg-gradient-to-br from-cream via-pearl to-ivory" />
       <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 70% 50%, hsla(43,70%,55%,0.06) 0%, transparent 50%)' }} />
       <div className="absolute top-0 left-0 right-0 gold-divider" />
@@ -102,7 +116,6 @@ const ContactSection = () => {
             className="glass-card rounded-3xl p-8 flex flex-col justify-between"
             style={{ boxShadow: 'var(--shadow-luxury)' }}
           >
-            {/* Info — removed phone, kept email + address only */}
             <div className="space-y-5 mb-8">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0 border border-gold/15">
@@ -124,15 +137,14 @@ const ContactSection = () => {
                   <p className="font-body text-sm text-muted-foreground">Address</p>
                   <p className="font-body font-semibold text-foreground">
                     Suvarna Jewellers Showroom<br />
-D.No. 13-1-12, Main Road, Near YSR Statue, New Gajuwaka<br />
-Visakhapatnam, Andhra Pradesh – 530026<br />
-India
+                    D.No. 13-1-12, Main Road, Near YSR Statue, New Gajuwaka<br />
+                    Visakhapatnam, Andhra Pradesh – 530026<br />
+                    India
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Form — added phone field, all mandatory */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
@@ -173,7 +185,7 @@ India
               />
 
               {error && (
-                <p className="font-body text-sm text-red-500">{error}</p>
+                <p className="font-body text-sm text-red-500" aria-hidden="true">{error}</p>
               )}
 
               <button
