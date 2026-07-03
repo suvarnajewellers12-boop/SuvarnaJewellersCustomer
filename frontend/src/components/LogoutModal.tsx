@@ -53,80 +53,139 @@ const ModalParticles = () => {
   return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />;
 };
 
-const LogoutModal = ({ open, onClose, onConfirm }: LogoutModalProps) => (
-  <AnimatePresence>
-    {open && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.4 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center px-4"
-      >
-        {/* Backdrop */}
-        <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
+const LogoutModal = ({ open, onClose, onConfirm }: LogoutModalProps) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
 
-        {/* Velvet spotlight */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            width: 500,
-            height: 500,
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            background: "radial-gradient(ellipse, hsla(43,80%,55%,0.12) 0%, transparent 70%)",
-          }}
-        />
+  // FIX: Focus trapping, Esc key handling, and focus retention cycle logic
+  useEffect(() => {
+    if (open) {
+      // Remember the active element that opened the modal
+      triggerElementRef.current = document.activeElement as HTMLElement;
 
-        {/* Modal card */}
+      // Move focus onto the modal window context
+      setTimeout(() => {
+        modalRef.current?.focus();
+      }, 50);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onClose();
+          return;
+        }
+
+        if (e.key === "Tab") {
+          if (!modalRef.current) return;
+          const focusableElements = modalRef.current.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          const firstElement = focusableElements[0] as HTMLElement;
+          const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+          if (e.shiftKey) {
+            if (document.activeElement === firstElement || document.activeElement === modalRef.current) {
+              e.preventDefault();
+              lastElement.focus();
+            }
+          } else {
+            if (document.activeElement === lastElement) {
+              e.preventDefault();
+              firstElement.focus();
+            }
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    } else {
+      // Return focus to the originating trigger node when closing out
+      triggerElementRef.current?.focus();
+    }
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.92, y: 20 }}
-          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-          className="relative glass-card rounded-3xl p-8 md:p-10 max-w-md w-full text-center overflow-hidden"
-          style={{ boxShadow: "var(--shadow-luxury), 0 0 60px hsla(43,80%,55%,0.1)" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4"
         >
-          <ModalParticles />
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
 
-          {/* Icon */}
-          <div className="relative z-10 mb-6">
-            <div
-              className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
-              style={{
-                background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.05))",
-                border: "1px solid hsla(43,80%,60%,0.3)",
-              }}
-            >
-              <Shield className="w-7 h-7 text-gold" />
+          {/* Velvet spotlight */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              width: 500,
+              height: 500,
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              background: "radial-gradient(ellipse, hsla(43,80%,55%,0.12) 0%, transparent 70%)",
+            }}
+          />
+
+          {/* Modal card */}
+          {/* FIX: Added semantic dialog role boundaries, focus bindings, and labels */}
+          <motion.div
+            ref={modalRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 20 }}
+            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+            className="relative glass-card rounded-3xl p-8 md:p-10 max-w-md w-full text-center overflow-hidden focus:outline-none"
+            style={{ boxShadow: "var(--shadow-luxury), 0 0 60px hsla(43,80%,55%,0.1)" }}
+          >
+            <ModalParticles />
+
+            {/* Icon */}
+            <div className="relative z-10 mb-6">
+              <div
+                className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.05))",
+                  border: "1px solid hsla(43,80%,60%,0.3)",
+                }}
+              >
+                <Shield className="w-7 h-7 text-gold" />
+              </div>
             </div>
-          </div>
 
-          {/* Text */}
-          <h3 className="relative z-10 font-display text-2xl md:text-3xl font-bold text-foreground mb-3">
-            Leaving Your Golden Chamber?
-          </h3>
-          <p className="relative z-10 font-elegant text-base md:text-lg text-foreground/60 italic mb-8">
-            Your progress and schemes remain safe with Suvarna Jewellers.
-          </p>
+            {/* Text */}
+            {/* FIX: Upgraded heading selector to <h2> for appropriate programmatic priority */}
+            <h2 id="logout-dialog-title" className="relative z-10 font-display text-2xl md:text-3xl font-bold text-foreground mb-3">
+              Leaving Your Golden Chamber?
+            </h2>
+            <p className="relative z-10 font-elegant text-base md:text-lg text-foreground/60 italic mb-8">
+              Your progress and schemes remain safe with Suvarna Jewellers.
+            </p>
 
-          {/* Decorative divider */}
-          <div className="relative z-10 gold-divider max-w-[60%] mx-auto mb-8" />
+            {/* Decorative divider */}
+            <div className="relative z-10 gold-divider max-w-[60%] mx-auto mb-8" />
 
-          {/* Buttons */}
-          <div className="relative z-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <button onClick={onClose} className="btn-gold text-sm px-8 py-3 flex items-center justify-center gap-2">
-              <Sparkles className="w-4 h-4" /> Stay Logged In
-            </button>
-            <button onClick={onConfirm} className="btn-rose-outline text-sm px-8 py-3">
-              Logout Securely
-            </button>
-          </div>
+            {/* Buttons */}
+            <div className="relative z-10 flex flex-col sm:flex-row gap-4 justify-center">
+              <button onClick={onClose} className="btn-gold text-sm px-8 py-3 flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4" /> Stay Logged In
+              </button>
+              <button onClick={onConfirm} className="btn-rose-outline text-sm px-8 py-3">
+                Logout Securely
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+      )}
+    </AnimatePresence>
+  );
+};
 
 export default LogoutModal;
