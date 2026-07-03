@@ -73,13 +73,14 @@ const MySchemes = () => {
                 // --- DATE LOCK LOGIC END ---
 
                 return (
-                  <motion.div
+                  <motion.article
                     key={scheme.id}
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: i * 0.12 }}
                     className="glass-card rounded-3xl p-8 spotlight relative overflow-hidden group"
+                    aria-label={`${scheme.name} scheme details. Status is ${status}.`}
                     style={{
                       boxShadow: 'var(--shadow-luxury)',
                       ...(status === "Completed"
@@ -121,12 +122,15 @@ const MySchemes = () => {
                       </span>
                     </div>
 
-                    <p className="font-body text-sm text-muted-foreground mb-1 relative">EMI: {formatINR(scheme.monthlyAmount)}/month</p>
+                    <p className="font-body text-sm text-muted-foreground mb-1 relative">
+                      <span className="sr-only">Monthly Installment Amount: </span>
+                      EMI: {formatINR(scheme.monthlyAmount)}/month
+                    </p>
                     <p className="font-body text-sm text-muted-foreground mb-4 relative">
                       Gold Accumulated: <span className="font-semibold text-gold-gradient">{formatINR(goldAccumulated)}</span>
                     </p>
 
-                    {/* ACCESSIBILITY FIX: Screen reader accessible progressbar configurations added directly on the frame */}
+                    {/* Semantic progressbar region */}
                     <div 
                       role="progressbar"
                       aria-valuenow={scheme.installmentsPaid}
@@ -151,8 +155,8 @@ const MySchemes = () => {
                       </motion.div>
                     </div>
                     <div className="flex justify-between font-body text-xs text-muted-foreground relative mb-6">
-                      <span>{scheme.installmentsPaid} of {scheme.durationMonths} months</span>
-                      <span>{remaining} remaining</span>
+                      <span>{scheme.installmentsPaid} of {scheme.durationMonths} months paid</span>
+                      <span>{remaining} installments remaining</span>
                     </div>
 
                     {/* Dynamic Action Button */}
@@ -161,6 +165,13 @@ const MySchemes = () => {
                       whileTap={isPayable ? { scale: 0.98 } : {}}
                       onClick={() => isPayable && handlePayment(scheme.id)}
                       disabled={!isPayable}
+                      aria-label={
+                        status === "Completed"
+                          ? "Scheme Matured"
+                          : isPayable
+                            ? `Pay Now, amount ${formatINR(scheme.monthlyAmount)}`
+                            : `Next Due on ${formattedDueDate}`
+                      }
                       className={`w-full py-4 rounded-xl font-display font-bold text-sm tracking-widest flex items-center justify-center gap-2 transition-all duration-500 relative z-20 ${
                         status === "Completed"
                           ? "bg-emerald/10 text-emerald border border-emerald/20 cursor-default"
@@ -173,16 +184,16 @@ const MySchemes = () => {
                         <>Scheme Matured</>
                       ) : isPayable ? (
                         <>
-                          <CreditCard className="w-4 h-4" /> Pay Now ({formatINR(scheme.monthlyAmount)})
+                          <CreditCard className="w-4 h-4" aria-hidden="true" /> Pay Now ({formatINR(scheme.monthlyAmount)})
                         </>
                       ) : (
                         <>
-                          <CalendarClock className="w-4 h-4" /> Next Due: {formattedDueDate}
+                          <CalendarClock className="w-4 h-4" aria-hidden="true" /> Next Due: {formattedDueDate}
                         </>
                       )}
                     </motion.button>
 
-                  </motion.div>
+                  </motion.article>
                 );
               })}
             </div>
@@ -196,11 +207,11 @@ const MySchemes = () => {
             className="flex items-center justify-center gap-3 mt-16"
           >
             <div className="h-px w-16 md:w-24" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--gold-light)))' }} />
-            <Sparkles className="w-4 h-4 text-gold-dark/50" />
+            <Sparkles className="w-4 h-4 text-gold-dark/50" aria-hidden="true" />
             <p className="font-elegant text-sm text-gold-dark/60 italic tracking-wide">
               "Gold is not just wealth — it is heritage."
             </p>
-            <Sparkles className="w-4 h-4 text-gold-dark/50" />
+            <Sparkles className="w-4 h-4 text-gold-dark/50" aria-hidden="true" />
             <div className="h-px w-16 md:w-24" style={{ background: 'linear-gradient(90deg, hsl(var(--gold-light)), transparent)' }} />
           </motion.div>
         </div>
