@@ -108,11 +108,15 @@ const MySchemes = () => {
 
                     <div className="flex items-center justify-between mb-4 relative">
                       <h2 className="font-display text-xl font-bold text-foreground">{scheme.name}</h2>
-                      <span className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
-                        status === "Active"
-                          ? "bg-gold/10 text-gold-dark border-gold/20"
-                          : "bg-emerald/10 text-emerald border-emerald/20"
-                      }`}>
+                      <span 
+                        role="status"
+                        aria-live="polite"
+                        className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
+                          status === "Active"
+                            ? "bg-gold/10 text-gold-dark border-gold/20"
+                            : "bg-emerald/10 text-emerald border-emerald/20"
+                        }`}
+                      >
                         {status}
                       </span>
                     </div>
@@ -122,8 +126,15 @@ const MySchemes = () => {
                       Gold Accumulated: <span className="font-semibold text-gold-gradient">{formatINR(goldAccumulated)}</span>
                     </p>
 
-                    {/* Gold shimmer progress bar */}
-                    <div className="w-full h-3 rounded-full bg-cream overflow-hidden mb-2 relative">
+                    {/* ACCESSIBILITY FIX: Screen reader accessible progressbar configurations added directly on the frame */}
+                    <div 
+                      role="progressbar"
+                      aria-valuenow={scheme.installmentsPaid}
+                      aria-valuemin={0}
+                      aria-valuemax={scheme.durationMonths}
+                      aria-label={`${scheme.name} installment completion metrics`}
+                      className="w-full h-3 rounded-full bg-cream overflow-hidden mb-2 relative"
+                    >
                       <motion.div
                         className="h-full rounded-full relative overflow-hidden"
                         style={{ background: 'var(--gradient-gold)' }}
