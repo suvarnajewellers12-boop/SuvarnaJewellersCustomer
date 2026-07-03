@@ -8,19 +8,23 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    // 1. Force the layout wrapper to take up at least 100% of the screen height
     <div className="min-h-screen flex flex-col bg-background selection:bg-gold/20 selection:text-gold-dark">
+      {/* FIX: Add Skip to Main Content Link as first keyboard-focusable item */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only fixed top-4 left-4 z-[999] bg-gold text-primary-foreground px-4 py-2 rounded-full font-body text-sm font-semibold shadow-lg transition-transform focus:outline-none focus:ring-2 focus:ring-gold-dark"
+      >
+        Skip to main content
+      </a>
+
       {/* Navigation Bar */}
       <Navbar />
 
-      {/* 
-        2. flex-grow forces the main content window to expand and fill all remaining space, 
-           automatically pinning the footer to the absolute bottom when content size is small.
-      */}
-      {/* Force the main block to take up all remaining space and flow downward */}
-<main className="flex-1 flex flex-col w-full">
-  {children}
-</main>
+      {/* FIX: Add id="main-content" and tabIndex={-1} for programmatic skip routing focus */}
+      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col w-full focus:outline-none">
+        {children}
+      </main>
+
       {/* Sticky Footer */}
       <Footer />
     </div>
