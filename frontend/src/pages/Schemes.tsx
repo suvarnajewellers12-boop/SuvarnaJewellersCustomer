@@ -118,10 +118,13 @@ const ProgressArc = ({
         }}
       />
 
+      {/* ACCESSIBILITY FIX: Configured semantic role="img" and added descriptive dynamic aria-label text */}
       <svg
         width="100"
         height="100"
         viewBox="0 0 100 100"
+        role="img"
+        aria-label={`${paidMonths} of ${totalMonths} installments progress`}
         className="mx-auto relative z-10"
       >
         <circle
@@ -163,6 +166,7 @@ const ProgressArc = ({
           dy="0.35em"
           className="font-display text-sm font-bold"
           fill="hsl(28, 25%, 15%)"
+          aria-hidden="true"
         >
           {paidMonths}/{totalMonths}
         </text>
@@ -263,6 +267,15 @@ const Schemes = () => {
     fetchAllSchemes();
   }, []);
 
+  const handleTabKeyDown = (e: React.KeyboardEvent, isGoldTab: boolean) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      setShowGold(!isGoldTab);
+      const targetId = isGoldTab ? "tab-cash" : "tab-gold";
+      document.getElementById(targetId)?.focus();
+    }
+  };
+
   const filteredSchemes = dbSchemes.filter((scheme) =>
     showGold ? scheme.isWeightBased === true : scheme.isWeightBased === false
   );
@@ -343,10 +356,21 @@ const Schemes = () => {
               Invest today. Adorn tomorrow.
             </p>
 
-            <div className="mt-8 max-w-md mx-auto">
-              <div className="bg-pearl/70 p-1 rounded-2xl flex border border-gold/10">
+            {/* ACCESSIBILITY FIX: Wrapped option selectors in full tablist landmarks and updated tab item bindings */}
+            <nav className="mt-8 max-w-md mx-auto" aria-label="Savings Schemes Filters">
+              <div 
+                role="tablist" 
+                aria-label="Scheme Types"
+                className="bg-pearl/70 p-1 rounded-2xl flex border border-gold/10"
+              >
                 <button
+                  id="tab-gold"
+                  role="tab"
+                  aria-selected={showGold}
+                  aria-controls="schemes-panel"
+                  tabIndex={showGold ? 0 : -1}
                   onClick={() => setShowGold(true)}
+                  onKeyDown={(e) => handleTabKeyDown(e, true)}
                   className={`flex-1 py-3 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
                     showGold ? "bg-gold text-white shadow-lg" : "text-muted-foreground"
                   }`}
@@ -354,7 +378,13 @@ const Schemes = () => {
                   ✦ Gold Schemes
                 </button>
                 <button
+                  id="tab-cash"
+                  role="tab"
+                  aria-selected={!showGold}
+                  aria-controls="schemes-panel"
+                  tabIndex={!showGold ? 0 : -1}
                   onClick={() => setShowGold(false)}
+                  onKeyDown={(e) => handleTabKeyDown(e, false)}
                   className={`flex-1 py-3 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
                     !showGold ? "bg-gold text-white shadow-lg" : "text-muted-foreground"
                   }`}
@@ -362,86 +392,93 @@ const Schemes = () => {
                   ₹ Cash Schemes
                 </button>
               </div>
-            </div>
+            </nav>
           </motion.div>
 
-          {filteredSchemes.length === 0 ? (
-            <div className="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto">
-              <p className="font-body text-muted-foreground">
-                {showGold ? "No gold schemes available" : "No cash schemes available"}
-              </p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-8">
-              {filteredSchemes.map((scheme, index) => {
-                const isEnrolled = enrolledSchemes.some((s) => s.name === scheme.name);
+          <div
+            id="schemes-panel"
+            role="tabpanel"
+            aria-labelledby={showGold ? "tab-gold" : "tab-cash"}
+          >
+            {filteredSchemes.length === 0 ? (
+              <div className="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto">
+                <p className="font-body text-muted-foreground">
+                  {showGold ? "No gold schemes available" : "No cash schemes available"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-8">
+                {filteredSchemes.map((scheme, index) => {
+                  const isEnrolled = enrolledSchemes.some((s) => s.name === scheme.name);
 
-                return (
-                  <motion.div
-                    key={scheme.id}
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: index * 0.15 }}
-                    className="glass-card rounded-3xl p-8 flex flex-col items-center text-center spotlight relative overflow-hidden group"
-                    style={{ boxShadow: "var(--shadow-luxury)" }}
-                  >
-                    <div
-                      className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-                      style={{
-                        background: "linear-gradient(135deg, transparent 20%, hsla(43,80%,60%,0.12) 50%, transparent 80%)",
-                      }}
-                    />
+                  return (
+                    <motion.div
+                      key={scheme.id}
+                      initial={{ opacity: 0, y: 50 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.6, delay: index * 0.15 }}
+                      className="glass-card rounded-3xl p-8 flex flex-col items-center text-center spotlight relative overflow-hidden group"
+                      style={{ boxShadow: "var(--shadow-luxury)" }}
+                    >
+                      <div
+                        className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
+                        style={{
+                          background: "linear-gradient(135deg, transparent 20%, hsla(43,80%,60%,0.12) 50%, transparent 80%)",
+                        }}
+                      />
 
-                    <ProgressArc paidMonths={0} totalMonths={scheme.durationMonths} />
+                      <ProgressArc paidMonths={0} totalMonths={scheme.durationMonths} />
 
-                    <h3 className="font-display text-xl font-bold text-foreground mt-4 mb-2">
-                      {scheme.name}
-                    </h3>
+                      {/* ACCESSIBILITY FIX: Changed layout heading structure from h3 to h2 */}
+                      <h2 className="font-display text-xl font-bold text-foreground mt-4 mb-2">
+                        {scheme.name}
+                      </h2>
 
-                    <div className="mb-4">
-                      <span className="font-display text-3xl font-bold text-gold-gradient">
-                        {formatINR(scheme.monthlyAmount)}
-                      </span>
-                      <span className="font-body text-sm text-muted-foreground">/month</span>
-                    </div>
-
-                    <div className="space-y-2 mb-6 w-full">
-                      <div className="flex items-center gap-2 font-body text-sm text-foreground">
-                        <Check className="w-4 h-4 text-gold-dark" />
-                        {scheme.durationMonths} monthly installments
+                      <div className="mb-4">
+                        <span className="font-display text-3xl font-bold text-gold-gradient">
+                          {formatINR(scheme.monthlyAmount)}
+                        </span>
+                        <span className="font-body text-sm text-muted-foreground">/month</span>
                       </div>
 
-                      {scheme.isWeightBased ? (
-                        <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
-                          <Sparkles className="w-4 h-4 text-gold-dark" />
-                          Gold accumulation based savings plan
+                      <div className="space-y-2 mb-6 w-full">
+                        <div className="flex items-center gap-2 font-body text-sm text-foreground">
+                          <Check className="w-4 h-4 text-gold-dark" />
+                          {scheme.durationMonths} monthly installments
+                        </div>
+
+                        {scheme.isWeightBased ? (
+                          <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
+                            <Sparkles className="w-4 h-4 text-gold-dark" />
+                            Gold accumulation based savings plan
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
+                            <Sparkles className="w-4 h-4 text-gold-dark" />
+                            Get Maturity Value: {formatINR(scheme.monthlyAmount * scheme.durationMonths)}
+                          </div>
+                        )}
+                      </div>
+
+                      {isEnrolled ? (
+                        <div className="btn-gold w-full text-center py-3.5 opacity-80 cursor-default flex items-center justify-center gap-2">
+                          <Check className="w-4 h-4" /> Enrolled
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
-                          <Sparkles className="w-4 h-4 text-gold-dark" />
-                          Get Maturity Value: {formatINR(scheme.monthlyAmount * scheme.durationMonths)}
-                        </div>
+                        <button
+                          onClick={() => handleEnrollClick(scheme)}
+                          className="btn-gold btn-gold-pulse w-full text-base py-3.5"
+                        >
+                          Enroll Now
+                        </button>
                       )}
-                    </div>
-
-                    {isEnrolled ? (
-                      <div className="btn-gold w-full text-center py-3.5 opacity-80 cursor-default flex items-center justify-center gap-2">
-                        <Check className="w-4 h-4" /> Enrolled
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleEnrollClick(scheme)}
-                        className="btn-gold btn-gold-pulse w-full text-base py-3.5"
-                      >
-                        Enroll Now
-                      </button>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
