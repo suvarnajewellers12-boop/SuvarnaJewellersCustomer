@@ -311,9 +311,10 @@ const Login = () => {
                 </div>
               </div>
 
-              <h2 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
+              {/* FIX: Heading level 2 updated to Heading level 1 */}
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
                 {forgotSuccess ? "Password Reset!" : "Reset Password"}
-              </h2>
+              </h1>
               <p className="font-elegant text-lg text-center text-muted-foreground/90 mb-8 italic">
                 {forgotStep === "phone" && "Enter your registered mobile number"}
                 {forgotStep === "otp" && `OTP sent to +91 ${forgotPhone}`}
@@ -338,16 +339,21 @@ const Login = () => {
                       <Smartphone className="w-4 h-4" />
                       <span className="font-body text-sm">+91</span>
                     </div>
+                    {/* FIX: Added missing aria-label attribute */}
                     <input
                       type="tel"
                       value={forgotPhone}
                       disabled={isLoggingIn}
                       onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
+                      aria-label="Mobile Number"
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
                     />
                   </div>
-                  {error && <p className="font-body text-sm text-destructive">{error}</p>}
+                  {/* FIX: Encapsulated runtime form exceptions with aria-live container */}
+                  <div aria-live="polite" className="min-h-[20px]">
+                    {error && <p className="font-body text-sm text-destructive">{error}</p>}
+                  </div>
                   <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
                     {isLoggingIn ? (
                       <>
@@ -367,13 +373,16 @@ const Login = () => {
                         key={i} id={`fotp-${i}`} type="text" inputMode="numeric"
                         maxLength={1} value={digit}
                         disabled={isLoggingIn}
+                        aria-label={`OTP Digit ${i + 1}`}
                         onChange={(e) => handleForgotOtpChange(i, e.target.value.replace(/\D/g, ""))}
                         onKeyDown={(e) => handleForgotOtpKeyDown(i, e)}
                         className="w-12 h-14 text-center text-xl font-display font-bold rounded-xl bg-pearl/60 border border-gold/20 text-foreground focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20 transition-all"
                       />
                     ))}
                   </div>
-                  {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
+                  <div aria-live="polite" className="min-h-[20px]">
+                    {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
+                  </div>
                   <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
                     {isLoggingIn ? (
                       <>
@@ -397,12 +406,14 @@ const Login = () => {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                       <KeyRound className="w-4 h-4" />
                     </div>
+                    {/* FIX: Added missing aria-label attribute */}
                     <input
                       type={showForgotPassword ? "text" : "password"}
                       value={forgotPassword}
                       disabled={isLoggingIn}
                       onChange={(e) => setForgotPassword(e.target.value)}
                       placeholder="New Password (min 6 characters)"
+                      aria-label="New Password"
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
                     <button
@@ -414,7 +425,9 @@ const Login = () => {
                       {showForgotPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
-                  {error && <p className="font-body text-sm text-destructive">{error}</p>}
+                  <div aria-live="polite" className="min-h-[20px]">
+                    {error && <p className="font-body text-sm text-destructive">{error}</p>}
+                  </div>
                   <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
                     {isLoggingIn ? (
                       <>
@@ -469,9 +482,10 @@ const Login = () => {
                 </motion.div>
               </div>
 
-              <h2 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2 relative">
+              {/* FIX: Heading level 2 updated to Heading level 1 */}
+              <h1 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2 relative">
                 {verified ? "Welcome!" : isSignup ? "Create Account" : "Login"}
-              </h2>
+              </h1>
               <p className="font-elegant text-lg text-center text-muted-foreground/90 mb-8 italic relative">
                 {verified ? "Entering your golden chamber..." : isSignup ? "Join the Suvarna family" : "Enter your credentials to continue"}
               </p>
@@ -494,12 +508,14 @@ const Login = () => {
                 <form onSubmit={handleSubmitForm} className="space-y-5 relative">
                   {isSignup && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.3 }}>
+                      {/* FIX: Added explicit accessible layout identifier */}
                       <input
                         type="text"
                         value={name}
                         disabled={isLoggingIn}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Full Name"
+                        aria-label="Full Name"
                         required={isSignup}
                         className="w-full px-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                       />
@@ -510,6 +526,7 @@ const Login = () => {
                       <Smartphone className="w-4 h-4" />
                       <span className="font-body text-sm">+91</span>
                     </div>
+                    {/* FIX: Added explicit accessible layout identifier */}
                     <input
                       type="tel"
                       value={phone}
@@ -517,6 +534,7 @@ const Login = () => {
                       onFocus={warmupBackend}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       placeholder="98765 43210"
+                      aria-label="Mobile Number"
                       required
                       className="w-full pl-20 pr-4 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg tracking-wider"
                     />
@@ -525,12 +543,14 @@ const Login = () => {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                       <KeyRound className="w-4 h-4" />
                     </div>
+                    {/* FIX: Added explicit accessible layout identifier */}
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       disabled={isLoggingIn}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={isSignup ? "Create Password" : "Enter Password"}
+                      aria-label={isSignup ? "Create Password" : "Password"}
                       required
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
@@ -543,7 +563,9 @@ const Login = () => {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
-                  {error && <p className="font-body text-sm text-destructive">{error}</p>}
+                  <div aria-live="polite" className="min-h-[20px]">
+                    {error && <p className="font-body text-sm text-destructive">{error}</p>}
+                  </div>
                   <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
                     {isLoggingIn ? (
                       <>
@@ -581,13 +603,16 @@ const Login = () => {
                       <input
                         key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
                         disabled={isLoggingIn}
+                        aria-label={`OTP Digit ${i + 1}`}
                         onChange={(e) => handleOtpChange(i, e.target.value.replace(/\D/g, ""))}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
                         className="w-12 h-14 text-center text-xl font-display font-bold rounded-xl bg-pearl/60 border border-gold/20 text-foreground focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20 transition-all"
                       />
                     ))}
                   </div>
-                  {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
+                  <div aria-live="polite" className="min-h-[20px]">
+                    {error && <p className="font-body text-sm text-destructive text-center">{error}</p>}
+                  </div>
                   <button type="submit" disabled={isLoggingIn} className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2">
                     {isLoggingIn ? (
                       <>
