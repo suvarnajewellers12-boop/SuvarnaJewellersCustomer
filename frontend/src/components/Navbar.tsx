@@ -82,10 +82,12 @@ const Navbar = () => {
         )}
       </AnimatePresence>
 
+      {/* GLOBAL LANDMARK FIX: Added aria-label="Main Navigation" to differentiate from the footer navigation */}
       <motion.nav
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
+        aria-label="Main Navigation"
         className={`fixed top-4 left-0 right-0 mx-auto z-50 w-[92%] max-w-[1100px] rounded-full px-6 py-3.5 transition-all duration-700 ${
           scrolled ? "glass-nav-scrolled shadow-lg" : "glass-nav"
         }`}
@@ -140,7 +142,6 @@ const Navbar = () => {
           <div>
             {isLoggedIn ? (
               <div ref={profileRef} className="relative">
-                {/* ACCESSIBILITY FIX: Added custom informative aria-label name and aria-expanded tracking status properties */}
                 <button 
                   onClick={() => setProfileOpen(!profileOpen)} 
                   aria-label={`Profile: ${user?.name}`}
@@ -261,7 +262,7 @@ const Navbar = () => {
               <div className="w-24 h-[1px]" style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.4), transparent)" }} />
             </div>
 
-            <nav className="flex flex-col items-center gap-2 px-8 relative z-10">
+            <nav className="flex flex-col items-center gap-2 px-8 relative z-10" aria-label="Mobile Navigation">
               {mobileNavLinks.map((link, i) => (
                 <motion.button
                   key={link.label}
