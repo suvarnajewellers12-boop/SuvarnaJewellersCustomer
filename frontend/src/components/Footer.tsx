@@ -33,7 +33,8 @@ const Footer = () => {
             viewport={{ once: true }}
             className="flex items-center gap-2.5 mb-6"
           >
-            <img src={suvarnaLogo} alt="Suvarna Jewellers" className="w-8 h-8 drop-shadow-sm object-contain" />
+            {/* FIXED: Removed duplicate alt string content and hid the redundant graphic node from screen readers */}
+            <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-8 h-8 drop-shadow-sm object-contain" />
             <span className="font-display text-2xl font-bold text-gold-gradient">Suvarna Jewellers</span>
           </motion.div>
 
