@@ -226,7 +226,6 @@ const Coupons = () => {
   return (
     <Layout>
       {/* 1. ISOLATED BACKGROUND LAYER */}
-      {/* Moved background elements into a fixed container so they don't break sticky scrolling */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-cream via-pearl to-ivory" />
         <div className="absolute inset-0" style={{ background: "var(--gradient-spotlight)" }} />
@@ -238,12 +237,10 @@ const Coupons = () => {
       </div>
 
       {/* 2. MAIN CONTENT - OVERFLOW VISIBLE */}
-      {/* Kept z-10 and removed all overflow hidden/clip rules so sticky natively works */}
       <section className="pt-24 md:pt-32 pb-28 relative z-10 overflow-visible">
         <div className="relative max-w-3xl mx-auto px-4">
           
           {/* 3. BULLETPROOF STICKY HEADER - NO BOX */}
-          {/* Removed the box borders/shadows. Added a seamless transparent fade so text stays readable without looking like a block. */}
           <div className="sticky top-16 md:top-20 z-50 pt-8 pb-8 -mx-4 px-4 sm:mx-0 sm:px-0 bg-gradient-to-b from-cream via-cream/95 to-transparent">
             {/* Page header */}
             <motion.div
@@ -276,6 +273,7 @@ const Coupons = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
+                  aria-pressed={activeTab === tab}
                   className="relative px-8 py-2.5 rounded-xl font-body text-sm font-semibold transition-all duration-300 capitalize"
                   style={{
                     color: activeTab === tab ? "white" : "hsl(28, 25%, 35%)",
