@@ -7,7 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
 import PageTransition from "@/components/PageTransition";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import ScrollToTop from "@/components/ScrollToTop"; // 1. IMPORT YOUR NEW COMPONENT
+import ScrollToTop from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import About from "./pages/About";
@@ -37,7 +37,8 @@ const AnimatedRoutes = () => {
         <Route path="/my-schemes" element={<PageTransition><ProtectedRoute><MySchemes /></ProtectedRoute></PageTransition>} />
         <Route path="/live-rates" element={<PageTransition><LiveRates /></PageTransition>} />
         <Route path="/coupons" element={<PageTransition><ProtectedRoute><Coupons /></ProtectedRoute></PageTransition>} />
-        <Route path="*" element={<NotFound />} />
+        {/* FIX: Enclosing the fallback route to guarantee landmark coverage */}
+        <Route path="*" element={<PageTransition><main><NotFound /></main></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );
@@ -50,7 +51,6 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          {/* 2. ADD IT HERE (Inside BrowserRouter, above the routes) */}
           <ScrollToTop />
           <AnimatedRoutes />
         </AuthProvider>
