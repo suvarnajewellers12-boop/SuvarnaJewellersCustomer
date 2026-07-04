@@ -12,7 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import GoldDustParticles from "@/components/GoldDustParticles";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import PaymentModal from "@/components/PaymentModal";
 
 const formatINR = (n: number) =>
@@ -80,9 +80,10 @@ const SchemeDetailModal = ({
   onPaymentSuccess: () => Promise<void>;
 }) => {
   const [isPaying, setIsPaying] = useState(false);
+  const [paymentMonth, setPaymentMonth] = useState(0);
 
-  const [paymentMonth, setPaymentMonth] =
-    useState(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   const details = getSchemeDetails(scheme);
 
@@ -90,6 +91,55 @@ const SchemeDetailModal = ({
     ((scheme.installmentsPaid || 0) /
       (scheme.durationMonths || 1)) *
     100;
+
+  // FIX: Retain reference to trigger element and lock keyboard focus loop inside modal context
+  useEffect(() => {
+    triggerRef.current = document.activeElement as HTMLElement;
+    
+    if (dialogRef.current) {
+      const focusableEls = dialogRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([-1])'
+      );
+      if (focusableEls.length > 0) {
+        (focusableEls[0] as HTMLElement).focus();
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusableEls = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([-1])'
+        );
+        const firstEl = focusableEls[0];
+        const lastEl = focusableEls[focusableEls.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            lastEl.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            firstEl.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (triggerRef.current) {
+        triggerRef.current.focus();
+      }
+    };
+  }, [onClose]);
 
   const handleInstallmentSuccess =
     async () => {
@@ -126,7 +176,12 @@ const SchemeDetailModal = ({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
           onClick={onClose}
         >
+          {/* FIX: Formatted element with modal dialog roles and descriptive labelling ties */}
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scheme-modal-title"
             initial={{
               scale: 0.85,
               opacity: 0,
@@ -157,8 +212,10 @@ const SchemeDetailModal = ({
             }}
           >
             <div className="relative p-8 pb-4">
+              {/* FIX: Enhanced screen reader visibility with custom accessible title tags */}
               <button
                 onClick={onClose}
+                aria-label="Close Scheme Ledger"
                 className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -168,7 +225,7 @@ const SchemeDetailModal = ({
                 Scheme Ledger
               </p>
 
-              <h3 className="font-display text-2xl font-bold text-foreground">
+              <h3 id="scheme-modal-title" className="font-display text-2xl font-bold text-foreground">
                 {scheme.name}
               </h3>
 
@@ -269,7 +326,8 @@ const SchemeDetailModal = ({
                 Payment Timeline
               </p>
 
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+              {/* FIX: Swapped plain flex elements out for a semantic ordered list stack */}
+              <ol className="space-y-2 max-h-40 overflow-y-auto pr-2">
                 {Array.from(
                   {
                     length:
@@ -285,7 +343,7 @@ const SchemeDetailModal = ({
                       scheme.installmentsPaid;
 
                     return (
-                      <div
+                      <li
                         key={i}
                         className="flex items-center gap-3"
                       >
@@ -308,11 +366,11 @@ const SchemeDetailModal = ({
                             ? "Due"
                             : "Upcoming"}
                         </span>
-                      </div>
+                      </li>
                     );
                   }
                 )}
-              </div>
+              </ol>
             </div>
 
             {details.isDue && (
@@ -433,8 +491,13 @@ const Dashboard = () => {
           </motion.div>
 
           <div className="mb-8">
-            <div className="flex gap-3">
+            {/* FIX: Implemented functional role="tablist" pattern around toggle groups */}
+            <div className="flex gap-3" role="tablist" aria-label="Scheme Categories">
               <button
+                role="tab"
+                id="tab-gold-schemes"
+                aria-selected={showGold}
+                aria-controls="scheme-grid-panel"
                 onClick={() =>
                   setShowGold(true)
                 }
@@ -448,6 +511,10 @@ const Dashboard = () => {
               </button>
 
               <button
+                role="tab"
+                id="tab-cash-schemes"
+                aria-selected={!showGold}
+                aria-controls="scheme-grid-panel"
                 onClick={() =>
                   setShowGold(false)
                 }
@@ -463,7 +530,7 @@ const Dashboard = () => {
           </div>
 
           {filteredSchemes.length === 0 ? (
-            <div className="glass-card rounded-2xl p-8 text-center">
+            <div id="scheme-grid-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold-schemes" : "tab-cash-schemes"} className="glass-card rounded-2xl p-8 text-center">
               <p className="font-body text-muted-foreground mb-4">
                 No schemes available
               </p>
@@ -478,7 +545,7 @@ const Dashboard = () => {
               </button>
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="scheme-grid-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold-schemes" : "tab-cash-schemes"} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSchemes.map(
                 (scheme, i) => {
                   const progress =
@@ -510,13 +577,17 @@ const Dashboard = () => {
                       }}
                       className="space-y-3"
                     >
-                      <div
+                      {/* FIX: Converted interactive card container div into an accessible button component context */}
+                      <button
+                        type="button"
                         onClick={() =>
                           setSelectedScheme(
                             scheme
                           )
                         }
-                        className="glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300"
+                        aria-haspopup="dialog"
+                        aria-label={`View ledger details for ${scheme.name}. Status: ${isCompleted ? 'Completed' : 'Active'}. ${formatINR(scheme.monthlyAmount)} per month, ${scheme.installmentsPaid} of ${scheme.durationMonths} paid.`}
+                        className="w-full text-left glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300 block focus:outline-none focus:ring-2 focus:ring-gold/40"
                       >
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="font-display text-lg font-bold text-foreground">
@@ -566,7 +637,7 @@ const Dashboard = () => {
                             }}
                           />
                         </div>
-                      </div>
+                      </button>
 
                       <div className="rounded-2xl p-5 bg-[#2E2118] border border-gold/20">
                         <div className="flex items-center gap-4">
