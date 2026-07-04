@@ -302,7 +302,6 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* FIX: Heading upgraded to Level 1 for document consistency */}
               <h1 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2">
                 {forgotSuccess ? "Password Reset!" : "Reset Password"}
               </h1>
@@ -330,7 +329,6 @@ const Login = () => {
                       <Smartphone className="w-4 h-4" />
                       <span className="font-body text-sm">+91</span>
                     </div>
-                    {/* FIX: Required attributes fully configured for accessibility */}
                     <input
                       type="tel"
                       value={forgotPhone}
@@ -361,7 +359,6 @@ const Login = () => {
                 <form onSubmit={handleForgotVerifyOtp} className="space-y-5">
                   <div className="flex justify-center gap-3">
                     {forgotOtp.map((digit, i) => (
-                      /* FIX: Explicit layout context indices specified within the verification label templates */
                       <input
                         key={i} id={`fotp-${i}`} type="text" inputMode="numeric"
                         maxLength={1} value={digit}
@@ -401,7 +398,6 @@ const Login = () => {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                       <KeyRound className="w-4 h-4" />
                     </div>
-                    {/* FIX: Appended appropriate structural accessibility metrics */}
                     <input
                       type={showForgotPassword ? "text" : "password"}
                       value={forgotPassword}
@@ -413,10 +409,13 @@ const Login = () => {
                       aria-required="true"
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
+                    {/* FIX: Handled standard screen reader aria labels and dynamic layout state definitions */}
                     <button
                       type="button"
                       disabled={isLoggingIn}
                       onClick={() => setShowForgotPassword(!showForgotPassword)}
+                      aria-label={showForgotPassword ? "Hide Password" : "Show Password"}
+                      aria-pressed={showForgotPassword}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors focus:outline-none disabled:opacity-50"
                     >
                       {showForgotPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -479,7 +478,6 @@ const Login = () => {
                 </motion.div>
               </div>
 
-              {/* FIX: Heading levels consistently mapped to Level 1 hierarchy guidelines */}
               <h1 className="font-display text-2xl md:text-3xl font-bold text-center text-foreground mb-2 relative">
                 {verified ? "Welcome!" : isSignup ? "Create Account" : "Login"}
               </h1>
@@ -505,7 +503,6 @@ const Login = () => {
                 <form onSubmit={handleSubmitForm} className="space-y-5 relative">
                   {isSignup && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.3 }}>
-                      {/* FIX: Name marked explicitly mandatory via required and aria-required descriptors */}
                       <input
                         type="text"
                         value={name}
@@ -524,7 +521,6 @@ const Login = () => {
                       <Smartphone className="w-4 h-4" />
                       <span className="font-body text-sm">+91</span>
                     </div>
-                    {/* FIX: Handled standard screen reader required announcement logic flags */}
                     <input
                       type="tel"
                       value={phone}
@@ -542,7 +538,6 @@ const Login = () => {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                       <KeyRound className="w-4 h-4" />
                     </div>
-                    {/* FIX: Password field converted to strict mandatory constraint during signup flow execution */}
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
@@ -554,10 +549,13 @@ const Login = () => {
                       aria-required="true"
                       className="w-full pl-12 pr-12 py-4 rounded-xl bg-pearl/60 border border-gold/15 font-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-gold/40 focus:ring-2 focus:ring-gold/15 transition-all text-lg"
                     />
+                    {/* FIX: Handled standard screen reader aria labels and dynamic layout state definitions */}
                     <button
                       type="button"
                       disabled={isLoggingIn}
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide Password" : "Show Password"}
+                      aria-pressed={showPassword}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gold transition-colors focus:outline-none disabled:opacity-50"
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -600,7 +598,6 @@ const Login = () => {
                   <p className="font-body text-sm text-muted-foreground text-center">OTP sent to +91 {phone}</p>
                   <div className="flex justify-center gap-3">
                     {otp.map((digit, i) => (
-                      /* FIX: Standardized dynamic positional labels explicitly bound to each sequential code input block */
                       <input
                         key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
                         disabled={isLoggingIn}
