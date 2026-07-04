@@ -80,7 +80,9 @@ const SchemeDetailModal = ({
   onPaymentSuccess: () => Promise<void>;
 }) => {
   const [isPaying, setIsPaying] = useState(false);
-  const [paymentMonth, setPaymentMonth] = useState(0);
+
+  const [paymentMonth, setPaymentMonth] =
+    useState(0);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -92,7 +94,7 @@ const SchemeDetailModal = ({
       (scheme.durationMonths || 1)) *
     100;
 
-  // FIX: Retain reference to trigger element and lock keyboard focus loop inside modal context
+  // FIX: Focus trapping, background restriction, and restoration hooks for modal compliance
   useEffect(() => {
     triggerRef.current = document.activeElement as HTMLElement;
     
@@ -176,12 +178,12 @@ const SchemeDetailModal = ({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
           onClick={onClose}
         >
-          {/* FIX: Formatted element with modal dialog roles and descriptive labelling ties */}
+          {/* FIX: Set implicit structural roles and associated labels to form an accessible dialog container */}
           <motion.div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="scheme-modal-title"
+            aria-labelledby="modal-scheme-title"
             initial={{
               scale: 0.85,
               opacity: 0,
@@ -212,7 +214,7 @@ const SchemeDetailModal = ({
             }}
           >
             <div className="relative p-8 pb-4">
-              {/* FIX: Enhanced screen reader visibility with custom accessible title tags */}
+              {/* FIX: Assigned meaningful descriptive action tag properties */}
               <button
                 onClick={onClose}
                 aria-label="Close Scheme Ledger"
@@ -225,7 +227,8 @@ const SchemeDetailModal = ({
                 Scheme Ledger
               </p>
 
-              <h3 id="scheme-modal-title" className="font-display text-2xl font-bold text-foreground">
+              {/* FIX: Paired explicit title identity hookup to root accessibility elements */}
+              <h3 id="modal-scheme-title" className="font-display text-2xl font-bold text-foreground">
                 {scheme.name}
               </h3>
 
@@ -326,7 +329,7 @@ const SchemeDetailModal = ({
                 Payment Timeline
               </p>
 
-              {/* FIX: Swapped plain flex elements out for a semantic ordered list stack */}
+              {/* FIX: Altered timeline structure to rely completely on list and list-item elements */}
               <ol className="space-y-2 max-h-40 overflow-y-auto pr-2">
                 {Array.from(
                   {
@@ -491,13 +494,13 @@ const Dashboard = () => {
           </motion.div>
 
           <div className="mb-8">
-            {/* FIX: Implemented functional role="tablist" pattern around toggle groups */}
+            {/* FIX: Handled specific container structure as a semantic tablist */}
             <div className="flex gap-3" role="tablist" aria-label="Scheme Categories">
               <button
                 role="tab"
-                id="tab-gold-schemes"
+                id="tab-gold"
                 aria-selected={showGold}
-                aria-controls="scheme-grid-panel"
+                aria-controls="scheme-tab-panel"
                 onClick={() =>
                   setShowGold(true)
                 }
@@ -512,9 +515,9 @@ const Dashboard = () => {
 
               <button
                 role="tab"
-                id="tab-cash-schemes"
+                id="tab-cash"
                 aria-selected={!showGold}
-                aria-controls="scheme-grid-panel"
+                aria-controls="scheme-tab-panel"
                 onClick={() =>
                   setShowGold(false)
                 }
@@ -530,7 +533,7 @@ const Dashboard = () => {
           </div>
 
           {filteredSchemes.length === 0 ? (
-            <div id="scheme-grid-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold-schemes" : "tab-cash-schemes"} className="glass-card rounded-2xl p-8 text-center">
+            <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold" : "tab-cash"} className="glass-card rounded-2xl p-8 text-center">
               <p className="font-body text-muted-foreground mb-4">
                 No schemes available
               </p>
@@ -545,7 +548,7 @@ const Dashboard = () => {
               </button>
             </div>
           ) : (
-            <div id="scheme-grid-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold-schemes" : "tab-cash-schemes"} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold" : "tab-cash"} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSchemes.map(
                 (scheme, i) => {
                   const progress =
@@ -570,14 +573,14 @@ const Dashboard = () => {
                       }}
                       animate={{
                         opacity: 1,
-                        y: 0,
+                        y: 0
                       }}
                       transition={{
                         delay: i * 0.1,
                       }}
                       className="space-y-3"
                     >
-                      {/* FIX: Converted interactive card container div into an accessible button component context */}
+                      {/* FIX: Transformed inner clickable div to a semantic interactive button containing detailed contextual announcements */}
                       <button
                         type="button"
                         onClick={() =>
@@ -586,8 +589,8 @@ const Dashboard = () => {
                           )
                         }
                         aria-haspopup="dialog"
-                        aria-label={`View ledger details for ${scheme.name}. Status: ${isCompleted ? 'Completed' : 'Active'}. ${formatINR(scheme.monthlyAmount)} per month, ${scheme.installmentsPaid} of ${scheme.durationMonths} paid.`}
-                        className="w-full text-left glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300 block focus:outline-none focus:ring-2 focus:ring-gold/40"
+                        aria-label={`Scheme Summary: ${scheme.name}, ${formatINR(scheme.monthlyAmount)} per month, ${scheme.installmentsPaid} of ${scheme.durationMonths} installments paid. Status: ${isCompleted ? "Completed" : "Active"}. Activate to view full scheme ledger.`}
+                        className="w-full text-left glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300 block focus:outline-none focus:ring-2 focus:ring-gold/50"
                       >
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="font-display text-lg font-bold text-foreground">
