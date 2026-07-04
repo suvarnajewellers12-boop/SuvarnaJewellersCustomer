@@ -217,7 +217,7 @@ const ProgressArc = ({
           className="font-display text-sm font-bold"
           fill="hsl(28, 25%, 15%)"
           aria-hidden="true"
-        >
+                >
           {paidMonths}/{totalMonths}
         </text>
       </svg>
@@ -259,9 +259,10 @@ const TermsModal = ({ onClose, onAgree }: TermsModalProps) => {
             <Sparkles className="w-5 h-5 text-gold-dark" /> Terms & Conditions
           </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close Terms and Conditions"
-            className="w-8 h-8 rounded-full bg-cream hover:bg-gold/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="w-8 h-8 rounded-full bg-cream hover:bg-gold/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-gold"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -273,12 +274,14 @@ const TermsModal = ({ onClose, onAgree }: TermsModalProps) => {
 
         <div className="p-4 border-t border-gold/20 bg-pearl/50 flex gap-3 justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl border border-gold/30 font-body text-sm text-foreground hover:bg-gold/5 transition-colors"
           >
             Decline
           </button>
           <button
+            type="button"
             onClick={onAgree}
             className="btn-gold px-6 py-2.5 rounded-xl font-body text-sm font-semibold"
           >
@@ -524,6 +527,7 @@ const Schemes = () => {
                         </div>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => handleEnrollClick(scheme)}
                           aria-haspopup="dialog"
                           className="btn-gold btn-gold-pulse w-full text-base py-3.5"

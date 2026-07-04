@@ -220,9 +220,10 @@ const SchemeDetailModal = ({
             <div className="relative p-8 pb-4">
               {/* ACCESSIBILITY FIX: Screen reader friendly label string */}
               <button
+                type="button"
                 onClick={onClose}
                 aria-label="Close Scheme Ledger"
-                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors"
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pearl/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-pearl transition-colors focus:outline-none focus:ring-2 focus:ring-gold"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -383,6 +384,7 @@ const SchemeDetailModal = ({
             {details.isDue && (
               <div className="px-8 pb-8">
                 <button
+                  type="button"
                   disabled={
                     !details.isPayable
                   }
