@@ -9,87 +9,98 @@ import PaymentModal from "@/components/PaymentModal";
 
 const formatINR = (n: number = 0) => "₹" + n.toLocaleString("en-IN");
 
-const _termsAndConditionsContent = `Eligibility
-
-Users must provide accurate personal details during registration. Suvarna Jewellers reserves the right to suspend accounts containing false information.
-
-Savings Schemes
-
-• Customers may enroll in available gold or cash savings schemes.
-• Monthly installment amounts and durations are fixed according to the selected scheme.
-• Failure to pay installments on time may affect benefits associated with the scheme.
-• Duplicate enrollment into the same scheme may not be permitted.
-
-Payments
-
-• All payments are securely processed through authorized payment gateways.
-• Customers are responsible for verifying payment details before confirmation.
-• Suvarna Jewellers shall not be liable for failed transactions caused by banking or network issues.
-
-Gold Rate & Valuation
-
-• Gold rates displayed in the application are subject to daily market fluctuations.
-• Final valuation will be based on prevailing rates at the showroom during redemption or purchase.
-
-Refund & Cancellation
-
-• Payments once made are generally non-refundable.
-• Refund requests, if applicable, shall be processed according to company policy.
-• Cancellation charges may apply for discontinued schemes.
-
-Exchange & Buyback Policy
-
-• Exchange or buyback of jewellery is subject to prevailing company policies.
-• Gold content will be evaluated based on purity and applicable deductions.
-• Damaged or altered products may not qualify for exchange.
-
-User Responsibilities
-
-• Users are responsible for maintaining confidentiality of their account credentials and MPIN.
-• Sharing OTPs, passwords, or MPINs with others is strictly discouraged.
-• Any unauthorized activity should be reported immediately.
-
-Notifications & OTP Services
-
-• The application may send OTPs, reminders, and notifications for authentication and scheme updates.
-• Users consent to receive SMS and app notifications related to their account activities.
-
-Privacy & Data Usage
-
-• User information is collected solely for authentication, payments, and customer service purposes.
-• Suvarna Jewellers does not sell personal customer information to third parties.
-
-Limitation of Liability
-
-Suvarna Jewellers shall not be held responsible for losses caused due to:
-
-• Internet or server interruptions
-• Unauthorized account access caused by user negligence
-• Third-party payment gateway failures
-• Temporary application downtime or maintenance
-
-Intellectual Property
-
-All logos, designs, application content, branding, and visuals are the property of Suvarna Jewellers and may not be copied or reused without permission.
-
-Modifications to Terms
-
-Suvarna Jewellers reserves the right to modify these Terms & Conditions at any time without prior notice.
-
-Jurisdiction
-
-Any disputes arising from the use of this application or website shall be subject to the jurisdiction of courts in Andhra Pradesh, India.
-
-Contact Information
-
-Suvarna Jewellers
-D.No. 13-1-12, Main Road, Near YSR Statue,
-New Gajuwaka, Visakhapatnam - 530026,
-Andhra Pradesh, India.
-
-Email: suvarnajewellers12@gmail.com
-
-© 2026 Suvarna Jewellers. All Rights Reserved.`;
+// Structured content array to support screen readers with clean headers and list groups
+const termsAndConditionsSections = [
+  {
+    title: "Eligibility",
+    content: ["Users must provide accurate personal details during registration. Suvarna Jewellers reserves the right to suspend accounts containing false information."]
+  },
+  {
+    title: "Savings Schemes",
+    content: [
+      "Customers may enroll in available gold or cash savings schemes.",
+      "Monthly installment amounts and durations are fixed according to the selected scheme.",
+      "Failure to pay installments on time may affect benefits associated with the scheme.",
+      "Duplicate enrollment into the same scheme may not be permitted."
+    ]
+  },
+  {
+    title: "Payments",
+    content: [
+      "All payments are securely processed through authorized payment gateways.",
+      "Customers are responsible for verifying payment details before confirmation.",
+      "Suvarna Jewellers shall not be liable for failed transactions caused by banking or network issues."
+    ]
+  },
+  {
+    title: "Gold Rate & Valuation",
+    content: [
+      "Gold rates displayed in the application are subject to daily market fluctuations.",
+      "Final valuation will be based on prevailing rates at the showroom during redemption or purchase."
+    ]
+  },
+  {
+    title: "Refund & Cancellation",
+    content: [
+      "Payments once made are generally non-refundable.",
+      "Refund requests, if applicable, shall be processed according to company policy.",
+      "Cancellation charges may apply for discontinued schemes."
+    ]
+  },
+  {
+    title: "Exchange & Buyback Policy",
+    content: [
+      "Exchange or buyback of jewellery is subject to prevailing company policies.",
+      "Gold content will be evaluated based on purity and applicable deductions.",
+      "Damaged or altered products may not qualify for exchange."
+    ]
+  },
+  {
+    title: "User Responsibilities",
+    content: [
+      "Users are responsible for maintaining confidentiality of their account credentials and MPIN.",
+      "Sharing OTPs, passwords, or MPINs with others is strictly discouraged.",
+      "Any unauthorized activity should be reported immediately."
+    ]
+  },
+  {
+    title: "Notifications & OTP Services",
+    content: [
+      "The application may send OTPs, reminders, and notifications for authentication and scheme updates.",
+      "Users consent to receive SMS and app notifications related to their account activities."
+    ]
+  },
+  {
+    title: "Privacy & Data Usage",
+    content: [
+      "User information is collected solely for authentication, payments, and customer service purposes.",
+      "Suvarna Jewellers does not sell personal customer information to third parties."
+    ]
+  },
+  {
+    title: "Limitation of Liability",
+    content: [
+      "Internet or server interruptions",
+      "Unauthorized account access caused by user negligence",
+      "Third-party payment gateway failures",
+      "Temporary application downtime or maintenance"
+    ],
+    isListOnly: true,
+    introText: "Suvarna Jewellers shall not be held responsible for losses caused due to:"
+  },
+  {
+    title: "Intellectual Property",
+    content: ["All logos, designs, application content, branding, and visuals are the property of Suvarna Jewellers and may not be copied or reused without permission."]
+  },
+  {
+    title: "Modifications to Terms",
+    content: ["Suvarna Jewellers reserves the right to modify these Terms & Conditions at any time without prior notice."]
+  },
+  {
+    title: "Jurisdiction",
+    content: ["Any disputes arising from the use of this application or website shall be subject to the jurisdiction of courts in Andhra Pradesh, India."]
+  }
+];
 
 // Module-level cache — survives page navigation, resets on browser refresh
 let _cachedDbSchemes: any[] | null = null;
@@ -217,7 +228,7 @@ const ProgressArc = ({
           className="font-display text-sm font-bold"
           fill="hsl(28, 25%, 15%)"
           aria-hidden="true"
-                >
+        >
           {paidMonths}/{totalMonths}
         </text>
       </svg>
@@ -268,8 +279,49 @@ const TermsModal = ({ onClose, onAgree }: TermsModalProps) => {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto font-body text-sm text-muted-foreground space-y-4 bg-cream/30 whitespace-pre-line leading-relaxed">
-          {_termsAndConditionsContent}
+        <div className="p-6 overflow-y-auto font-body text-sm text-muted-foreground space-y-6 bg-cream/30 leading-relaxed">
+          {termsAndConditionsSections.map((section, idx) => (
+            <section key={idx} className="space-y-2">
+              {/* Fix 2: Section titles correctly marked up as Heading Level 3 */}
+              <h3 className="font-display text-base font-bold text-foreground">
+                {section.title}
+              </h3>
+              
+              {section.isListOnly ? (
+                <>
+                  <p className="text-muted-foreground mb-1">{section.introText}</p>
+                  {/* Fix 1: Groups under sections identified as semantic HTML lists */}
+                  <ul className="list-disc pl-5 space-y-1">
+                    {section.content.map((item, itemIdx) => (
+                      <li key={itemIdx}>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : section.content.length > 1 ? (
+                <ul className="list-disc pl-5 space-y-1">
+                  {section.content.map((item, itemIdx) => (
+                    <li key={itemIdx}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{section.content[0]}</p>
+              )}
+            </section>
+          ))}
+
+          <hr className="border-gold/10 my-4" />
+
+          <section className="space-y-2 text-xs">
+            <h3 className="font-display font-bold text-foreground">Contact Information</h3>
+            <address className="not-italic space-y-1 text-muted-foreground">
+              <p className="font-semibold">Suvarna Jewellers</p>
+              <p>D.No. 13-1-12, Main Road, Near YSR Statue,</p>
+              <p>New Gajuwaka, Visakhapatnam - 530026,</p>
+              <p>Andhra Pradesh, India.</p>
+              <p className="pt-1">Email: suvarnajewellers12@gmail.com</p>
+            </address>
+            <p className="text-muted-foreground/60 pt-4">© 2026 Suvarna Jewellers. All Rights Reserved.</p>
+          </section>
         </div>
 
         <div className="p-4 border-t border-gold/20 bg-pearl/50 flex gap-3 justify-end">
