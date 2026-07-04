@@ -82,31 +82,34 @@ const Navbar = () => {
         )}
       </AnimatePresence>
 
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+      <nav
         aria-label="Main Navigation"
         className={`fixed top-4 left-0 right-0 mx-auto z-50 w-[92%] max-w-[1100px] rounded-full px-6 py-3.5 transition-all duration-700 ${
           scrolled ? "glass-nav-scrolled shadow-lg" : "glass-nav"
         }`}
       >
-        {/* Mobile */}
+        {/* Mobile Navbar Header */}
         <div className="flex md:hidden items-center justify-between w-full relative">
           <div className="w-9" />
-          <button onClick={() => navigate("/")} className="flex items-center gap-2.5 group">
+          {/* FIX: Combined accessible name to avoid duplicate announcement */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="flex items-center gap-2.5 group"
+            aria-label="Suvarna Jewellers Home"
+          >
             <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-              {/* FIX: Set clear descriptive alternative text layout tag */}
               <img 
                 src={suvarnaLogo} 
-                alt="Suvarna Jewellers Logo" 
+                alt="" 
+                aria-hidden="true"
                 className="w-9 h-9 md:w-10 md:h-10 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain" 
               />
             </motion.div>
-            <span className="font-display text-lg font-bold text-gold-gradient">Suvarna Jewellers</span>
+            <span className="font-display text-lg font-bold text-gold-gradient" aria-hidden="true">Suvarna Jewellers</span>
           </button>
           <button
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open Navigation Menu"
             className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300"
             style={{ background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.08))", border: "1px solid hsla(43,80%,60%,0.3)" }}
           >
@@ -114,38 +117,52 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Desktop */}
+        {/* Desktop Navbar Layout */}
         <div className="hidden md:flex items-center justify-between w-full">
-          <button onClick={() => navigate("/")} className="flex items-center gap-2.5 group">
+          {/* FIX: Combined accessible name to avoid duplicate announcement */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="flex items-center gap-2.5 group"
+            aria-label="Suvarna Jewellers Home"
+          >
             <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-              {/* FIX: Set clear descriptive alternative text layout tag */}
               <img 
                 src={suvarnaLogo} 
-                alt="Suvarna Jewellers Logo" 
+                alt="" 
+                aria-hidden="true"
                 className="w-10 h-10 lg:w-11 lg:h-11 drop-shadow-sm transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110 object-contain" 
               />
             </motion.div>
-            <span className="font-display text-xl font-bold text-gold-gradient">Suvarna Jewellers</span>
+            <span className="font-display text-xl font-bold text-gold-gradient" aria-hidden="true">Suvarna Jewellers</span>
           </button>
 
+          {/* FIXED: Changed from buttons to semantic navigation anchor links */}
           <div className="flex items-center gap-8">
-            {navLinks.map((link) => (
-              <button
-                key={link.label}
-                onClick={() => navigate(link.href)}
-                className={`relative font-body text-sm font-medium transition-colors duration-300 group py-1 ${
-                  location.pathname === link.href ? "text-foreground" : "text-foreground/80 hover:text-foreground"
-                }`}
-              >
-                {link.label}
-                <span
-                  className={`absolute -bottom-0.5 left-0 h-[2px] rounded-full transition-all duration-500 ${
-                    location.pathname === link.href ? "w-full" : "w-0 group-hover:w-full"
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.href;
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(link.href);
+                  }}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative font-body text-sm font-medium transition-colors duration-300 group py-1 ${
+                    isActive ? "text-foreground" : "text-foreground/80 hover:text-foreground"
                   }`}
-                  style={{ background: "linear-gradient(90deg, hsl(43 80% 52%), hsl(38 72% 38%), hsl(43 80% 52%))" }}
-                />
-              </button>
-            ))}
+                >
+                  {link.label}
+                  <span
+                    className={`absolute -bottom-0.5 left-0 h-[2px] rounded-full transition-all duration-500 ${
+                      isActive ? "w-full" : "w-0 group-hover:w-full"
+                    }`}
+                    style={{ background: "linear-gradient(90deg, hsl(43 80% 52%), hsl(38 72% 38%), hsl(43 80% 52%))" }}
+                  />
+                </a>
+              );
+            })}
           </div>
 
           <div>
@@ -227,9 +244,9 @@ const Navbar = () => {
             )}
           </div>
         </div>
-      </motion.nav>
+      </nav>
 
-      {/* Mobile overlay */}
+      {/* Mobile Drawer/Overlay Layout */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -246,16 +263,14 @@ const Navbar = () => {
             <div className="absolute inset-0 overflow-hidden"><GoldDustParticles /></div>
             <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, hsla(43,80%,50%,0.08) 0%, transparent 60%)" }} />
 
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.3 }}
+            <button
               onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close Navigation Menu"
               className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center z-10"
               style={{ background: "linear-gradient(135deg, hsla(43,80%,55%,0.15), hsla(43,80%,55%,0.05))", border: "1px solid hsla(43,80%,60%,0.25)" }}
             >
-              <span className="font-display text-gold text-lg">✕</span>
-            </motion.button>
+              <span className="font-display text-gold text-lg" aria-hidden="true">✕</span>
+            </button>
 
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -263,8 +278,7 @@ const Navbar = () => {
               transition={{ delay: 0.15, duration: 0.5 }}
               className="flex flex-col items-center pt-16 pb-8"
             >
-              {/* FIX: Set clear descriptive alternative text layout tag */}
-              <img src={suvarnaLogo} alt="Suvarna Jewellers Logo" className="w-14 h-14 mb-4 object-contain" />
+              <img src={suvarnaLogo} alt="" aria-hidden="true" className="w-14 h-14 mb-4 object-contain" />
               <span className="font-display text-xl font-bold text-gold-gradient">Suvarna Jewellers</span>
             </motion.div>
 
@@ -272,36 +286,43 @@ const Navbar = () => {
               <div className="w-24 h-[1px]" style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.4), transparent)" }} />
             </div>
 
-            <nav className="flex flex-col items-center gap-2 px-8 relative z-10" aria-label="Mobile Navigation">
-              {mobileNavLinks.map((link, i) => (
-                <motion.button
-                  key={link.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + i * 0.07, duration: 0.4, ease: "easeOut" }}
-                  onClick={() => { navigate(link.href); setMobileMenuOpen(false); }}
-                  className="relative w-full max-w-xs py-4 font-display text-lg tracking-wide text-center transition-all duration-300 group rounded-xl overflow-hidden"
-                  style={{ color: location.pathname === link.href ? "hsla(43, 80%, 55%, 1)" : "hsla(39, 50%, 88%, 0.9)" }}
-                >
-                  <span className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300"
-                    style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.04), hsla(43,80%,55%,0.1), hsla(43,80%,55%,0.04))" }} />
-                  <span className="relative z-10">{link.label}</span>
-                  {location.pathname === link.href && (
-                    <motion.div layoutId="mobile-active" className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full"
-                      style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.6), hsla(43,80%,55%,1), hsla(43,80%,55%,0.6))" }} />
-                  )}
-                </motion.button>
-              ))}
+            {/* FIXED: Switched mobile action items from <button> elements to semantic navigation anchors <a> */}
+            <nav className="flex flex-col items-center gap-2 px-8 relative z-10" aria-label="Mobile Menu Navigation">
+              {mobileNavLinks.map((link, i) => {
+                const isActive = location.pathname === link.href;
+                return (
+                  <motion.a
+                    key={link.label}
+                    href={link.href}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 + i * 0.07, duration: 0.4, ease: "easeOut" }}
+                    onClick={(e) => { 
+                      e.preventDefault();
+                      navigate(link.href); 
+                      setMobileMenuOpen(false); 
+                    }}
+                    aria-current={isActive ? "page" : undefined}
+                    className="relative w-full max-w-xs py-4 font-display text-lg tracking-wide text-center transition-all duration-300 group rounded-xl overflow-hidden block"
+                    style={{ color: isActive ? "hsla(43, 80%, 55%, 1)" : "hsla(39, 50%, 88%, 0.9)" }}
+                  >
+                    <span className="absolute inset-0 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300"
+                      style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.04), hsla(43,80%,55%,0.1), hsla(43,80%,55%,0.04))" }} />
+                    <span className="relative z-10">{link.label}</span>
+                    {isActive && (
+                      <motion.div layoutId="mobile-active" className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full"
+                        style={{ background: "linear-gradient(90deg, hsla(43,80%,55%,0.6), hsla(43,80%,55%,1), hsla(43,80%,55%,0.6))" }} />
+                    )}
+                  </motion.a>
+                );
+              })}
 
               {isLoggedIn && (
                 <>
                   <div className="flex justify-center my-2">
                     <div className="w-16 h-[1px]" style={{ background: "linear-gradient(90deg, transparent, hsla(43,80%,55%,0.25), transparent)" }} />
                   </div>
-                  <motion.button
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + mobileNavLinks.length * 0.07, duration: 0.4 }}
+                  <button
                     onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}
                     className="relative w-full max-w-xs py-4 font-display text-lg tracking-wide text-center transition-all duration-300 group rounded-xl overflow-hidden"
                     style={{ color: "hsla(39, 50%, 88%, 0.85)" }}
@@ -312,20 +333,17 @@ const Navbar = () => {
                       <LogOut className="w-4 h-4" />
                       Logout
                     </span>
-                  </motion.button>
+                  </button>
                 </>
               )}
 
               {!isLoggedIn && !isLoginPage && (
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + mobileNavLinks.length * 0.07, duration: 0.4 }}
+                <button
                   onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}
                   className="mt-4 btn-gold text-sm px-10 py-3"
                 >
                   Login
-                </motion.button>
+                </button>
               )}
             </nav>
           </motion.div>
