@@ -94,16 +94,17 @@ const SchemeDetailModal = ({
       (scheme.durationMonths || 1)) *
     100;
 
-  // FIX: Focus trapping, background restriction, and restoration hooks for modal compliance
+  // SAFE ACCESSIBILITY HOOKS: Focus trapping & accessibility without crashing
   useEffect(() => {
     triggerRef.current = document.activeElement as HTMLElement;
     
+    // Safely focus the modal container or close button on mount
     if (dialogRef.current) {
-      const focusableEls = dialogRef.current.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([-1])'
-      );
-      if (focusableEls.length > 0) {
-        (focusableEls[0] as HTMLElement).focus();
+      const closeBtn = dialogRef.current.querySelector('button[aria-label="Close Scheme Ledger"]') as HTMLElement;
+      if (closeBtn) {
+        closeBtn.focus();
+      } else {
+        dialogRef.current.focus();
       }
     }
 
@@ -117,6 +118,8 @@ const SchemeDetailModal = ({
         const focusableEls = dialogRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([-1])'
         );
+        if (focusableEls.length === 0) return;
+
         const firstEl = focusableEls[0];
         const lastEl = focusableEls[focusableEls.length - 1];
 
@@ -178,12 +181,13 @@ const SchemeDetailModal = ({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/30 backdrop-blur-md"
           onClick={onClose}
         >
-          {/* FIX: Set implicit structural roles and associated labels to form an accessible dialog container */}
+          {/* ACCESSIBILITY FIX: Semantic dialog roles and relationship mapping */}
           <motion.div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-scheme-title"
+            tabIndex={-1}
             initial={{
               scale: 0.85,
               opacity: 0,
@@ -207,14 +211,14 @@ const SchemeDetailModal = ({
             onClick={(e) =>
               e.stopPropagation()
             }
-            className="glass-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-0"
+            className="glass-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-0 outline-none"
             style={{
               boxShadow:
                 "0 30px 80px -20px hsla(30, 30%, 15%, 0.25), 0 0 0 1px hsla(38, 60%, 55%, 0.2)",
             }}
           >
             <div className="relative p-8 pb-4">
-              {/* FIX: Assigned meaningful descriptive action tag properties */}
+              {/* ACCESSIBILITY FIX: Screen reader friendly label string */}
               <button
                 onClick={onClose}
                 aria-label="Close Scheme Ledger"
@@ -227,7 +231,7 @@ const SchemeDetailModal = ({
                 Scheme Ledger
               </p>
 
-              {/* FIX: Paired explicit title identity hookup to root accessibility elements */}
+              {/* ACCESSIBILITY FIX: Tied explicitly to dialog header lookup tag */}
               <h3 id="modal-scheme-title" className="font-display text-2xl font-bold text-foreground">
                 {scheme.name}
               </h3>
@@ -329,7 +333,7 @@ const SchemeDetailModal = ({
                 Payment Timeline
               </p>
 
-              {/* FIX: Altered timeline structure to rely completely on list and list-item elements */}
+              {/* ACCESSIBILITY FIX: Structured sequence within ordered list components */}
               <ol className="space-y-2 max-h-40 overflow-y-auto pr-2">
                 {Array.from(
                   {
@@ -494,7 +498,7 @@ const Dashboard = () => {
           </motion.div>
 
           <div className="mb-8">
-            {/* FIX: Handled specific container structure as a semantic tablist */}
+            {/* ACCESSIBILITY FIX: Structured target tablist layout wrappers */}
             <div className="flex gap-3" role="tablist" aria-label="Scheme Categories">
               <button
                 role="tab"
@@ -580,7 +584,7 @@ const Dashboard = () => {
                       }}
                       className="space-y-3"
                     >
-                      {/* FIX: Transformed inner clickable div to a semantic interactive button containing detailed contextual announcements */}
+                      {/* ACCESSIBILITY FIX: Switched from plain div to button context for semantic interaction */}
                       <button
                         type="button"
                         onClick={() =>
