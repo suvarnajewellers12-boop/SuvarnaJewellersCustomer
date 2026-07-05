@@ -665,7 +665,8 @@ const Dashboard = () => {
                                 : "Total Cash Saved"}
                             </p>
 
-                            <h3 className="font-display text-2xl font-bold text-gold-gradient-shine">
+                            {/* FIXED: Switched from an h3 to a simple semantic paragraph wrapper to fix the navigation issue */}
+                            <p className="font-display text-2xl font-bold text-gold-gradient-shine">
                               {scheme.isWeightBased
                                 ? `${(
                                     scheme.accumulatedGrams || 0
@@ -673,7 +674,7 @@ const Dashboard = () => {
                                 : formatINR(
                                     scheme.totalPaid || 0
                                   )}
-                            </h3>
+                            </p>
 
                             {scheme.isWeightBased &&
                               (scheme.lastPaymentGrams ?? 0) > 0 && (
@@ -731,5 +732,6 @@ const Dashboard = () => {
     </Layout>
   );
 };
+
 
 export default Dashboard;
