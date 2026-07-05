@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CreditCard, Smartphone, Landmark, CheckCircle2, X, Shield } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 interface PaymentModalProps {
-  schemeId: string; // Add this line
+  schemeId: string;
   schemeName: string;
   monthlyAmount: number;
   onSuccess: () => void;
@@ -23,18 +23,88 @@ const paymentMethods: { id: PaymentMethod; label: string; icon: typeof CreditCar
 ];
 
 const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose }: PaymentModalProps) => {
-  // MOVED INSIDE THE COMPONENT
   const { user } = useAuth(); 
   const currentUserId = user?.id;
 
   const [stage, setStage] = useState<Stage>("summary");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("upi");
 
+  // A11Y Refs to manage focus containment
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+
+  // Capture the element that opened the modal on mount, return focus on unmount
+  useEffect(() => {
+    previousActiveElementRef.current = document.activeElement as HTMLElement;
+    return () => {
+      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === "function") {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, []);
+
+  // Move focus to the container when the stage transitions
+  useEffect(() => {
+    if (modalContainerRef.current) {
+      modalContainerRef.current.focus();
+    }
+  }, [stage]);
+
+  // Focus Trapping and Main Background Aria-Hidden Silencing
+  useEffect(() => {
+    const modalElement = modalContainerRef.current;
+    if (!modalElement) return;
+
+    // Capture all siblings of the modal container root to hide from screen readers
+    const rootSiblings = Array.from(document.body.children).filter(
+      (child) => child !== modalElement && !modalElement.contains(child)
+    );
+
+    rootSiblings.forEach((sibling) => sibling.setAttribute("aria-hidden", "true"));
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Allow closing with escape button if on summary page
+      if (e.key === "Escape" && stage === "summary") {
+        onClose();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+
+      const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (focusableElements.length === 0) return;
+
+      const firstEl = focusableElements[0];
+      const lastEl = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          lastEl.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          firstEl.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      rootSiblings.forEach((sibling) => sibling.removeAttribute("aria-hidden"));
+    };
+  }, [stage, onClose]);
+
   const handleProceed = async () => {
     try {
       setStage("processing");
 
-      // 1. Create Order on the Backend
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -45,21 +115,15 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
 
       if (!response.ok) throw new Error("Could not create order");
 
-      // 2. Configure Razorpay Options
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SQBmMDbmpm3m0D", // Use your Test Key ID here
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SQBmMDbmpm3m0D", 
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Suvarna Jewellers",
         description: `Payment for ${schemeName}`,
         order_id: orderData.orderId,
-        // Inside the 'handler' function of your Razorpay options:
-// Inside your PaymentModal's handleProceed function, update the 'options.handler':
-
-handler: async function (response: any) {
+        handler: async function (response: any) {
           console.log("DEBUG: Finalizing payment for UUID:", currentUserId);
-
-          // HARDCODED BACKEND URL TO FIX 'UNDEFINED' ERROR
           const backendUrl = "https://suvarna-jewellers-customer-backend.vercel.app";
 
           try {
@@ -78,31 +142,35 @@ handler: async function (response: any) {
               }),
             });
 
-            if (verifyRes.ok) { window.dispatchEvent(new Event("schemeUpdated")); setStage("success"); } else {
+            if (verifyRes.ok) { 
+              window.dispatchEvent(new Event("schemeUpdated")); 
+              setStage("success"); 
+            } else {
               const errorText = await verifyRes.text();
               console.error("Verification failed server response:", errorText);
               alert("Payment successful! Please refresh your dashboard to see updates.");
+              setStage("summary");
             }
           } catch (err) {
             console.error("Fetch Error:", err);
             alert("Connection error. Please check your internet and refresh.");
+            setStage("summary");
           }
         },
         prefill: {
-          name: "Customer Name", // You can pass user.name from context here
+          name: "Customer Name", 
           contact: "9876543210",
         },
         theme: {
-          color: "#b8860b", // Your gold theme color
+          color: "#b8860b", 
         },
         modal: {
           ondismiss: function () {
-            setStage("summary"); // Go back if user closes popup
+            setStage("summary"); 
           }
         }
       };
 
-      // 3. Open the Popup
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
 
@@ -119,7 +187,12 @@ handler: async function (response: any) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      ref={modalContainerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-heading-title"
+      tabIndex={-1}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 outline-none"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -128,7 +201,7 @@ handler: async function (response: any) {
       <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={stage === "summary" ? onClose : undefined} />
 
       <AnimatePresence mode="wait">
-        {/* ─── STAGE 1: Payment Summary (RESTORED FULL VERSION) ─── */}
+        {/* ─── STAGE 1: Payment Summary ─── */}
         {stage === "summary" && (
           <motion.div
             key="summary"
@@ -142,17 +215,20 @@ handler: async function (response: any) {
               boxShadow: "0 25px 60px -15px hsla(38, 50%, 30%, 0.35), 0 0 0 1px hsla(43, 80%, 55%, 0.2)",
             }}
           >
-            {/* Gold accent bar */}
             <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg, hsl(var(--gold-dark)), hsl(var(--gold)), hsl(var(--gold-dark)))" }} />
 
-            {/* Close button */}
-            <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors">
-              <X className="w-5 h-5 text-muted-foreground" />
+            {/* Close button with semantic a11y label text */}
+            <button 
+              onClick={onClose} 
+              aria-label="Close Payment Panel"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-gold"
+            >
+              <X className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
             </button>
 
             <div className="p-8 pt-6">
               <p className="font-elegant text-xs tracking-[0.25em] uppercase text-gold-dark mb-1">Payment Summary</p>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-6">{schemeName}</h2>
+              <h2 id="modal-heading-title" className="font-display text-2xl font-bold text-foreground mb-6">{schemeName}</h2>
 
               {/* Amount card */}
               <div className="rounded-2xl p-5 mb-6" style={{
@@ -176,7 +252,9 @@ handler: async function (response: any) {
                   <button
                     key={id}
                     onClick={() => setSelectedMethod(id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${
+                    aria-checked={selectedMethod === id}
+                    role="radio"
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left focus:outline-none focus:ring-2 focus:ring-gold ${
                       selectedMethod === id
                         ? "border-gold bg-gold/5 shadow-sm"
                         : "border-border hover:border-gold-light bg-transparent"
@@ -185,7 +263,7 @@ handler: async function (response: any) {
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                       selectedMethod === id ? "bg-gold/15" : "bg-muted"
                     }`}>
-                      <Icon className={`w-5 h-5 ${selectedMethod === id ? "text-gold-dark" : "text-muted-foreground"}`} />
+                      <Icon className={`w-5 h-5 ${selectedMethod === id ? "text-gold-dark" : "text-muted-foreground"}`} aria-hidden="true" />
                     </div>
                     <div>
                       <p className="font-body font-semibold text-sm text-foreground">{label}</p>
@@ -206,10 +284,9 @@ handler: async function (response: any) {
                 ))}
               </div>
 
-              {/* Proceed button */}
               <button
                 onClick={handleProceed}
-                className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2"
+                className="btn-gold btn-gold-pulse w-full text-base py-4 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold"
               >
                 <Shield className="w-4 h-4" /> Proceed to Pay {formatINR(monthlyAmount)}
               </button>
@@ -221,7 +298,7 @@ handler: async function (response: any) {
           </motion.div>
         )}
 
-        {/* ─── STAGE 2: Processing (RESTORED FULL VERSION) ─── */}
+        {/* ─── STAGE 2: Processing ─── */}
         {stage === "processing" && (
           <motion.div
             key="processing"
@@ -229,19 +306,16 @@ handler: async function (response: any) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4 }}
-            className="relative z-10 w-full max-sm rounded-3xl p-10 flex flex-col items-center text-center"
+            className="relative z-10 w-full max-w-sm rounded-3xl p-10 flex flex-col items-center text-center"
             style={{
               background: "linear-gradient(170deg, hsl(40, 28%, 96%) 0%, hsl(38, 22%, 91%) 100%)",
               boxShadow: "0 25px 60px -15px hsla(38, 50%, 30%, 0.35)",
             }}
           >
-            {/* Animated gold spinner */}
             <div className="relative w-24 h-24 mb-6">
               <motion.div
                 className="absolute inset-0 rounded-full"
-                style={{
-                  border: "3px solid hsla(43, 80%, 55%, 0.15)",
-                }}
+                style={{ border: "3px solid hsla(43, 80%, 55%, 0.15)" }}
               />
               <motion.div
                 className="absolute inset-0 rounded-full"
@@ -270,17 +344,17 @@ handler: async function (response: any) {
                   animate={{ opacity: [0.4, 1, 0.4] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
                 >
-                  <CreditCard className="w-8 h-8 text-gold-dark" />
+                  <CreditCard className="w-8 h-8 text-gold-dark" aria-hidden="true" />
                 </motion.div>
               </div>
             </div>
 
-            <h3 className="font-display text-xl font-bold text-foreground mb-2">Verifying Payment</h3>
+            <h3 id="modal-heading-title" className="font-display text-xl font-bold text-foreground mb-2">Verifying Payment</h3>
             <p className="font-body text-sm text-muted-foreground">Please wait while we confirm your transaction…</p>
           </motion.div>
         )}
 
-        {/* ─── STAGE 3: Success (RESTORED FULL VERSION WITH FIX) ─── */}
+        {/* ─── STAGE 3: Success ─── */}
         {stage === "success" && (
           <motion.div
             key="success"
@@ -294,7 +368,6 @@ handler: async function (response: any) {
               boxShadow: "0 25px 60px -15px hsla(38, 50%, 30%, 0.35)",
             }}
           >
-            {/* Celebratory glow */}
             <div className="absolute inset-0 pointer-events-none" style={{
               background: "radial-gradient(circle at 50% 30%, hsla(43, 80%, 55%, 0.12) 0%, transparent 60%)",
             }} />
@@ -309,7 +382,7 @@ handler: async function (response: any) {
                 border: "2px solid hsla(120, 50%, 45%, 0.4)",
               }}
             >
-              <CheckCircle2 className="w-10 h-10" style={{ color: "hsl(120, 50%, 38%)" }} />
+              <CheckCircle2 className="w-10 h-10" style={{ color: "hsl(120, 50%, 38%)" }} aria-hidden="true" />
               <motion.div
                 className="absolute inset-0 rounded-full"
                 initial={{ opacity: 0.6, scale: 1 }}
@@ -323,6 +396,7 @@ handler: async function (response: any) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
+              id="modal-heading-title"
               className="font-display text-2xl font-bold text-foreground mb-2"
             >
               Payment Successful
@@ -334,7 +408,6 @@ handler: async function (response: any) {
               transition={{ delay: 0.45 }}
               className="font-body text-sm text-muted-foreground mb-2"
             >
-              {/* DYNAMIC TEXT RESTORED */}
               {window.location.pathname.includes('dashboard') ? "Your installment has been received for" : "You are now enrolled in"}
             </motion.p>
             
@@ -353,7 +426,7 @@ handler: async function (response: any) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.65 }}
               onClick={handleGoToDashboard}
-              className="btn-gold w-full text-base py-4"
+              className="btn-gold w-full text-base py-4 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold"
             >
               Go to Dashboard
             </motion.button>
