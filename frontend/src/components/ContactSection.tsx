@@ -84,9 +84,10 @@ const ContactSection = () => {
           className="text-center mb-16"
         >
           <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">Visit Us</p>
-          <h2 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-4">
+          {/* FIXED: Changed from h2 to h1 to establish a correct document outline structure */}
+          <h1 className="font-display text-3xl md:text-5xl font-bold text-foreground mb-4">
             Welcome to Our <span className="text-gold-gradient-shine">Showroom</span>
-          </h2>
+          </h1>
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-8 items-stretch">
