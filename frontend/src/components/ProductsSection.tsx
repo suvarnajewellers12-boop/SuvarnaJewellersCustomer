@@ -234,9 +234,10 @@ const ProductsSection = () => {
           <p className="font-elegant text-base tracking-[0.3em] uppercase text-gold-dark mb-3">
             Curated Collection
           </p>
-          <h2 id="products-heading" className="font-display text-3xl md:text-5xl font-bold text-foreground mb-4">
+          {/* ACCESSIBILITY FIX: Switched from h2 to h1 to establish the proper heading structure level */}
+          <h1 id="products-heading" className="font-display text-3xl md:text-5xl font-bold text-foreground mb-4">
             Exquisite <span className="text-gold-gradient-shine">Treasures</span>
-          </h2>
+          </h1>
           <p className="font-body text-muted-foreground max-w-xl mx-auto">
             Each piece tells a story of heritage, crafted with devotion and designed to be cherished for generations.
           </p>
