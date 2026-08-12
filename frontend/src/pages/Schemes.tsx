@@ -236,13 +236,81 @@ const ProgressArc = ({
   );
 };
 
+// ── NEW ──────────────────────────────────────────────────
+// Shape of the enrollment details collected in TermsModal,
+// forwarded to PaymentModal and on to the backend verify call.
+export interface EnrollmentDetails {
+  nomineeName: string;
+  nomineeRelation: string;
+  nomineePhone: string;
+  nomineeAddress?: string;
+  customerAddress?: string;
+}
+// ───────────────────────────────────────────────────────────
+
 interface TermsModalProps {
   onClose: () => void;
-  onAgree: () => void;
+  onAgree: (details: EnrollmentDetails) => void;
 }
 
 const TermsModal = ({ onClose, onAgree }: TermsModalProps) => {
   const modalRef = useFocusTrap(true);
+
+  // ── NEW: enrollment form state ──────────────────────────
+  const [nomineeName, setNomineeName] = useState("");
+  const [nomineeRelation, setNomineeRelation] = useState("");
+  const [nomineePhone, setNomineePhone] = useState("");
+  const [nomineeAddress, setNomineeAddress] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [announcement, setAnnouncement] = useState("");
+  // ─────────────────────────────────────────────────────────
+
+  const validate = () => {
+    const next: Record<string, string> = {};
+
+    if (!nomineeName.trim()) {
+      next.nomineeName = "Nominee name is required";
+    }
+    if (!nomineeRelation.trim()) {
+      next.nomineeRelation = "Relation is required";
+    }
+    if (!nomineePhone.trim()) {
+      next.nomineePhone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(nomineePhone.trim())) {
+      next.nomineePhone = "Enter a valid 10-digit phone number";
+    }
+    if (!agreed) {
+      next.agreed = "You must agree to the Terms & Conditions";
+    }
+
+    setErrors(next);
+
+    if (Object.keys(next).length > 0) {
+      setAnnouncement("Please correct the errors in the form");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    onAgree({
+      nomineeName: nomineeName.trim(),
+      nomineeRelation: nomineeRelation.trim(),
+      nomineePhone: nomineePhone.trim(),
+      nomineeAddress: nomineeAddress.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined,
+    });
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setNomineePhone(digitsOnly);
+  };
 
   return (
     <motion.div
@@ -279,67 +347,210 @@ const TermsModal = ({ onClose, onAgree }: TermsModalProps) => {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto font-body text-sm text-muted-foreground space-y-6 bg-cream/30 leading-relaxed">
-          {termsAndConditionsSections.map((section, idx) => (
-            <section key={idx} className="space-y-2">
-              {/* Fix 2: Section titles correctly marked up as Heading Level 3 */}
-              <h3 className="font-display text-base font-bold text-foreground">
-                {section.title}
-              </h3>
-              
-              {section.isListOnly ? (
-                <>
-                  <p className="text-muted-foreground mb-1">{section.introText}</p>
-                  {/* Fix 1: Groups under sections identified as semantic HTML lists */}
+        {/* Live region for form-level error announcements */}
+        <div role="status" aria-live="polite" className="sr-only">
+          {announcement}
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 overflow-y-auto font-body text-sm text-muted-foreground space-y-6 bg-cream/30 leading-relaxed">
+            {termsAndConditionsSections.map((section, idx) => (
+              <section key={idx} className="space-y-2">
+                <h3 className="font-display text-base font-bold text-foreground">
+                  {section.title}
+                </h3>
+
+                {section.isListOnly ? (
+                  <>
+                    <p className="text-muted-foreground mb-1">{section.introText}</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {section.content.map((item, itemIdx) => (
+                        <li key={itemIdx}>{item}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : section.content.length > 1 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {section.content.map((item, itemIdx) => (
                       <li key={itemIdx}>{item}</li>
                     ))}
                   </ul>
-                </>
-              ) : section.content.length > 1 ? (
-                <ul className="list-disc pl-5 space-y-1">
-                  {section.content.map((item, itemIdx) => (
-                    <li key={itemIdx}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>{section.content[0]}</p>
+                ) : (
+                  <p>{section.content[0]}</p>
+                )}
+              </section>
+            ))}
+
+            <hr className="border-gold/10 my-4" />
+
+            <section className="space-y-2 text-xs">
+              <h3 className="font-display font-bold text-foreground">Contact Information</h3>
+              <address className="not-italic space-y-1 text-muted-foreground">
+                <p className="font-semibold">Suvarna Jewellers</p>
+                <p>D.No. 13-1-12, Main Road, Near YSR Statue,</p>
+                <p>New Gajuwaka, Visakhapatnam - 530026,</p>
+                <p>Andhra Pradesh, India.</p>
+                <p className="pt-1">Email: suvarnajewellers12@gmail.com</p>
+              </address>
+              <p className="text-muted-foreground/60 pt-4">© 2026 Suvarna Jewellers. All Rights Reserved.</p>
+            </section>
+
+            <hr className="border-gold/10 my-4" />
+
+            {/* ── NEW: Enrollment Details form ─────────────────────── */}
+            <section className="space-y-4">
+              <h3 id="enrollment-heading" className="font-display text-base font-bold text-foreground">
+                Enrollment Details
+              </h3>
+
+              <div className="space-y-1.5">
+                <label htmlFor="nomineeName" className="block font-body text-sm font-medium text-foreground">
+                  Nominee Name
+                </label>
+                <input
+                  id="nomineeName"
+                  name="nomineeName"
+                  type="text"
+                  value={nomineeName}
+                  onChange={(e) => setNomineeName(e.target.value)}
+                  aria-required="true"
+                  aria-invalid={!!errors.nomineeName}
+                  aria-describedby={errors.nomineeName ? "nomineeName-error" : undefined}
+                  className="w-full rounded-xl border border-gold/30 bg-white px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
+                  placeholder="Enter the full name of the nominee"
+                />
+                {errors.nomineeName && (
+                  <p id="nomineeName-error" role="alert" className="text-xs text-destructive">
+                    {errors.nomineeName}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="nomineeRelation" className="block font-body text-sm font-medium text-foreground">
+                  Relation
+                </label>
+                <input
+                  id="nomineeRelation"
+                  name="nomineeRelation"
+                  type="text"
+                  value={nomineeRelation}
+                  onChange={(e) => setNomineeRelation(e.target.value)}
+                  aria-required="true"
+                  aria-invalid={!!errors.nomineeRelation}
+                  aria-describedby={errors.nomineeRelation ? "nomineeRelation-error" : undefined}
+                  className="w-full rounded-xl border border-gold/30 bg-white px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
+                  placeholder="Your relationship with the nominee"
+                />
+                {errors.nomineeRelation && (
+                  <p id="nomineeRelation-error" role="alert" className="text-xs text-destructive">
+                    {errors.nomineeRelation}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="nomineePhone" className="block font-body text-sm font-medium text-foreground">
+                  Nominee Phone Number
+                </label>
+                <input
+                  id="nomineePhone"
+                  name="nomineePhone"
+                  type="tel"
+                  inputMode="numeric"
+                  value={nomineePhone}
+                  onChange={handlePhoneChange}
+                  aria-required="true"
+                  aria-invalid={!!errors.nomineePhone}
+                  aria-describedby={errors.nomineePhone ? "nomineePhone-error" : "nomineePhone-hint"}
+                  className="w-full rounded-xl border border-gold/30 bg-white px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
+                  placeholder="10-digit phone number"
+                  maxLength={10}
+                />
+                <p id="nomineePhone-hint" className="text-xs text-muted-foreground">
+                  Enter a 10-digit phone number
+                </p>
+                {errors.nomineePhone && (
+                  <p id="nomineePhone-error" role="alert" className="text-xs text-destructive">
+                    {errors.nomineePhone}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="nomineeAddress" className="block font-body text-sm font-medium text-foreground">
+                  Nominee Address <span className="text-muted-foreground font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  id="nomineeAddress"
+                  name="nomineeAddress"
+                  value={nomineeAddress}
+                  onChange={(e) => setNomineeAddress(e.target.value)}
+                  rows={2}
+                  aria-required="false"
+                  className="w-full rounded-xl border border-gold/30 bg-white px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-gold resize-none"
+                  placeholder="Enter the nominee's address"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="customerAddress" className="block font-body text-sm font-medium text-foreground">
+                  Your Address <span className="text-muted-foreground font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  id="customerAddress"
+                  name="customerAddress"
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
+                  rows={2}
+                  aria-required="false"
+                  className="w-full rounded-xl border border-gold/30 bg-white px-4 py-2.5 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-gold resize-none"
+                  placeholder="Enter your personal address"
+                />
+              </div>
+
+              <div className="flex items-start gap-3 pt-2">
+                <input
+                  id="agreeCheckbox"
+                  name="agreeCheckbox"
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  aria-required="true"
+                  aria-invalid={!!errors.agreed}
+                  aria-describedby={errors.agreed ? "agreed-error" : undefined}
+                  className="mt-1 w-4 h-4 rounded border-gold/40 text-gold focus:ring-gold"
+                />
+                <label htmlFor="agreeCheckbox" className="font-body text-sm text-foreground">
+                  I agree to the Terms & Conditions
+                </label>
+              </div>
+              {errors.agreed && (
+                <p id="agreed-error" role="alert" className="text-xs text-destructive">
+                  {errors.agreed}
+                </p>
               )}
             </section>
-          ))}
+            {/* ──────────────────────────────────────────────────────── */}
+          </div>
 
-          <hr className="border-gold/10 my-4" />
-
-          <section className="space-y-2 text-xs">
-            <h3 className="font-display font-bold text-foreground">Contact Information</h3>
-            <address className="not-italic space-y-1 text-muted-foreground">
-              <p className="font-semibold">Suvarna Jewellers</p>
-              <p>D.No. 13-1-12, Main Road, Near YSR Statue,</p>
-              <p>New Gajuwaka, Visakhapatnam - 530026,</p>
-              <p>Andhra Pradesh, India.</p>
-              <p className="pt-1">Email: suvarnajewellers12@gmail.com</p>
-            </address>
-            <p className="text-muted-foreground/60 pt-4">© 2026 Suvarna Jewellers. All Rights Reserved.</p>
-          </section>
-        </div>
-
-        <div className="p-4 border-t border-gold/20 bg-pearl/50 flex gap-3 justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-gold/30 font-body text-sm text-foreground hover:bg-gold/5 transition-colors"
-          >
-            Decline
-          </button>
-          <button
-            type="button"
-            onClick={onAgree}
-            className="btn-gold px-6 py-2.5 rounded-xl font-body text-sm font-semibold"
-          >
-            Agree & Proceed
-          </button>
-        </div>
+          <div className="p-4 border-t border-gold/20 bg-pearl/50 flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl border border-gold/30 font-body text-sm text-foreground hover:bg-gold/5 transition-colors"
+            >
+              Decline
+            </button>
+            <button
+              type="submit"
+              aria-label={agreed ? "Agree and proceed to payment" : "Agree and proceed, terms must be accepted first"}
+              className="btn-gold px-6 py-2.5 rounded-xl font-body text-sm font-semibold"
+            >
+              Agree & Proceed
+            </button>
+          </div>
+        </form>
       </motion.div>
     </motion.div>
   );
@@ -357,6 +568,9 @@ const Schemes = () => {
   const [dbSchemes, setDbSchemes] = useState<any[]>(_cachedDbSchemes ?? []);
   const [pendingScheme, setPendingScheme] = useState<any | null>(null);
   const [paymentScheme, setPaymentScheme] = useState<any | null>(null);
+  // ── NEW: holds the nominee/address details collected in TermsModal
+  // until the payment succeeds ──────────────────────────────────────
+  const [enrollmentDetails, setEnrollmentDetails] = useState<EnrollmentDetails | null>(null);
   const [loading, setLoading] = useState(_cachedDbSchemes === null);
   const [showGold, setShowGold] = useState(true);
 
@@ -402,8 +616,11 @@ const Schemes = () => {
     setPendingScheme(scheme);
   };
 
-  const handleTermsAccepted = () => {
+  // ── UPDATED: now receives the collected enrollment details
+  // and stores them for PaymentModal to forward on verify ──────────
+  const handleTermsAccepted = (details: EnrollmentDetails) => {
     if (pendingScheme) {
+      setEnrollmentDetails(details);
       setPaymentScheme(pendingScheme);
       setPendingScheme(null);
     }
@@ -413,8 +630,14 @@ const Schemes = () => {
     if (paymentScheme) {
       await refreshSchemes();
       setPaymentScheme(null);
+      setEnrollmentDetails(null);
       navigate("/dashboard");
     }
+  };
+
+  const handlePaymentClose = () => {
+    setPaymentScheme(null);
+    setEnrollmentDetails(null);
   };
 
   if (loading) {
@@ -471,8 +694,8 @@ const Schemes = () => {
             </p>
 
             <nav className="mt-8 max-w-md mx-auto" aria-label="Savings Schemes Filters">
-              <div 
-                role="tablist" 
+              <div
+                role="tablist"
                 aria-label="Scheme Types"
                 className="bg-pearl/70 p-1 rounded-2xl flex border border-gold/10"
               >
@@ -611,8 +834,15 @@ const Schemes = () => {
             schemeId={paymentScheme.id}
             schemeName={paymentScheme.name}
             monthlyAmount={paymentScheme.monthlyAmount}
+            // ── NEW: forward the collected nominee/address details
+            // so PaymentModal can include them in the verify request ──
+            nomineeName={enrollmentDetails?.nomineeName}
+            nomineeRelation={enrollmentDetails?.nomineeRelation}
+            nomineePhone={enrollmentDetails?.nomineePhone}
+            nomineeAddress={enrollmentDetails?.nomineeAddress}
+            customerAddress={enrollmentDetails?.customerAddress}
             onSuccess={handlePaymentSuccess}
-            onClose={() => setPaymentScheme(null)}
+            onClose={handlePaymentClose}
           />
         )}
       </AnimatePresence>

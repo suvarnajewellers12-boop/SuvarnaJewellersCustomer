@@ -35,6 +35,11 @@ export async function POST(req: Request) {
       razorpay_signature,
       schemeId,
       userId,
+      customerAddress,
+      nomineeName,
+      nomineeRelation,
+      nomineePhone,
+      nomineeAddress,
     } = body;
 
     // 1. Verify auth token
@@ -115,6 +120,9 @@ export async function POST(req: Request) {
     // 5. Transaction
     const result = await prisma.$transaction(async (tx) => {
       if (existingEnrollment) {
+        // ── Existing enrollment: process the next installment ──
+        // (nominee/address fields are NOT touched here — they were
+        // already set once, at initial enrollment, below)
         const isLastPayment = existingEnrollment.installmentsLeft === 1;
 
         const updated = await tx.customerScheme.update({
@@ -163,7 +171,7 @@ export async function POST(req: Request) {
         return { type: "INSTALLMENT_PROCESSED", data: updated };
       }
 
-      // New enrollment
+      // ── New enrollment: nominee/address fields are set here, once ──
       const newCS = await tx.customerScheme.create({
         data: {
           id: crypto.randomUUID(),
@@ -175,6 +183,11 @@ export async function POST(req: Request) {
           installmentsLeft: scheme.durationMonths - 1,
           accumulatedGrams: gramsEarned,
           isCompleted: false,
+          customerAddress: customerAddress || null,
+          nomineeName: nomineeName || "",
+          nomineeRelation: nomineeRelation || "",
+          nomineePhone: nomineePhone || "",
+          nomineeAddress: nomineeAddress || null,
         },
       });
 

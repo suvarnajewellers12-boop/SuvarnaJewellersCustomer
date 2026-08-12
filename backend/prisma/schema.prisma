@@ -13,6 +13,8 @@ model Admin {
   branchName String
   state      String
   password   String
+  Address    String     @default("D.No. 13-1-12, Main Road,Near YSR Statue, New Gajuwaka,Visakhapatnam - 530026,Andhra Pradesh")
+  Gmail      String     @default("suvarnajewellers12@gmail.com")
   role       String     @default("ADMIN")
   createdAt  DateTime   @default(now())
   createdBy  String
@@ -42,6 +44,11 @@ model CustomerScheme {
   isCompleted      Boolean          @default(false)
   startDate        DateTime         @default(now())
   accumulatedGrams Float            @default(0)
+  customerAddress  String?
+  nomineeName      String           @default("")
+  nomineeRelation  String           @default("")
+  nomineePhone     String           @default("")
+  nomineeAddress   String?
   coupon           Coupon?
   Customer         Customer         @relation(fields: [customerId], references: [id])
   Scheme           Scheme           @relation(fields: [schemeId], references: [id])
@@ -50,19 +57,23 @@ model CustomerScheme {
 
 model GoldJobWork {
   id                String    @id
-  companyName       String
-  productType       String
-  goldGivenType     String
-  goldGivenGrams    Float
+  workerName        String?
+  totalGrams        Float?
+  productType       String?
+  advancePaid       Float     @default(0)
   makingCharge      Float?
+  totalAmount       Float?    @default(0)
+  balanceAmount     Float?    @default(0)
   status            String    @default("PENDING")
-  dateGiven         DateTime
+  dateGiven         DateTime  @default(now())
   dateReceived      DateTime?
   wastageGrams      Float?
   returnedGoldGrams Float?
   notes             String?
   createdBy         String
   createdAt         DateTime  @default(now())
+  totalPaid         Float?    @default(0)
+  Order             Order[]
 }
 
 model GoldPurchase {
@@ -105,10 +116,10 @@ model Product {
   category        String         @default("others")
   bodyPart        String         @default("others")
   grams           Float
+  grossWeight     Float
   stoneWeight     Float          @default(0)
   netWeight       Float          @default(0)
-  quantity        Int            @default(1)
-  huid            String?
+  itemCode        String?
   uniqueCode      String         @unique
   sku             String         @unique
   isSold          Boolean        @default(false)
@@ -118,6 +129,7 @@ model Product {
   branchName      String         @default("Gajuwaka")
   va              Float          @default(2.5)
   stoneCost       Float          @default(0)
+  pieceCost       Float          @default(0)
   PurchaseItem    PurchaseItem[]
 }
 
@@ -152,11 +164,16 @@ model Purchase {
   excahngejewellrygrams     Float?
   excahngejewellryname      String?
   jewelleryexchangediscount Float?
+  couponDiscount            Float?         @default(0)
   cardAmount                Float          @default(0)
   cashAmount                Float          @default(0)
   chequeAmount              Float          @default(0)
   upiAmount                 Float          @default(0)
   invoice                   String         @default("svj-234")
+  cashierId                 String?
+  cashierName               String?
+  salesmanId                String?
+  salesmanName              String?
   Admin                     Admin?         @relation(fields: [adminId], references: [id])
   SuperAdmin                SuperAdmin?    @relation(fields: [superAdminId], references: [id])
   PurchaseItem              PurchaseItem[]
@@ -187,15 +204,20 @@ model Scheme {
 }
 
 model Staff {
-  id            String   @id
-  fullName      String
-  dateOfJoining DateTime
-  monthlySalary Float
-  gender        String
-  phoneNumber   String   @unique
-  aadharNumber  String   @unique
-  createdAt     DateTime @default(now())
-  createdBy     String
+  id                 String   @id
+  fullName           String
+  dateOfJoining      DateTime
+  monthlySalary      Float
+  gender             String
+  phoneNumber        String   @unique
+  aadharNumber       String   @unique
+  panCardNumber      String?  @unique
+  nomineeName        String
+  nomineeRelation    String
+  nomineePhoneNumber String   @unique
+  nomineeAddress     String
+  createdAt          DateTime @default(now())
+  createdBy          String
 }
 
 model SuperAdmin {
@@ -221,6 +243,9 @@ model Coupon {
   description      String?
   type             String          @default("WEIGHT")
   value            Float           @default(0)
+  isPreClosed      Boolean         @default(false)
+  preClosedAt      DateTime?
+  invoiceNumber    String?
   Customer         Customer        @relation(fields: [customerId], references: [id])
   CustomerScheme   CustomerScheme? @relation(fields: [customerSchemeId], references: [id])
   Scheme           Scheme?         @relation(fields: [schemeId], references: [id])
@@ -245,15 +270,50 @@ model CreditNote {
   overallCost  Float
   couponId     String
   createdAt    DateTime     @default(now())
+  isUsed       Boolean      @default(false)
   ReturnCoupon ReturnCoupon @relation(fields: [couponId], references: [id])
 }
 
 model ReturnCoupon {
-  id         String       @id
-  code       String       @unique
-  cashAmount Float
-  isUsed     Boolean      @default(false)
-  createdAt  DateTime     @default(now())
-  invoice    String       @default("#svn")
-  CreditNote CreditNote[]
+  id          String       @id
+  code        String       @unique
+  cashAmount  Float
+  isUsed      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  invoice     String       @default("#svn")
+  pastinvoice String       @default("svn-invoice")
+  CreditNote  CreditNote[]
+}
+
+model Order {
+  id                     String       @id
+  orderId                String       @unique
+  customerName           String
+  phoneNumber            String
+  itemName               String
+  itemDescription        String?
+  metalType              String
+  purity                 String
+  liveRate               Float
+  givenMetalGrams        Float
+  addedMetalGrams        Float
+  stoneWeight            Float
+  netWeight              Float
+  grossWeight            Float
+  vaPercentage            Float
+  stoneCost              Float
+  gst                    Float
+  totalAmount            Float
+  advanceCash            Float
+  discountAmount         Float?       @default(10000)
+  balanceAmount          Float
+  deadlineDate           DateTime
+  createdAt              DateTime     @default(now())
+  createdBy              String
+  status                 String       @default("NOT ASSIGNED")
+  jobWorkId              String?
+  originalCartValue      Float        @default(0)
+  exchangeJewelleryGrams Float?       @default(0)
+  exchangeJewelleryName  String?
+  GoldJobWork            GoldJobWork? @relation(fields: [jobWorkId], references: [id])
 }

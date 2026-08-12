@@ -9,6 +9,13 @@ interface PaymentModalProps {
   monthlyAmount: number;
   onSuccess: () => void;
   onClose: () => void;
+  // ── NEW: enrollment details collected in TermsModal, forwarded
+  // to the verify endpoint so they land on the CustomerScheme row ──
+  nomineeName?: string;
+  nomineeRelation?: string;
+  nomineePhone?: string;
+  nomineeAddress?: string;
+  customerAddress?: string;
 }
 
 const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
@@ -22,8 +29,19 @@ const paymentMethods: { id: PaymentMethod; label: string; icon: typeof CreditCar
   { id: "netbanking", label: "Net Banking", icon: Landmark, desc: "All major banks" },
 ];
 
-const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose }: PaymentModalProps) => {
-  const { user } = useAuth(); 
+const PaymentModal = ({
+  schemeId,
+  schemeName,
+  monthlyAmount,
+  onSuccess,
+  onClose,
+  nomineeName,
+  nomineeRelation,
+  nomineePhone,
+  nomineeAddress,
+  customerAddress,
+}: PaymentModalProps) => {
+  const { user } = useAuth();
   const currentUserId = user?.id;
 
   const [stage, setStage] = useState<Stage>("summary");
@@ -33,7 +51,6 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
   const modalContainerRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
-  // Capture the element that opened the modal on mount, return focus on unmount
   useEffect(() => {
     previousActiveElementRef.current = document.activeElement as HTMLElement;
     return () => {
@@ -43,19 +60,16 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
     };
   }, []);
 
-  // Move focus to the container when the stage transitions
   useEffect(() => {
     if (modalContainerRef.current) {
       modalContainerRef.current.focus();
     }
   }, [stage]);
 
-  // Focus Trapping and Main Background Aria-Hidden Silencing
   useEffect(() => {
     const modalElement = modalContainerRef.current;
     if (!modalElement) return;
 
-    // Capture all siblings of the modal container root to hide from screen readers
     const rootSiblings = Array.from(document.body.children).filter(
       (child) => child !== modalElement && !modalElement.contains(child)
     );
@@ -63,7 +77,6 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
     rootSiblings.forEach((sibling) => sibling.setAttribute("aria-hidden", "true"));
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Allow closing with escape button if on summary page
       if (e.key === "Escape" && stage === "summary") {
         onClose();
         return;
@@ -116,7 +129,7 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
       if (!response.ok) throw new Error("Could not create order");
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SQBmMDbmpm3m0D", 
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SQBmMDbmpm3m0D",
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Suvarna Jewellers",
@@ -124,12 +137,12 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
         order_id: orderData.orderId,
         handler: async function (response: any) {
           console.log("DEBUG: Finalizing payment for UUID:", currentUserId);
-          const backendUrl = "https://suvarna-jewellers-customer-backend.vercel.app";
+          const backendUrl = "http://localhost:3000"; // Replace with your backend URL
 
           try {
             const verifyRes = await fetch(`${backendUrl}/api/payments/verify`, {
               method: "POST",
-              headers: { 
+              headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${localStorage.getItem("token")}`
               },
@@ -139,12 +152,19 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
                 razorpay_signature: response.razorpay_signature,
                 schemeId: schemeId,
                 userId: currentUserId,
+                // ── NEW: only meaningful on first enrollment — the
+                // backend ignores these on subsequent installments ──
+                customerAddress: customerAddress,
+                nomineeName: nomineeName,
+                nomineeRelation: nomineeRelation,
+                nomineePhone: nomineePhone,
+                nomineeAddress: nomineeAddress,
               }),
             });
 
-            if (verifyRes.ok) { 
-              window.dispatchEvent(new Event("schemeUpdated")); 
-              setStage("success"); 
+            if (verifyRes.ok) {
+              window.dispatchEvent(new Event("schemeUpdated"));
+              setStage("success");
             } else {
               const errorText = await verifyRes.text();
               console.error("Verification failed server response:", errorText);
@@ -158,15 +178,15 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
           }
         },
         prefill: {
-          name: "Customer Name", 
+          name: "Customer Name",
           contact: "9876543210",
         },
         theme: {
-          color: "#b8860b", 
+          color: "#b8860b",
         },
         modal: {
           ondismiss: function () {
-            setStage("summary"); 
+            setStage("summary");
           }
         }
       };
@@ -217,9 +237,8 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
           >
             <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg, hsl(var(--gold-dark)), hsl(var(--gold)), hsl(var(--gold-dark)))" }} />
 
-            {/* ACCESSIBILITY FIX: Explicit text label match for audit requirement */}
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               aria-label="Close"
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-gold"
             >
@@ -228,10 +247,8 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
 
             <div className="p-8 pt-6">
               <p className="font-elegant text-xs tracking-[0.25em] uppercase text-gold-dark mb-1">Payment Summary</p>
-              {/* ACCESSIBILITY FIX: Keeps matching label identity lookup string unique on Stage 1 */}
               <h2 id="modal-heading-title" className="font-display text-2xl font-bold text-foreground mb-6">{schemeName}</h2>
 
-              {/* Amount card */}
               <div className="rounded-2xl p-5 mb-6" style={{
                 background: "linear-gradient(135deg, hsla(43, 80%, 55%, 0.1) 0%, hsla(38, 40%, 75%, 0.08) 100%)",
                 border: "1px solid hsla(43, 80%, 55%, 0.2)",
@@ -246,7 +263,6 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
                 </div>
               </div>
 
-              {/* Payment methods */}
               <p className="font-body text-xs text-muted-foreground mb-3 uppercase tracking-wider">Select Payment Method</p>
               <div className="space-y-2.5 mb-8">
                 {paymentMethods.map(({ id, label, icon: Icon, desc }) => (
@@ -350,7 +366,6 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
               </div>
             </div>
 
-            {/* ACCESSIBILITY FIX: Keeps label reference matched dynamically when viewing stage 2 */}
             <h3 id="modal-heading-title" className="font-display text-xl font-bold text-foreground mb-2">Verifying Payment</h3>
             <p className="font-body text-sm text-muted-foreground">Please wait while we confirm your transaction…</p>
           </motion.div>
@@ -394,7 +409,6 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
               />
             </motion.div>
 
-            {/* ACCESSIBILITY FIX: Keeps label reference matched dynamically when viewing stage 3 */}
             <motion.h3
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -404,7 +418,7 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
             >
               Payment Successful
             </motion.h3>
-            
+
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -413,7 +427,7 @@ const PaymentModal = ({ schemeId, schemeName, monthlyAmount, onSuccess, onClose 
             >
               {window.location.pathname.includes('dashboard') ? "Your installment has been received for" : "You are now enrolled in"}
             </motion.p>
-            
+
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
