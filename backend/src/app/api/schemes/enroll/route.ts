@@ -193,7 +193,7 @@ export async function POST(req: Request) {
           id: crypto.randomUUID(),
           customerSchemeId: customerScheme.id,
           amountPaid: scheme.monthlyAmount,
-          liveRate24K: scheme.isWeightBased ? liveRate : null,
+          liveRate22K: scheme.isWeightBased ? liveRate : null,
           gramsAdded: scheme.isWeightBased ? gramsEarned : null,
         },
       });
