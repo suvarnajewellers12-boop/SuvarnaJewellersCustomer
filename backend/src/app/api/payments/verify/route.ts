@@ -3,24 +3,25 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/jwt";
-
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
 // ============================================================
-// RAZORPAY
+// RAZORPAY TEST CREDENTIALS
 // ============================================================
 
+const RAZORPAY_KEY_ID = "rzp_test_TlLhkVrMSDh6az";
+const RAZORPAY_KEY_SECRET = "e5VaoxSOW3ygy4kKHblZIir5";
+
 const razorpay = new Razorpay({
-  key_id: "rzp_test_TlLhkVrMSDh6az",
-  key_secret: "e5VaoxSOW3ygy4kKHblZIir5",
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
 });
 
 // ============================================================
-// ALLOWED FIRST-ENROLLMENT AMOUNTS
+// ALLOWED INSTALLMENT AMOUNTS
 // ============================================================
 
 const ALLOWED_INSTALLMENT_AMOUNTS = [
@@ -47,25 +48,30 @@ const ALLOWED_INSTALLMENT_AMOUNTS = [
 // CORS
 // ============================================================
 
+const allowedOrigins = [
+  "https://suvarnajewellers.in",
+  "https://www.suvarnajewellers.in",
+];
+
 function corsHeaders(origin: string) {
+  const allowedOrigin = allowedOrigins.includes(origin)
+    ? origin
+    : allowedOrigins[0];
+
   return {
-    "Access-Control-Allow-Origin":
-      origin || "*",
-
-    "Access-Control-Allow-Credentials":
-      "true",
-
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization",
-
-    "Access-Control-Allow-Methods":
-      "POST, OPTIONS",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }
 
+// ============================================================
+// OPTIONS
+// ============================================================
+
 export async function OPTIONS(req: Request) {
-  const origin =
-    req.headers.get("origin") || "";
+  const origin = req.headers.get("origin") || "";
 
   return new NextResponse(null, {
     status: 204,
@@ -78,12 +84,11 @@ export async function OPTIONS(req: Request) {
 // ============================================================
 
 export async function POST(req: Request) {
-  const origin =
-    req.headers.get("origin") || "";
+  const origin = req.headers.get("origin") || "";
 
   try {
     // ==========================================================
-    // 1. REQUEST BODY
+    // 1. READ BODY
     // ==========================================================
 
     const body = await req.json();
@@ -96,10 +101,10 @@ export async function POST(req: Request) {
       schemeId,
       userId,
 
-      // Flutter sends this.
-      // Used only as an additional cross-check.
+      // Selected amount sent by Flutter.
       amount,
 
+      // Enrollment details.
       customerAddress,
       nomineeName,
       nomineeRelation,
@@ -108,11 +113,10 @@ export async function POST(req: Request) {
     } = body;
 
     // ==========================================================
-    // 2. AUTHENTICATION
+    // 2. AUTH
     // ==========================================================
 
-    const authHeader =
-      req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization");
 
     const token =
       authHeader?.startsWith("Bearer ")
@@ -131,8 +135,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const decoded: any =
-      verifyToken(token);
+    const decoded: any = verifyToken(token);
 
     const currentUserId =
       decoded?.userId ||
@@ -150,11 +153,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Prevent another customer ID from being passed manually.
+    // Prevent client from passing another customer's ID.
     if (
       userId &&
-      String(userId) !==
-        String(currentUserId)
+      String(userId) !== String(currentUserId)
     ) {
       return NextResponse.json(
         {
@@ -168,7 +170,7 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 3. BASIC VALIDATION
+    // 3. BASIC PAYMENT VALIDATION
     // ==========================================================
 
     if (
@@ -201,31 +203,23 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 4. PREVENT DUPLICATE PAYMENT PROCESSING
-    //
-    // We use razorpay_payment_id as PaymentHistory.id.
-    //
-    // If verify API is called twice, the second request cannot
-    // add another installment.
+    // 4. DUPLICATE PAYMENT CHECK
     // ==========================================================
 
-    const alreadyProcessed =
+    const existingPayment =
       await prisma.paymentHistory.findUnique({
         where: {
           id: razorpay_payment_id,
         },
       });
 
-    if (alreadyProcessed) {
+    if (existingPayment) {
       return NextResponse.json(
         {
           status: "Success",
-
-          action:
-            "PAYMENT_ALREADY_PROCESSED",
-
+          action: "PAYMENT_ALREADY_PROCESSED",
           message:
-            "Payment has already been processed.",
+            "This Razorpay payment has already been processed.",
         },
         {
           status: 200,
@@ -238,16 +232,15 @@ export async function POST(req: Request) {
     // 5. VERIFY RAZORPAY SIGNATURE
     // ==========================================================
 
-    const expectedSignature =
-      crypto
-        .createHmac(
-          "sha256",
-          process.env.RAZORPAY_KEY_SECRET!
-        )
-        .update(
-          `${razorpay_order_id}|${razorpay_payment_id}`
-        )
-        .digest("hex");
+    const expectedSignature = crypto
+      .createHmac(
+        "sha256",
+        RAZORPAY_KEY_SECRET
+      )
+      .update(
+        `${razorpay_order_id}|${razorpay_payment_id}`
+      )
+      .digest("hex");
 
     const expectedBuffer =
       Buffer.from(
@@ -273,7 +266,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           message:
-            "Payment verification failed.",
+            "Payment verification failed. Invalid Razorpay signature.",
         },
         {
           status: 400,
@@ -283,9 +276,7 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 6. FETCH ACTUAL RAZORPAY ORDER + PAYMENT
-    //
-    // We don't trust only what Flutter sends us.
+    // 6. FETCH REAL RAZORPAY ORDER + PAYMENT
     // ==========================================================
 
     const [
@@ -301,7 +292,10 @@ export async function POST(req: Request) {
       ),
     ]);
 
-    // Payment must belong to the same Razorpay order.
+    // ----------------------------------------------------------
+    // PAYMENT MUST BELONG TO SAME ORDER
+    // ----------------------------------------------------------
+
     if (
       razorpayPayment.order_id !==
       razorpay_order_id
@@ -318,17 +312,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // We only accept INR.
+    // ----------------------------------------------------------
+    // CURRENCY
+    // ----------------------------------------------------------
+
     if (
-      razorpayOrder.currency !==
-        "INR" ||
-      razorpayPayment.currency !==
-        "INR"
+      razorpayOrder.currency !== "INR" ||
+      razorpayPayment.currency !== "INR"
     ) {
       return NextResponse.json(
         {
           message:
-            "Invalid payment currency.",
+            "Invalid Razorpay currency.",
         },
         {
           status: 400,
@@ -337,10 +332,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Payment must actually be captured.
+    // ----------------------------------------------------------
+    // CAPTURE STATUS
+    // ----------------------------------------------------------
+
     if (
-      razorpayPayment.status !==
-      "captured"
+      razorpayPayment.status !== "captured"
     ) {
       return NextResponse.json(
         {
@@ -355,7 +352,7 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 7. VERIFY RAZORPAY ORDER NOTES
+    // 7. CHECK RAZORPAY ORDER NOTES
     // ==========================================================
 
     const notes =
@@ -396,7 +393,7 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 8. FETCH SCHEME + EXISTING ENROLLMENT
+    // 8. FETCH SCHEME + ENROLLMENT
     // ==========================================================
 
     const [
@@ -426,8 +423,7 @@ export async function POST(req: Request) {
     if (!scheme) {
       return NextResponse.json(
         {
-          message:
-            "Scheme not found",
+          message: "Scheme not found.",
         },
         {
           status: 404,
@@ -437,12 +433,11 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 9. CHECK ENROLLMENT STATUS
+    // 9. CHECK CURRENT ENROLLMENT
     // ==========================================================
 
     if (
-      existingEnrollment
-        ?.isCompleted
+      existingEnrollment?.isCompleted
     ) {
       return NextResponse.json(
         {
@@ -458,13 +453,12 @@ export async function POST(req: Request) {
 
     if (
       existingEnrollment &&
-      existingEnrollment
-        .installmentsLeft <= 0
+      existingEnrollment.installmentsLeft <= 0
     ) {
       return NextResponse.json(
         {
           message:
-            "No installments left.",
+            "No installments left to pay.",
         },
         {
           status: 400,
@@ -481,26 +475,22 @@ export async function POST(req: Request) {
 
     if (existingEnrollment) {
       // ========================================================
-      // EXISTING CUSTOMER
+      // LATER MONTHLY PAYMENT
       //
-      // ALWAYS use saved value.
-      // Flutter cannot change it.
+      // NEVER use Flutter amount here.
+      //
+      // Use amount saved when customer first enrolled.
       // ========================================================
 
       installmentAmount =
         Number(
-          existingEnrollment
-            .installmentAmount
+          existingEnrollment.installmentAmount
         );
     } else {
       // ========================================================
       // FIRST ENROLLMENT
       //
-      // The create-order API stored the selected amount in
-      // Razorpay notes.
-      //
-      // We prefer that server-created value rather than trusting
-      // Flutter again.
+      // create-order stores selected amount in Razorpay notes.
       // ========================================================
 
       installmentAmount =
@@ -508,17 +498,18 @@ export async function POST(req: Request) {
           notes.installmentAmount
         );
 
+      // Fallback if old create-order does not have notes.
       if (
         !Number.isFinite(
           installmentAmount
         ) ||
         installmentAmount <= 0
       ) {
-        // Fallback only for compatibility.
         installmentAmount =
           Number(amount);
       }
 
+      // Only allow dropdown values.
       if (
         !ALLOWED_INSTALLMENT_AMOUNTS.includes(
           installmentAmount
@@ -528,6 +519,8 @@ export async function POST(req: Request) {
           {
             message:
               "Invalid installment amount.",
+            allowedAmounts:
+              ALLOWED_INSTALLMENT_AMOUNTS,
           },
           {
             status: 400,
@@ -561,11 +554,7 @@ export async function POST(req: Request) {
       );
 
     // ==========================================================
-    // 11. VERIFY FLUTTER AMOUNT ALSO MATCHES
-    //
-    // This is just an additional check.
-    //
-    // The server still uses installmentAmount calculated above.
+    // 11. CHECK AMOUNT SENT BY FLUTTER
     // ==========================================================
 
     if (
@@ -585,7 +574,7 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             message:
-              "Payment amount does not match the enrollment installment amount.",
+              "Payment amount does not match the customer's installment amount.",
           },
           {
             status: 400,
@@ -611,7 +600,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           message:
-            "Razorpay order amount does not match installment amount.",
+            "Razorpay order amount does not match the installment amount.",
         },
         {
           status: 400,
@@ -629,7 +618,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           message:
-            "Paid Razorpay amount does not match installment amount.",
+            "Paid amount does not match the installment amount.",
         },
         {
           status: 400,
@@ -639,11 +628,10 @@ export async function POST(req: Request) {
     }
 
     // ==========================================================
-    // 13. 22K GOLD RATE
+    // 13. WEIGHT BASED SCHEME - FETCH 22K RATE
     // ==========================================================
 
     let liveRate22K = 0;
-
     let gramsEarned = 0;
 
     if (scheme.isWeightBased) {
@@ -657,17 +645,12 @@ export async function POST(req: Request) {
 
       if (!rateRes.ok) {
         throw new Error(
-          "Could not fetch live gold rate."
+          "Unable to fetch live gold rate."
         );
       }
 
       const rateData =
         await rateRes.json();
-
-      // ========================================================
-      // IMPORTANT:
-      // USE 22K, NOT 24K
-      // ========================================================
 
       if (!rateData?.gold22) {
         throw new Error(
@@ -692,18 +675,14 @@ export async function POST(req: Request) {
         liveRate22K <= 0
       ) {
         throw new Error(
-          "Invalid 22K gold rate."
+          "Invalid 22K gold rate received."
         );
       }
 
       // ========================================================
-      // CUSTOMER SELECTED AMOUNT / LIVE 22K RATE
+      // GOLD GRAMS
       //
-      // Example:
-      //
-      // ₹25,000 / ₹14,000
-      //
-      // = 1.7857 grams
+      // selected installment / current 22K rate
       // ========================================================
 
       gramsEarned =
@@ -718,28 +697,6 @@ export async function POST(req: Request) {
     const result =
       await prisma.$transaction(
         async (tx) => {
-          // ----------------------------------------------------
-          // Prevent processing same payment twice.
-          // ----------------------------------------------------
-
-          const duplicatePayment =
-            await tx.paymentHistory.findUnique({
-              where: {
-                id:
-                  razorpay_payment_id,
-              },
-            });
-
-          if (duplicatePayment) {
-            return {
-              type:
-                "PAYMENT_ALREADY_PROCESSED",
-
-              data:
-                existingEnrollment!,
-            };
-          }
-
           // ====================================================
           // EXISTING ENROLLMENT
           // ====================================================
@@ -754,13 +711,16 @@ export async function POST(req: Request) {
             const newRemainingAmount =
               Math.max(
                 0,
-
                 Number(
                   existingEnrollment
                     .remainingAmount
                 ) -
                   installmentAmount
               );
+
+            // --------------------------------------------------
+            // UPDATE CUSTOMER SCHEME
+            // --------------------------------------------------
 
             const updated =
               await tx.customerScheme.update({
@@ -783,13 +743,13 @@ export async function POST(req: Request) {
                     decrement: 1,
                   },
 
+                  remainingAmount:
+                    newRemainingAmount,
+
                   accumulatedGrams: {
                     increment:
                       gramsEarned,
                   },
-
-                  remainingAmount:
-                    newRemainingAmount,
 
                   isCompleted:
                     isLastPayment,
@@ -805,8 +765,7 @@ export async function POST(req: Request) {
             // ==================================================
 
             if (
-              !existingEnrollment
-                .coupon
+              !existingEnrollment.coupon
             ) {
               const uniqueSuffix =
                 crypto
@@ -820,7 +779,11 @@ export async function POST(req: Request) {
                     crypto.randomUUID(),
 
                   code:
-                    `SUV-${scheme.isWeightBased ? "W" : "V"}-${uniqueSuffix}`,
+                    `SUV-${
+                      scheme.isWeightBased
+                        ? "W"
+                        : "V"
+                    }-${uniqueSuffix}`,
 
                   customerId:
                     currentUserId,
@@ -829,6 +792,10 @@ export async function POST(req: Request) {
 
                   customerSchemeId:
                     existingEnrollment.id,
+
+                  // --------------------------------------------
+                  // NON-WEIGHTED
+                  // --------------------------------------------
 
                   totalCashValue:
                     !scheme.isWeightBased
@@ -841,6 +808,10 @@ export async function POST(req: Request) {
                           ) *
                           installmentAmount
                       : 0,
+
+                  // --------------------------------------------
+                  // WEIGHTED
+                  // --------------------------------------------
 
                   totalWeightGrams:
                     scheme.isWeightBased
@@ -859,6 +830,7 @@ export async function POST(req: Request) {
                 },
 
                 data: {
+                  // Only weighted schemes accumulate grams.
                   totalWeightGrams:
                     scheme.isWeightBased
                       ? {
@@ -879,7 +851,8 @@ export async function POST(req: Request) {
 
             await tx.paymentHistory.create({
               data: {
-                // Razorpay payment ID makes the payment unique.
+                // Razorpay payment IDs are unique,
+                // so using it prevents same payment being added twice.
                 id:
                   razorpay_payment_id,
 
@@ -889,7 +862,6 @@ export async function POST(req: Request) {
                 amountPaid:
                   installmentAmount,
 
-                // SEE NOTE BELOW ABOUT FIELD NAME.
                 liveRate22K:
                   scheme.isWeightBased
                     ? liveRate22K
@@ -906,7 +878,8 @@ export async function POST(req: Request) {
               type:
                 "INSTALLMENT_PROCESSED",
 
-              data: updated,
+              data:
+                updated,
             };
           }
 
@@ -928,6 +901,10 @@ export async function POST(req: Request) {
             installmentsLeft *
             installmentAmount;
 
+          // ----------------------------------------------------
+          // CREATE CUSTOMER SCHEME
+          // ----------------------------------------------------
+
           const newCS =
             await tx.customerScheme.create({
               data: {
@@ -940,10 +917,7 @@ export async function POST(req: Request) {
                 schemeId,
 
                 // ==============================================
-                // NEW FIELD
-                //
-                // Customer selected this value.
-                // It stays fixed for all future installments.
+                // CUSTOMER SELECTED AMOUNT
                 // ==============================================
 
                 installmentAmount,
@@ -964,8 +938,7 @@ export async function POST(req: Request) {
                 isCompleted,
 
                 // ==============================================
-                // ENROLLMENT DETAILS
-                // Set only during first enrollment.
+                // NOMINEE / ADDRESS DATA
                 // ==============================================
 
                 customerAddress:
@@ -973,14 +946,16 @@ export async function POST(req: Request) {
                   null,
 
                 nomineeName:
-                  nomineeName || "",
+                  nomineeName ||
+                  "",
 
                 nomineeRelation:
                   nomineeRelation ||
                   "",
 
                 nomineePhone:
-                  nomineePhone || "",
+                  nomineePhone ||
+                  "",
 
                 nomineeAddress:
                   nomineeAddress ||
@@ -1004,7 +979,11 @@ export async function POST(req: Request) {
                 crypto.randomUUID(),
 
               code:
-                `SUV-${scheme.isWeightBased ? "W" : "V"}-${uniqueSuffix}`,
+                `SUV-${
+                  scheme.isWeightBased
+                    ? "W"
+                    : "V"
+                }-${uniqueSuffix}`,
 
               customerId:
                 currentUserId,
@@ -1014,15 +993,12 @@ export async function POST(req: Request) {
               customerSchemeId:
                 newCS.id,
 
-              // ================================================
-              // CASH SCHEME
-              //
-              // Uses customer's selected installment.
+              // -----------------------------------------------
+              // NON-WEIGHTED SCHEME
               //
               // Example:
-              //
-              // ₹25,000 × (11 + 1)
-              // ================================================
+              // ₹5,000 × (11 + 1)
+              // -----------------------------------------------
 
               totalCashValue:
                 !scheme.isWeightBased
@@ -1035,6 +1011,10 @@ export async function POST(req: Request) {
                       ) *
                       installmentAmount
                   : 0,
+
+              // -----------------------------------------------
+              // WEIGHTED SCHEME
+              // -----------------------------------------------
 
               totalWeightGrams:
                 scheme.isWeightBased
@@ -1080,11 +1060,14 @@ export async function POST(req: Request) {
             data:
               newCS,
           };
+        },
+        {
+          timeout: 10000,
         }
       );
 
     // ==========================================================
-    // 15. SUCCESS RESPONSE
+    // 15. SUCCESS
     // ==========================================================
 
     return NextResponse.json(
@@ -1100,9 +1083,21 @@ export async function POST(req: Request) {
           transactionAmount:
             installmentAmount,
 
+          installmentsPaid:
+            result.data.installmentsPaid,
+
           installmentsLeft:
-            result.data
-              .installmentsLeft,
+            result.data.installmentsLeft,
+
+          totalPaid:
+            result.data.totalPaid,
+
+          remainingAmount:
+            result.data.remainingAmount,
+
+          // ----------------------------------------------------
+          // GOLD DATA
+          // ----------------------------------------------------
 
           marketRate22K:
             scheme.isWeightBased
@@ -1111,24 +1106,23 @@ export async function POST(req: Request) {
 
           transactionGrams:
             scheme.isWeightBased
-              ? gramsEarned.toFixed(
-                  4
+              ? Number(
+                  gramsEarned.toFixed(4)
                 )
-              : "0.0000",
+              : 0,
 
           totalVaultBalance:
-            Number(
-              result.data
-                .accumulatedGrams
-            ).toFixed(4),
+            scheme.isWeightBased
+              ? Number(
+                  Number(
+                    result.data
+                      .accumulatedGrams
+                  ).toFixed(4)
+                )
+              : 0,
 
-          totalPaid:
-            result.data
-              .totalPaid,
-
-          remainingAmount:
-            result.data
-              .remainingAmount,
+          isCompleted:
+            result.data.isCompleted,
         },
 
         enrollment:
@@ -1141,12 +1135,14 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     console.error(
-      "VERIFY ERROR:",
+      "SCHEME PAYMENT VERIFY ERROR:",
       error
     );
 
     return NextResponse.json(
       {
+        status: "Failed",
+
         message:
           error?.message ||
           "Internal Server Error",
