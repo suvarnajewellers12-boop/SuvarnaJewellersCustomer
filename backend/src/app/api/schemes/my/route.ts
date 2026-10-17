@@ -24,25 +24,27 @@ function corsHeaders(origin: string) {
 // ============================================================
 
 export async function OPTIONS(req: Request) {
-  const origin = req.headers.get("origin") || "";
+  const origin =
+    req.headers.get("origin") || "";
 
-  return new Response(null, {
+  return new NextResponse(null, {
     status: 204,
     headers: corsHeaders(origin),
   });
 }
 
 // ============================================================
-// GET CURRENT USER ENROLLED SCHEMES
+// GET CURRENT CUSTOMER SCHEMES
 // ============================================================
 
 export async function GET(req: Request) {
-  const origin = req.headers.get("origin") || "";
+  const origin =
+    req.headers.get("origin") || "";
 
   try {
-    // ----------------------------------------------------------
+    // ==========================================================
     // 1. AUTH
-    // ----------------------------------------------------------
+    // ==========================================================
 
     const authHeader =
       req.headers.get("Authorization");
@@ -53,6 +55,7 @@ export async function GET(req: Request) {
     ) {
       return NextResponse.json(
         {
+          success: false,
           schemes: [],
           message: "Unauthorized",
         },
@@ -76,6 +79,7 @@ export async function GET(req: Request) {
     if (!currentUserId) {
       return NextResponse.json(
         {
+          success: false,
           schemes: [],
           message: "Invalid token",
         },
@@ -91,9 +95,22 @@ export async function GET(req: Request) {
       currentUserId
     );
 
-    // ----------------------------------------------------------
+    // ==========================================================
     // 2. FETCH ENROLLMENTS
-    // ----------------------------------------------------------
+    //
+    // IMPORTANT:
+    //
+    // Prisma relations are:
+    //
+    // scheme
+    // payments
+    // customer
+    //
+    // NOT:
+    //
+    // Scheme
+    // PaymentHistory
+    // ==========================================================
 
     const myEnrollments =
       await prisma.customerScheme.findMany({
@@ -103,13 +120,9 @@ export async function GET(req: Request) {
         },
 
         include: {
-          // Your existing Prisma relation name
-          Scheme: true,
+          scheme: true,
 
-          // Do NOT use paidAt until we confirm that field exists.
-          PaymentHistory: true,
-
-          coupon: true,
+          payments: true,
         },
 
         orderBy: {
@@ -122,60 +135,89 @@ export async function GET(req: Request) {
       myEnrollments.length
     );
 
-    // ----------------------------------------------------------
-    // 3. SORT PAYMENT HISTORY IN JAVASCRIPT IF POSSIBLE
-    // ----------------------------------------------------------
+    // ==========================================================
+    // 3. FORMAT RESPONSE FOR FLUTTER
     //
-    // This prevents a wrong Prisma timestamp field such as
-    // `paidAt` from breaking the whole endpoint.
-    // ----------------------------------------------------------
+    // Your Flutter code was previously expecting:
+    //
+    // e["Scheme"]
+    // e["PaymentHistory"]
+    //
+    // Instead of changing several Flutter places,
+    // map Prisma's relation names to those response names.
+    // ==========================================================
 
     const schemes =
       myEnrollments.map(
         (enrollment: any) => {
-          let histories =
+          const payments =
             Array.isArray(
-              enrollment.PaymentHistory
+              enrollment.payments
             )
-              ? enrollment.PaymentHistory
+              ? enrollment.payments
               : [];
 
-          // If PaymentHistory has createdAt, newest first.
-          histories = histories.sort(
-            (a: any, b: any) => {
-              const aTime =
-                a?.createdAt
-                  ? new Date(
-                      a.createdAt
-                    ).getTime()
-                  : 0;
+          // ----------------------------------------------------
+          // FIND MOST RECENT PAYMENT
+          //
+          // If createdAt exists, newest comes first.
+          // Otherwise preserve returned order.
+          // ----------------------------------------------------
 
-              const bTime =
-                b?.createdAt
-                  ? new Date(
-                      b.createdAt
-                    ).getTime()
-                  : 0;
+          const sortedPayments =
+            [...payments].sort(
+              (a: any, b: any) => {
+                const aTime =
+                  a?.createdAt
+                    ? new Date(
+                        a.createdAt
+                      ).getTime()
+                    : a?.paidAt
+                    ? new Date(
+                        a.paidAt
+                      ).getTime()
+                    : 0;
 
-              return bTime - aTime;
-            }
-          );
+                const bTime =
+                  b?.createdAt
+                    ? new Date(
+                        b.createdAt
+                      ).getTime()
+                    : b?.paidAt
+                    ? new Date(
+                        b.paidAt
+                      ).getTime()
+                    : 0;
+
+                return bTime - aTime;
+              }
+            );
+
+          // Remove original relation fields so response is clean.
+          const {
+            scheme,
+            payments: _payments,
+            ...enrollmentData
+          } = enrollment;
 
           return {
-            ...enrollment,
+            ...enrollmentData,
 
-            // Only send most recent payment to Flutter.
+            // Keep the response compatible with
+            // your current Flutter service.
+            Scheme: scheme,
+
             PaymentHistory:
-              histories.length > 0
-                ? [histories[0]]
+              sortedPayments.length > 0
+                ? [sortedPayments[0]]
                 : [],
           };
         }
       );
 
-    // ----------------------------------------------------------
+    // ==========================================================
     // 4. RESPONSE
-    // ----------------------------------------------------------
+    // ==========================================================
 
     return NextResponse.json(
       {
@@ -189,11 +231,6 @@ export async function GET(req: Request) {
       }
     );
   } catch (error: any) {
-    // ==========================================================
-    // IMPORTANT:
-    // Do NOT silently return an empty scheme array.
-    // ==========================================================
-
     console.error(
       "[MY SCHEMES API ERROR]",
       error
