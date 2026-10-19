@@ -8,28 +8,10 @@ import Razorpay from "razorpay";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/jwt";
 
-// ============================================================
-// RAZORPAY TEST CONFIG
-//
-// IMPORTANT:
-// Keep the secret only on the backend.
-// Never put key_secret inside Flutter.
-// ============================================================
-
-const RAZORPAY_KEY_ID =
-  "rzp_test_TlLhkVrMSDh6az";
-
-const RAZORPAY_KEY_SECRET =
-  "e5VaoxSOW3ygy4kKHblZIir5";
-
 const razorpay = new Razorpay({
-  key_id: RAZORPAY_KEY_ID,
-  key_secret: RAZORPAY_KEY_SECRET,
+  key_id: "rzp_test_TlLhkVrMSDh6az",
+  key_secret: "e5VaoxSOW3ygy4kKHblZIir5",
 });
-
-// ============================================================
-// ALLOWED INSTALLMENT AMOUNTS
-// ============================================================
 
 const ALLOWED_INSTALLMENT_AMOUNTS = [
   1000,
@@ -51,45 +33,26 @@ const ALLOWED_INSTALLMENT_AMOUNTS = [
   200000,
 ];
 
-// ============================================================
-// CORS
-// ============================================================
-
 const allowedOrigins = [
   "https://suvarnajewellers.in",
   "https://www.suvarnajewellers.in",
 ];
 
 function corsHeaders(origin: string) {
-  const allowedOrigin =
-    allowedOrigins.includes(origin)
-      ? origin
-      : allowedOrigins[0];
+  const allowedOrigin = allowedOrigins.includes(origin)
+    ? origin
+    : allowedOrigins[0];
 
   return {
-    "Access-Control-Allow-Origin":
-      allowedOrigin,
-
-    "Access-Control-Allow-Methods":
-      "POST, OPTIONS",
-
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization",
-
-    "Access-Control-Allow-Credentials":
-      "true",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
   };
 }
 
-// ============================================================
-// OPTIONS
-// ============================================================
-
-export async function OPTIONS(
-  req: Request
-) {
-  const origin =
-    req.headers.get("origin") || "";
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get("origin") || "";
 
   return new NextResponse(null, {
     status: 204,
@@ -97,51 +60,22 @@ export async function OPTIONS(
   });
 }
 
-// ============================================================
-// DATE HELPERS
-// ============================================================
-
-function startOfMonth(date: Date) {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    1
-  );
+function monthKey(date: Date) {
+  return date.getFullYear() * 12 + date.getMonth();
 }
 
-function getYearMonthValue(date: Date) {
-  return (
-    date.getFullYear() * 12 +
-    date.getMonth()
-  );
-}
-
-// ============================================================
-// CREATE RAZORPAY ORDER
-// ============================================================
-
-export async function POST(
-  req: Request
-) {
-  const origin =
-    req.headers.get("origin") || "";
+export async function POST(req: Request) {
+  const origin = req.headers.get("origin") || "";
 
   try {
     // ==========================================================
-    // 1. AUTHENTICATION
+    // 1. AUTH
     // ==========================================================
 
-    const authHeader =
-      req.headers.get(
-        "Authorization"
-      );
-
-    const token =
-      authHeader?.startsWith(
-        "Bearer "
-      )
-        ? authHeader.split(" ")[1]
-        : null;
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
 
     if (!token) {
       return NextResponse.json(
@@ -151,602 +85,359 @@ export async function POST(
         },
         {
           status: 401,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
-    const decoded: any =
-      verifyToken(token);
-
-    const currentUserId =
-      decoded?.userId ||
-      decoded?.id;
+    const decoded: any = verifyToken(token);
+    const currentUserId = decoded?.userId || decoded?.id;
 
     if (!currentUserId) {
       return NextResponse.json(
         {
           status: "Failed",
-          message:
-            "Invalid token",
+          message: "Invalid token",
         },
         {
           status: 401,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // 2. READ REQUEST
+    // 2. BODY
     // ==========================================================
 
-    const body =
-      await req.json();
+    const body = await req.json();
 
     const {
       schemeId,
       amount,
       currency = "INR",
       userId,
+      customerAddress,
+      nomineeName,
+      nomineeRelation,
+      nomineePhone,
+      nomineeAddress,
     } = body;
 
     if (!schemeId) {
       return NextResponse.json(
         {
           status: "Failed",
-          message:
-            "schemeId is required",
+          message: "schemeId is required",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
-    // ==========================================================
-    // PREVENT CUSTOMER ID MANIPULATION
-    // ==========================================================
-
     if (
       userId &&
-      String(userId) !==
-        String(currentUserId)
+      String(userId) !== String(currentUserId)
     ) {
       return NextResponse.json(
         {
           status: "Failed",
-          message:
-            "User mismatch",
+          message: "User mismatch",
         },
         {
           status: 403,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
+    // customerAddress and nomineeAddress are optional.
+    // Required nominee fields are validated before Razorpay opens
+    // for a brand-new enrollment.
+    const nomineeNameValue =
+      String(nomineeName ?? "").trim();
+    const nomineeRelationValue =
+      String(nomineeRelation ?? "").trim();
+    const nomineePhoneValue =
+      String(nomineePhone ?? "").trim();
+
     // ==========================================================
-    // 3. FETCH SCHEME + ENROLLMENT
+    // 3. SCHEME + ENROLLMENT
     // ==========================================================
 
-    const [
-      scheme,
-      existingEnrollment,
-    ] = await Promise.all([
-      prisma.scheme.findUnique({
-        where: {
-          id: schemeId,
-        },
-      }),
-
-      prisma.customerScheme.findFirst({
-        where: {
-          customerId:
-            String(currentUserId),
-
-          schemeId,
-        },
-
-        include: {
-          installments: {
-            orderBy: {
-              installmentNumber:
-                "asc",
+    const [scheme, existingEnrollment] =
+      await Promise.all([
+        prisma.scheme.findUnique({
+          where: {
+            id: schemeId,
+          },
+        }),
+        prisma.customerScheme.findFirst({
+          where: {
+            customerId: String(currentUserId),
+            schemeId,
+          },
+          include: {
+            installments: {
+              orderBy: {
+                installmentNumber: "asc",
+              },
             },
           },
-        },
-      }),
-    ]);
-
-    // ==========================================================
-    // SCHEME CHECK
-    // ==========================================================
+        }),
+      ]);
 
     if (!scheme) {
       return NextResponse.json(
         {
           status: "Failed",
-          message:
-            "Scheme not found",
+          message: "Scheme not found",
         },
         {
           status: 404,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
-    // ==========================================================
-    // 4. EXISTING ENROLLMENT VALIDATION
-    // ==========================================================
-
     if (
-      existingEnrollment
-        ?.isCompleted
+      !existingEnrollment &&
+      (
+        !nomineeNameValue ||
+        !nomineeRelationValue ||
+        !nomineePhoneValue
+      )
     ) {
       return NextResponse.json(
         {
           status: "Failed",
-
-          code:
-            "SCHEME_COMPLETED",
-
+          code: "ENROLLMENT_DETAILS_REQUIRED",
           message:
-            "Scheme already completed.",
+            "Nominee name, relation and phone are required before starting enrollment.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
+        }
+      );
+    }
+
+    if (existingEnrollment?.isCompleted) {
+      return NextResponse.json(
+        {
+          status: "Failed",
+          code: "SCHEME_COMPLETED",
+          message: "Scheme already completed.",
+        },
+        {
+          status: 400,
+          headers: corsHeaders(origin),
         }
       );
     }
 
     if (
       existingEnrollment &&
-      existingEnrollment
-        .installmentsLeft <= 0
+      existingEnrollment.installmentsLeft <= 0
     ) {
       return NextResponse.json(
         {
           status: "Failed",
-
-          code:
-            "NO_INSTALLMENTS_LEFT",
-
-          message:
-            "No installments left to pay.",
+          code: "NO_INSTALLMENTS_LEFT",
+          message: "No installments left to pay.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // 5. MISSED INSTALLMENT CHECK
-    //
-    // IMPORTANT:
-    //
-    // This happens BEFORE Razorpay order creation.
-    //
-    // Example:
-    //
-    // Month 1 -> PAID
-    // Month 2 -> PAID
-    // Month 3 -> MISSED
-    // Month 4 -> current month
-    //
-    // Customer CANNOT open Razorpay for Month 4.
-    //
-    // Admin/store must clear Month 3 first.
+    // 4. MISSED-MONTH / NEXT-MONTH GATE
     // ==========================================================
 
-    let nextInstallment:
-      | (typeof existingEnrollment extends null
-          ? never
-          : any)
-      | null = null;
+    let nextInstallment: any = null;
 
     if (existingEnrollment) {
-      const installments =
-        existingEnrollment
-          .installments;
+      const installments = existingEnrollment.installments;
 
-      // --------------------------------------------------------
-      // SAFETY CHECK
-      //
-      // New enrollments must have installment rows.
-      //
-      // If an old enrollment exists without them,
-      // don't allow a payment because we cannot safely determine
-      // which month the customer is paying.
-      // --------------------------------------------------------
-
-      if (
-        !installments ||
-        installments.length === 0
-      ) {
+      if (installments.length === 0) {
         return NextResponse.json(
           {
             status: "Failed",
-
-            code:
-              "INSTALLMENT_DATA_MISSING",
-
+            code: "INSTALLMENT_DATA_MISSING",
             message:
               "Installment schedule is missing for this enrollment. Please contact the store.",
           },
           {
             status: 409,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
 
-      const now =
-        new Date();
+      const now = new Date();
+      const currentMonthStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
 
-      const currentMonthStart =
-        startOfMonth(now);
+      const newlyMissed = installments.filter(
+        (item) =>
+          item.status === "UPCOMING" &&
+          new Date(item.dueDate) < currentMonthStart
+      );
 
-      // --------------------------------------------------------
-      // FIND OLD UNPAID MONTHS
-      //
-      // An installment becomes MISSED only after its entire
-      // calendar month has passed.
-      //
-      // Example:
-      //
-      // Due: 10 January
-      //
-      // Customer can still pay during January.
-      //
-      // Once February starts and January is unpaid,
-      // January becomes MISSED.
-      // --------------------------------------------------------
-
-      const pastUnpaid =
-        installments.filter(
-          (item) => {
-            if (
-              item.status ===
-              "PAID"
-            ) {
-              return false;
-            }
-
-            const dueDate =
-              new Date(
-                item.dueDate
-              );
-
-            return (
-              dueDate <
-              currentMonthStart
-            );
-          }
-        );
-
-      // --------------------------------------------------------
-      // MARK OLD UNPAID MONTHS AS MISSED
-      // --------------------------------------------------------
-
-      const needMissedUpdate =
-        pastUnpaid.filter(
-          (item) =>
-            item.status !==
-            "MISSED"
-        );
-
-      if (
-        needMissedUpdate.length >
-        0
-      ) {
-        await prisma
-          .schemeInstallment
-          .updateMany({
-            where: {
-              id: {
-                in:
-                  needMissedUpdate.map(
-                    (item) =>
-                      item.id
-                  ),
-              },
+      if (newlyMissed.length > 0) {
+        await prisma.schemeInstallment.updateMany({
+          where: {
+            id: {
+              in: newlyMissed.map((item) => item.id),
             },
-
-            data: {
-              status:
-                "MISSED",
-            },
-          });
+          },
+          data: {
+            status: "MISSED",
+          },
+        });
       }
 
-      // --------------------------------------------------------
-      // CHECK ALREADY-MISSED OR NEWLY-MISSED INSTALLMENTS
-      // --------------------------------------------------------
+      const missedInstallments = installments.filter(
+        (item) =>
+          item.status === "MISSED" ||
+          newlyMissed.some((missed) => missed.id === item.id)
+      );
 
-      const missedInstallments =
-        installments.filter(
-          (item) =>
-            item.status ===
-              "MISSED" ||
-            pastUnpaid.some(
-              (past) =>
-                past.id ===
-                item.id
-            )
-        );
-
-      // ========================================================
-      // BLOCK ONLINE PAYMENT IF ANY MISSED MONTH EXISTS
-      // ========================================================
-
-      if (
-        missedInstallments.length >
-        0
-      ) {
+      if (missedInstallments.length > 0) {
         return NextResponse.json(
           {
             status: "Failed",
-
-            code:
-              "MISSED_INSTALLMENT_PENDING",
-
+            code: "MISSED_INSTALLMENT_PENDING",
             message:
-              missedInstallments.length ===
-              1
+              missedInstallments.length === 1
                 ? "You have a missed installment. Please clear it at the store before making the next online payment."
                 : `You have ${missedInstallments.length} missed installments. Please clear them at the store before making the next online payment.`,
-
-            missedCount:
-              missedInstallments.length,
-
-            missedInstallments:
-              missedInstallments.map(
-                (item) => ({
-                  id:
-                    item.id,
-
-                  installmentNumber:
-                    item.installmentNumber,
-
-                  dueDate:
-                    item.dueDate,
-
-                  amount:
-                    item.amount,
-
-                  status:
-                    "MISSED",
-                })
-              ),
+            missedCount: missedInstallments.length,
+            missedInstallments: missedInstallments.map((item) => ({
+              id: item.id,
+              installmentNumber: item.installmentNumber,
+              dueDate: item.dueDate,
+              amount: item.amount,
+              status: "MISSED",
+            })),
           },
           {
             status: 400,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
 
-      // ========================================================
-      // FIND NEXT UNPAID INSTALLMENT
-      // ========================================================
-
       nextInstallment =
-        installments.find(
-          (item) =>
-            item.status !==
-            "PAID"
-        ) ?? null;
+        installments.find((item) => item.status !== "PAID") ??
+        null;
 
       if (!nextInstallment) {
         return NextResponse.json(
           {
             status: "Failed",
-
-            code:
-              "NO_INSTALLMENTS_LEFT",
-
-            message:
-              "No installments left to pay.",
+            code: "NO_INSTALLMENTS_LEFT",
+            message: "No installments left to pay.",
           },
           {
             status: 400,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
 
-      // ========================================================
-      // DO NOT ALLOW FUTURE-MONTH PAYMENTS
-      //
-      // User said upcoming month prepayment is NOT required.
-      // ========================================================
-
-      const dueDate =
-        new Date(
-          nextInstallment
-            .dueDate
-        );
-
-      const currentYearMonth =
-        getYearMonthValue(
-          now
-        );
-
-      const dueYearMonth =
-        getYearMonthValue(
-          dueDate
-        );
-
       if (
-        dueYearMonth >
-        currentYearMonth
+        monthKey(new Date(nextInstallment.dueDate)) >
+        monthKey(now)
       ) {
         return NextResponse.json(
           {
             status: "Failed",
-
-            code:
-              "INSTALLMENT_NOT_DUE",
-
-            message:
-              "Your next installment is not due yet.",
-
+            code: "INSTALLMENT_NOT_DUE",
+            message: "Your next installment is not due yet.",
             nextInstallment: {
               installmentNumber:
-                nextInstallment
-                  .installmentNumber,
-
-              dueDate:
-                nextInstallment
-                  .dueDate,
-
-              amount:
-                nextInstallment
-                  .amount,
+                nextInstallment.installmentNumber,
+              dueDate: nextInstallment.dueDate,
+              amount: nextInstallment.amount,
             },
           },
           {
             status: 400,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
     }
 
     // ==========================================================
-    // 6. DETERMINE INSTALLMENT AMOUNT
+    // 5. AMOUNT
     // ==========================================================
 
     let installmentAmount: number;
 
-    // ==========================================================
-    // EXISTING ENROLLMENT
-    //
-    // Never trust Flutter amount for existing enrollment.
-    // ==========================================================
-
     if (existingEnrollment) {
-      installmentAmount =
-        Number(
-          existingEnrollment
-            .installmentAmount
-        );
+      installmentAmount = Number(
+        existingEnrollment.installmentAmount
+      );
 
       if (
-        !Number.isFinite(
-          installmentAmount
-        ) ||
+        !Number.isFinite(installmentAmount) ||
         installmentAmount <= 0
       ) {
         return NextResponse.json(
           {
             status: "Failed",
-
             message:
               "Invalid installment amount stored for this enrollment.",
           },
           {
             status: 400,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
 
-      // --------------------------------------------------------
-      // EXTRA SAFETY
-      //
-      // Installment row amount must also match the stored
-      // enrollment installment amount.
-      // --------------------------------------------------------
-
       if (
         nextInstallment &&
-        Number(
-          nextInstallment
-            .amount
-        ) !==
-          installmentAmount
+        Number(nextInstallment.amount) !== installmentAmount
       ) {
-        console.error(
-          "[CREATE ORDER] Installment amount mismatch",
-          {
-            enrollmentId:
-              existingEnrollment.id,
-
-            storedEnrollmentAmount:
-              installmentAmount,
-
-            installmentRowAmount:
-              nextInstallment.amount,
-
-            installmentNumber:
-              nextInstallment
-                .installmentNumber,
-          }
-        );
-
         return NextResponse.json(
           {
             status: "Failed",
-
-            code:
-              "INSTALLMENT_AMOUNT_MISMATCH",
-
+            code: "INSTALLMENT_AMOUNT_MISMATCH",
             message:
               "Installment amount mismatch. Please contact the store.",
           },
           {
             status: 409,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
-    }
-
-    // ==========================================================
-    // FIRST ENROLLMENT
-    // ==========================================================
-
-    else {
-      installmentAmount =
-        Number(amount);
+    } else {
+      installmentAmount = Number(amount);
 
       if (
-        !Number.isFinite(
-          installmentAmount
-        ) ||
+        !Number.isFinite(installmentAmount) ||
         installmentAmount <= 0
       ) {
         return NextResponse.json(
           {
             status: "Failed",
-
-            message:
-              "Please select an installment amount.",
+            message: "Please select an installment amount.",
           },
           {
             status: 400,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
@@ -759,219 +450,108 @@ export async function POST(
         return NextResponse.json(
           {
             status: "Failed",
-
             message:
               "Selected installment amount is not allowed.",
-
-            allowedAmounts:
-              ALLOWED_INSTALLMENT_AMOUNTS,
+            allowedAmounts: ALLOWED_INSTALLMENT_AMOUNTS,
           },
           {
             status: 400,
-            headers:
-              corsHeaders(origin),
+            headers: corsHeaders(origin),
           }
         );
       }
     }
 
-    installmentAmount =
-      Math.round(
-        installmentAmount
-      );
-
-    // ==========================================================
-    // 7. VALIDATE CURRENCY
-    // ==========================================================
+    installmentAmount = Math.round(installmentAmount);
 
     const normalizedCurrency =
-      String(currency)
-        .trim()
-        .toUpperCase();
+      String(currency).trim().toUpperCase();
 
-    if (
-      normalizedCurrency !==
-      "INR"
-    ) {
+    if (normalizedCurrency !== "INR") {
       return NextResponse.json(
         {
           status: "Failed",
-
-          message:
-            "Only INR payments are supported.",
+          message: "Only INR payments are supported.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(origin),
+          headers: corsHeaders(origin),
         }
       );
     }
 
-    // ==========================================================
-    // 8. RUPEES -> PAISE
-    // ==========================================================
-
-    const amountInPaise =
-      Math.round(
-        installmentAmount *
-          100
-      );
+    const amountInPaise = installmentAmount * 100;
 
     // ==========================================================
-    // 9. CREATE RAZORPAY ORDER
+    // 6. RAZORPAY ORDER
     // ==========================================================
 
-    const order =
-      await razorpay.orders.create({
-        amount:
-          amountInPaise,
-
-        currency:
-          normalizedCurrency,
-
-        receipt:
-          `scheme_${Date.now()}`,
-
-        notes: {
-          customerId:
-            String(
-              currentUserId
-            ),
-
-          schemeId:
-            String(
-              schemeId
-            ),
-
-          installmentAmount:
-            String(
-              installmentAmount
-            ),
-
-          // ----------------------------------------------------
-          // Scheme metal/rate type
-          // ----------------------------------------------------
-
-          rateType:
-            String(
-              scheme.rateType
-            ),
-
-          paymentType:
-            existingEnrollment
-              ? "INSTALLMENT"
-              : "NEW_ENROLLMENT",
-
-          // ----------------------------------------------------
-          // This allows verify to confirm exactly which month
-          // this Razorpay order belongs to.
-          // ----------------------------------------------------
-
-          customerSchemeId:
-            existingEnrollment
-              ? String(
-                  existingEnrollment.id
-                )
-              : "",
-
-          installmentId:
-            nextInstallment
-              ? String(
-                  nextInstallment.id
-                )
-              : "",
-
-          installmentNumber:
-            nextInstallment
-              ? String(
-                  nextInstallment
-                    .installmentNumber
-                )
-              : "1",
-        },
-      });
-
-    // ==========================================================
-    // 10. SUCCESS RESPONSE
-    // ==========================================================
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: normalizedCurrency,
+      receipt: `scheme_${Date.now()}`,
+      notes: {
+        customerId: String(currentUserId),
+        schemeId: String(schemeId),
+        installmentAmount: String(installmentAmount),
+        rateType: String(scheme.rateType),
+        paymentType: existingEnrollment
+          ? "INSTALLMENT"
+          : "NEW_ENROLLMENT",
+        customerSchemeId: existingEnrollment
+          ? String(existingEnrollment.id)
+          : "",
+        installmentId: nextInstallment
+          ? String(nextInstallment.id)
+          : "",
+        installmentNumber: nextInstallment
+          ? String(nextInstallment.installmentNumber)
+          : "1",
+      },
+    });
 
     return NextResponse.json(
       {
         status: "Success",
-
-        orderId:
-          order.id,
-
-        // Razorpay Flutter expects paisa.
-        amount:
-          order.amount,
-
-        amountRupees:
-          installmentAmount,
-
-        currency:
-          order.currency,
-
-        paymentType:
-          existingEnrollment
-            ? "INSTALLMENT"
-            : "NEW_ENROLLMENT",
-
-        rateType:
-          scheme.rateType,
-
+        orderId: order.id,
+        amount: order.amount,
+        amountRupees: installmentAmount,
+        currency: order.currency,
+        paymentType: existingEnrollment
+          ? "INSTALLMENT"
+          : "NEW_ENROLLMENT",
+        rateType: scheme.rateType,
         installment:
-          existingEnrollment &&
-          nextInstallment
+          existingEnrollment && nextInstallment
             ? {
-                id:
-                  nextInstallment.id,
-
+                id: nextInstallment.id,
                 installmentNumber:
-                  nextInstallment
-                    .installmentNumber,
-
-                dueDate:
-                  nextInstallment
-                    .dueDate,
-
-                amount:
-                  nextInstallment
-                    .amount,
+                  nextInstallment.installmentNumber,
+                dueDate: nextInstallment.dueDate,
+                amount: nextInstallment.amount,
               }
             : {
-                installmentNumber:
-                  1,
-
-                amount:
-                  installmentAmount,
+                installmentNumber: 1,
+                amount: installmentAmount,
               },
       },
       {
         status: 200,
-        headers:
-          corsHeaders(origin),
+        headers: corsHeaders(origin),
       }
     );
   } catch (error: any) {
-    console.error(
-      "[RAZORPAY CREATE ORDER ERROR]",
-      error
-    );
+    console.error("[RAZORPAY CREATE ORDER ERROR]", error);
 
     return NextResponse.json(
       {
         status: "Failed",
-
         message:
-          error?.message ||
-          "Could not create order",
+          error?.message || "Could not create order",
       },
       {
         status: 500,
-        headers:
-          corsHeaders(origin),
+        headers: corsHeaders(origin),
       }
     );
   }
