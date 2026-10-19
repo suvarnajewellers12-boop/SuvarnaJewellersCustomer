@@ -8,28 +8,16 @@ import { verifyToken } from "@/lib/jwt";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-// ============================================================
-// TEST RAZORPAY
-// ============================================================
-
 const RAZORPAY_KEY_ID =
   "rzp_test_TlLhkVrMSDh6az";
 
 const RAZORPAY_KEY_SECRET =
   "e5VaoxSOW3ygy4kKHblZIir5";
 
-const razorpay =
-  new Razorpay({
-    key_id:
-      RAZORPAY_KEY_ID,
-
-    key_secret:
-      RAZORPAY_KEY_SECRET,
-  });
-
-// ============================================================
-// ALLOWED INSTALLMENT AMOUNTS
-// ============================================================
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
+});
 
 const ALLOWED_INSTALLMENT_AMOUNTS = [
   1000,
@@ -51,117 +39,79 @@ const ALLOWED_INSTALLMENT_AMOUNTS = [
   200000,
 ];
 
-// ============================================================
-// CORS
-// ============================================================
+type SchemeRateTypeValue =
+  | "CASH"
+  | "GOLD_22K"
+  | "GOLD_18K"
+  | "SILVER";
 
-function corsHeaders(
-  origin: string
-) {
+function corsHeaders(origin: string) {
   return {
-    "Access-Control-Allow-Origin":
-      origin || "*",
-
-    "Access-Control-Allow-Credentials":
-      "true",
-
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization",
-
-    "Access-Control-Allow-Methods":
-      "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }
 
-export async function OPTIONS(
-  req: Request
-) {
-  const origin =
-    req.headers.get("origin") ||
-    "";
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get("origin") || "";
 
-  return new NextResponse(
-    null,
-    {
-      status: 204,
-      headers:
-        corsHeaders(origin),
-    }
-  );
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders(origin),
+  });
 }
 
-// ============================================================
-// GET METAL RATE
-// ============================================================
+function normalizeRateType(value: unknown): SchemeRateTypeValue {
+  const rateType = String(value || "CASH").toUpperCase();
+
+  if (
+    rateType === "GOLD_22K" ||
+    rateType === "GOLD_18K" ||
+    rateType === "SILVER"
+  ) {
+    return rateType;
+  }
+
+  return "CASH";
+}
 
 async function getLiveRate(
-  rateType:
-    | "CASH"
-    | "GOLD_22K"
-    | "GOLD_18K"
-    | "SILVER"
+  rateType: SchemeRateTypeValue
 ) {
-  if (
-    rateType === "CASH"
-  ) {
+  if (rateType === "CASH") {
     return 0;
   }
 
-  const response =
-    await fetch(
-      "https://suvarnagold-16e5.vercel.app/api/rates",
-      {
-        cache: "no-store",
-      }
-    );
+  const response = await fetch(
+    "https://suvarnagold-16e5.vercel.app/api/rates",
+    {
+      cache: "no-store",
+    }
+  );
 
   if (!response.ok) {
     throw new Error(
-      "Unable to fetch live metal rate."
+      "Unable to fetch the current metal rate."
     );
   }
 
-  const data =
-    await response.json();
+  const data = await response.json();
 
-  let rawRate: any;
+  const rawRate =
+    rateType === "GOLD_22K"
+      ? data.gold22
+      : rateType === "GOLD_18K"
+      ? data.gold18
+      : data.silver;
 
-  switch (rateType) {
-    case "GOLD_22K":
-      rawRate =
-        data.gold22;
-      break;
+  const rate = parseFloat(
+    String(rawRate ?? "").replace(/[^0-9.]/g, "")
+  );
 
-    case "GOLD_18K":
-      rawRate =
-        data.gold18;
-      break;
-
-    case "SILVER":
-      rawRate =
-        data.silver;
-      break;
-
-    default:
-      rawRate = null;
-  }
-
-  const rate =
-    parseFloat(
-      String(
-        rawRate ?? ""
-      ).replace(
-        /[^0-9.]/g,
-        ""
-      )
-    );
-
-  if (
-    !Number.isFinite(
-      rate
-    ) ||
-    rate <= 0
-  ) {
+  if (!Number.isFinite(rate) || rate <= 0) {
     throw new Error(
       `Invalid ${rateType} rate received.`
     );
@@ -170,50 +120,54 @@ async function getLiveRate(
   return rate;
 }
 
-// ============================================================
-// GENERATE MONTHLY DATE
-// ============================================================
-
-function addMonths(
-  date: Date,
-  months: number
+// Creates the same calendar-day schedule where possible.
+// Example: Jan 31 -> Feb 28/29 -> Mar 31.
+function addMonthsSafe(
+  source: Date,
+  monthsToAdd: number
 ) {
-  const result =
-    new Date(date);
+  const sourceDay = source.getDate();
 
-  result.setMonth(
-    result.getMonth() +
-      months
+  const target = new Date(
+    source.getFullYear(),
+    source.getMonth() + monthsToAdd,
+    1,
+    source.getHours(),
+    source.getMinutes(),
+    source.getSeconds(),
+    source.getMilliseconds()
   );
 
-  return result;
+  const lastDay = new Date(
+    target.getFullYear(),
+    target.getMonth() + 1,
+    0
+  ).getDate();
+
+  target.setDate(
+    Math.min(sourceDay, lastDay)
+  );
+
+  return target;
 }
 
-// ============================================================
-// VERIFY
-// ============================================================
+function monthKey(date: Date) {
+  return date.getFullYear() * 12 + date.getMonth();
+}
 
-export async function POST(
-  req: Request
-) {
-  const origin =
-    req.headers.get("origin") ||
-    "";
+export async function POST(req: Request) {
+  const origin = req.headers.get("origin") || "";
 
   try {
-    const body =
-      await req.json();
+    const body = await req.json();
 
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-
       schemeId,
       userId,
-
       amount,
-
       customerAddress,
       nomineeName,
       nomineeRelation,
@@ -222,35 +176,26 @@ export async function POST(
     } = body;
 
     // ==========================================================
-    // AUTH
+    // 1. AUTH
     // ==========================================================
 
     const authHeader =
-      req.headers.get(
-        "Authorization"
-      );
+      req.headers.get("Authorization");
 
     const token =
-      authHeader?.startsWith(
-        "Bearer "
-      )
-        ? authHeader.split(
-            " "
-          )[1]
+      authHeader?.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
         : null;
 
     if (!token) {
       return NextResponse.json(
         {
-          message:
-            "Unauthorized",
+          status: "Failed",
+          message: "Unauthorized",
         },
         {
           status: 401,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
@@ -259,50 +204,36 @@ export async function POST(
       verifyToken(token);
 
     const currentUserId =
-      decoded?.userId ||
-      decoded?.id;
+      decoded?.userId || decoded?.id;
 
     if (!currentUserId) {
       return NextResponse.json(
         {
-          message:
-            "Invalid token",
+          status: "Failed",
+          message: "Invalid token",
         },
         {
           status: 401,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     if (
       userId &&
-      String(userId) !==
-        String(
-          currentUserId
-        )
+      String(userId) !== String(currentUserId)
     ) {
       return NextResponse.json(
         {
-          message:
-            "User mismatch",
+          status: "Failed",
+          message: "User mismatch",
         },
         {
           status: 403,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
-
-    // ==========================================================
-    // PAYMENT DETAILS
-    // ==========================================================
 
     if (
       !razorpay_order_id ||
@@ -312,72 +243,60 @@ export async function POST(
     ) {
       return NextResponse.json(
         {
+          status: "Failed",
           message:
-            "Incomplete payment details.",
+            "Incomplete payment verification details.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // DUPLICATE PAYMENT
+    // 2. IDEMPOTENCY
     // ==========================================================
 
-    const existingPayment =
-      await prisma
-        .paymentHistory
-        .findUnique({
-          where: {
-            id:
-              razorpay_payment_id,
-          },
+    const alreadyProcessed =
+      await prisma.paymentHistory.findUnique({
+        where: {
+          id: razorpay_payment_id,
+        },
+        select: {
+          id: true,
+          customerSchemeId: true,
+        },
+      });
 
-          select: {
-            id: true,
-          },
-        });
-
-    if (
-      existingPayment
-    ) {
+    if (alreadyProcessed) {
       return NextResponse.json(
         {
-          status:
-            "Success",
-
-          action:
-            "PAYMENT_ALREADY_PROCESSED",
+          status: "Success",
+          action: "PAYMENT_ALREADY_PROCESSED",
+          message:
+            "This payment was already processed.",
         },
         {
           status: 200,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // VERIFY SIGNATURE
+    // 3. SIGNATURE
     // ==========================================================
 
-    const expectedSignature =
-      crypto
-        .createHmac(
-          "sha256",
-          RAZORPAY_KEY_SECRET
-        )
-        .update(
-          `${razorpay_order_id}|${razorpay_payment_id}`
-        )
-        .digest("hex");
+    const expectedSignature = crypto
+      .createHmac(
+        "sha256",
+        RAZORPAY_KEY_SECRET
+      )
+      .update(
+        `${razorpay_order_id}|${razorpay_payment_id}`
+      )
+      .digest("hex");
 
     if (
       expectedSignature !==
@@ -385,36 +304,32 @@ export async function POST(
     ) {
       return NextResponse.json(
         {
+          status: "Failed",
           message:
             "Invalid payment signature.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // FETCH RAZORPAY DATA
+    // 4. RAZORPAY ORDER + PAYMENT
     // ==========================================================
 
     const [
       razorpayOrder,
       razorpayPayment,
-    ] =
-      await Promise.all([
-        razorpay.orders.fetch(
-          razorpay_order_id
-        ),
-
-        razorpay.payments.fetch(
-          razorpay_payment_id
-        ),
-      ]);
+    ] = await Promise.all([
+      razorpay.orders.fetch(
+        razorpay_order_id
+      ),
+      razorpay.payments.fetch(
+        razorpay_payment_id
+      ),
+    ]);
 
     if (
       razorpayPayment.order_id !==
@@ -422,15 +337,13 @@ export async function POST(
     ) {
       return NextResponse.json(
         {
+          status: "Failed",
           message:
-            "Payment/order mismatch.",
+            "Payment and order do not match.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
@@ -441,119 +354,188 @@ export async function POST(
     ) {
       return NextResponse.json(
         {
+          status: "Failed",
           message:
-            "Payment is not captured.",
+            "Payment has not been captured.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
 
-    const notes =
-      razorpayOrder.notes ||
-      {};
+    if (
+      String(razorpayOrder.currency).toUpperCase() !==
+        "INR" ||
+      String(razorpayPayment.currency).toUpperCase() !==
+        "INR"
+    ) {
+      return NextResponse.json(
+        {
+          status: "Failed",
+          message:
+            "Only INR payments are supported.",
+        },
+        {
+          status: 400,
+          headers: corsHeaders(origin),
+        }
+      );
+    }
+
+    const notes: any =
+      razorpayOrder.notes || {};
+
+    if (
+      String(notes.customerId || "") !==
+        String(currentUserId) ||
+      String(notes.schemeId || "") !==
+        String(schemeId)
+    ) {
+      return NextResponse.json(
+        {
+          status: "Failed",
+          message:
+            "Razorpay order metadata does not match this customer or scheme.",
+        },
+        {
+          status: 400,
+          headers: corsHeaders(origin),
+        }
+      );
+    }
 
     // ==========================================================
-    // FETCH SCHEME + ENROLLMENT
+    // 5. SCHEME + CURRENT ENROLLMENT
     // ==========================================================
 
     const [
       scheme,
       existingEnrollment,
-    ] =
-      await Promise.all([
-        prisma.scheme
-          .findUnique({
-            where: {
-              id: schemeId,
+    ] = await Promise.all([
+      prisma.scheme.findUnique({
+        where: {
+          id: schemeId,
+        },
+      }),
+      prisma.customerScheme.findFirst({
+        where: {
+          customerId:
+            String(currentUserId),
+          schemeId,
+        },
+        include: {
+          installments: {
+            orderBy: {
+              installmentNumber: "asc",
             },
-          }),
-
-        prisma.customerScheme
-          .findFirst({
-            where: {
-              customerId:
-                String(
-                  currentUserId
-                ),
-
-              schemeId,
-            },
-
-            include: {
-              installments: {
-                orderBy: {
-                  installmentNumber:
-                    "asc",
-                },
-              },
-
-              coupon: true,
-            },
-          }),
-      ]);
+          },
+          coupon: true,
+        },
+      }),
+    ]);
 
     if (!scheme) {
       return NextResponse.json(
         {
-          message:
-            "Scheme not found.",
+          status: "Failed",
+          message: "Scheme not found.",
         },
         {
           status: 404,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
+        }
+      );
+    }
+
+    const rateType =
+      normalizeRateType(scheme.rateType);
+
+    if (
+      notes.rateType &&
+      String(notes.rateType) !== rateType
+    ) {
+      return NextResponse.json(
+        {
+          status: "Failed",
+          message:
+            "Scheme rate type changed after the payment order was created.",
+        },
+        {
+          status: 409,
+          headers: corsHeaders(origin),
         }
       );
     }
 
     if (
-      existingEnrollment
-        ?.isCompleted
+      !Number.isInteger(scheme.durationMonths) ||
+      scheme.durationMonths <= 0
     ) {
       return NextResponse.json(
         {
+          status: "Failed",
           message:
-            "Scheme already completed.",
+            "Scheme duration is invalid.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // INSTALLMENT AMOUNT
+    // 6. AMOUNT
     // ==========================================================
 
     let installmentAmount: number;
 
-    if (
-      existingEnrollment
-    ) {
-      installmentAmount =
-        Number(
-          existingEnrollment
-            .installmentAmount
+    if (existingEnrollment) {
+      installmentAmount = Number(
+        existingEnrollment.installmentAmount
+      );
+
+      if (
+        notes.paymentType !== "INSTALLMENT" ||
+        String(notes.customerSchemeId || "") !==
+          String(existingEnrollment.id)
+      ) {
+        return NextResponse.json(
+          {
+            status: "Failed",
+            message:
+              "This payment order does not belong to the current installment.",
+          },
+          {
+            status: 409,
+            headers: corsHeaders(origin),
+          }
         );
+      }
     } else {
-      installmentAmount =
-        Number(
-          notes
-            .installmentAmount ??
-            amount
+      installmentAmount = Number(
+        notes.installmentAmount ?? amount
+      );
+
+      if (
+        notes.paymentType &&
+        notes.paymentType !==
+          "NEW_ENROLLMENT"
+      ) {
+        return NextResponse.json(
+          {
+            status: "Failed",
+            message:
+              "Invalid enrollment payment type.",
+          },
+          {
+            status: 409,
+            headers: corsHeaders(origin),
+          }
         );
+      }
 
       if (
         !ALLOWED_INSTALLMENT_AMOUNTS.includes(
@@ -562,15 +544,13 @@ export async function POST(
       ) {
         return NextResponse.json(
           {
+            status: "Failed",
             message:
               "Invalid installment amount.",
           },
           {
             status: 400,
-            headers:
-              corsHeaders(
-                origin
-              ),
+            headers: corsHeaders(origin),
           }
         );
       }
@@ -584,39 +564,104 @@ export async function POST(
     ) {
       return NextResponse.json(
         {
+          status: "Failed",
           message:
             "Invalid installment amount.",
         },
         {
           status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
+          headers: corsHeaders(origin),
+        }
+      );
+    }
+
+    installmentAmount =
+      Math.round(installmentAmount);
+
+    if (
+      Number(notes.installmentAmount) !==
+      installmentAmount
+    ) {
+      return NextResponse.json(
+        {
+          status: "Failed",
+          message:
+            "Razorpay order installment amount does not match the enrollment.",
+        },
+        {
+          status: 409,
+          headers: corsHeaders(origin),
+        }
+      );
+    }
+
+    const expectedPaise =
+      installmentAmount * 100;
+
+    if (
+      Number(razorpayOrder.amount) !==
+        expectedPaise ||
+      Number(razorpayPayment.amount) !==
+        expectedPaise
+    ) {
+      return NextResponse.json(
+        {
+          status: "Failed",
+          message:
+            "Paid amount does not match the installment amount.",
+        },
+        {
+          status: 400,
+          headers: corsHeaders(origin),
         }
       );
     }
 
     // ==========================================================
-    // EXISTING ENROLLMENT:
-    // FIND NEXT INSTALLMENT
+    // 7. EXISTING ENROLLMENT MONTH VALIDATION
     // ==========================================================
 
-    let nextInstallment:
-      | any
-      | null = null;
+    let selectedInstallment: any = null;
 
-    if (
-      existingEnrollment
-    ) {
-      // --------------------------------------------------------
-      // Mark previous unpaid months as MISSED.
-      // --------------------------------------------------------
+    if (existingEnrollment) {
+      if (
+        existingEnrollment.isCompleted ||
+        existingEnrollment.installmentsLeft <= 0
+      ) {
+        return NextResponse.json(
+          {
+            status: "Failed",
+            code: "SCHEME_COMPLETED",
+            message:
+              "Scheme is already completed.",
+          },
+          {
+            status: 400,
+            headers: corsHeaders(origin),
+          }
+        );
+      }
 
-      const now =
-        new Date();
+      if (
+        existingEnrollment.installments.length ===
+        0
+      ) {
+        return NextResponse.json(
+          {
+            status: "Failed",
+            code: "INSTALLMENT_DATA_MISSING",
+            message:
+              "Installment schedule is missing for this enrollment.",
+          },
+          {
+            status: 409,
+            headers: corsHeaders(origin),
+          }
+        );
+      }
 
-      const startOfCurrentMonth =
+      const now = new Date();
+      const currentMonthStart =
         new Date(
           now.getFullYear(),
           now.getMonth(),
@@ -624,376 +669,361 @@ export async function POST(
         );
 
       const previousUnpaid =
-        existingEnrollment
-          .installments
-          .filter(
-            (item) =>
-              item.status !==
-                "PAID" &&
-              new Date(
-                item.dueDate
-              ) <
-                startOfCurrentMonth
-          );
+        existingEnrollment.installments.filter(
+          (item) =>
+            item.status !== "PAID" &&
+            new Date(item.dueDate) <
+              currentMonthStart
+        );
 
-      if (
-        previousUnpaid.length >
-        0
-      ) {
-        await prisma
-          .schemeInstallment
-          .updateMany({
-            where: {
-              id: {
-                in:
-                  previousUnpaid.map(
-                    (i) =>
-                      i.id
-                  ),
-              },
+      if (previousUnpaid.length > 0) {
+        await prisma.schemeInstallment.updateMany({
+          where: {
+            id: {
+              in: previousUnpaid.map(
+                (item) => item.id
+              ),
             },
-
-            data: {
-              status:
-                "MISSED",
-            },
-          });
+          },
+          data: {
+            status: "MISSED",
+          },
+        });
 
         return NextResponse.json(
           {
-            message:
-              "Previous installment is pending. Please clear missed installments at the store before continuing.",
-
+            status: "Failed",
             code:
               "MISSED_INSTALLMENT_PENDING",
-
-            missedInstallments:
-              previousUnpaid.map(
-                (i) => ({
-                  id:
-                    i.id,
-
-                  installmentNumber:
-                    i.installmentNumber,
-
-                  dueDate:
-                    i.dueDate,
-
-                  amount:
-                    i.amount,
-                })
-              ),
+            message:
+              "A previous installment is missed. Please clear it at the store before continuing.",
           },
           {
-            status: 400,
-            headers:
-              corsHeaders(
-                origin
-              ),
+            status: 409,
+            headers: corsHeaders(origin),
           }
         );
       }
 
-      // --------------------------------------------------------
-      // Find earliest unpaid installment.
-      // --------------------------------------------------------
+      const existingMissed =
+        existingEnrollment.installments.filter(
+          (item) =>
+            item.status === "MISSED"
+        );
 
-      nextInstallment =
-        existingEnrollment
-          .installments
-          .find(
-            (item) =>
-              item.status !==
-              "PAID"
-          );
-
-      if (!nextInstallment) {
+      if (existingMissed.length > 0) {
         return NextResponse.json(
           {
+            status: "Failed",
+            code:
+              "MISSED_INSTALLMENT_PENDING",
             message:
-              "No installments left.",
+              "A previous installment is missed. Please clear it at the store before continuing.",
           },
           {
-            status: 400,
-            headers:
-              corsHeaders(
-                origin
-              ),
+            status: 409,
+            headers: corsHeaders(origin),
           }
         );
       }
 
-      // --------------------------------------------------------
-      // Do not allow future month payment online.
-      // --------------------------------------------------------
-
-      const due =
-        new Date(
-          nextInstallment
-            .dueDate
+      const earliestUnpaid =
+        existingEnrollment.installments.find(
+          (item) =>
+            item.status !== "PAID"
         );
 
-      const today =
-        new Date();
+      if (!earliestUnpaid) {
+        return NextResponse.json(
+          {
+            status: "Failed",
+            code:
+              "NO_INSTALLMENTS_LEFT",
+            message:
+              "No installments are left to pay.",
+          },
+          {
+            status: 400,
+            headers: corsHeaders(origin),
+          }
+        );
+      }
 
       if (
-        due.getFullYear() >
-          today.getFullYear() ||
-        (
-          due.getFullYear() ===
-            today.getFullYear() &&
-          due.getMonth() >
-            today.getMonth()
-        )
+        String(notes.installmentId || "") !==
+          String(earliestUnpaid.id) ||
+        Number(
+          notes.installmentNumber
+        ) !==
+          earliestUnpaid.installmentNumber
       ) {
         return NextResponse.json(
           {
+            status: "Failed",
             message:
-              "Next installment is not due yet.",
-
-            code:
-              "INSTALLMENT_NOT_DUE",
+              "This payment order belongs to a different installment. Please refresh and try again.",
           },
           {
-            status: 400,
-            headers:
-              corsHeaders(
-                origin
-              ),
+            status: 409,
+            headers: corsHeaders(origin),
           }
         );
       }
+
+      if (
+        monthKey(
+          new Date(earliestUnpaid.dueDate)
+        ) > monthKey(now)
+      ) {
+        return NextResponse.json(
+          {
+            status: "Failed",
+            code:
+              "INSTALLMENT_NOT_DUE",
+            message:
+              "Next installment is not due yet.",
+          },
+          {
+            status: 400,
+            headers: corsHeaders(origin),
+          }
+        );
+      }
+
+      selectedInstallment =
+        earliestUnpaid;
     }
 
     // ==========================================================
-    // RATE + GRAMS
+    // 8. RATE + LOCKED GRAMS
     // ==========================================================
 
-    const rateType =
-      scheme.rateType;
-
     const rateUsed =
-      await getLiveRate(
-        rateType
-      );
+      await getLiveRate(rateType);
 
     const gramsEarned =
       rateType === "CASH"
         ? 0
-        : installmentAmount /
-          rateUsed;
-
-    // ==========================================================
-    // RAZORPAY AMOUNT CHECK
-    // ==========================================================
-
-    const expectedPaise =
-      Math.round(
-        installmentAmount *
-          100
-      );
+        : installmentAmount / rateUsed;
 
     if (
-      Number(
-        razorpayOrder.amount
-      ) !== expectedPaise ||
-      Number(
-        razorpayPayment.amount
-      ) !== expectedPaise
+      rateType !== "CASH" &&
+      (!Number.isFinite(gramsEarned) ||
+        gramsEarned <= 0)
     ) {
-      return NextResponse.json(
-        {
-          message:
-            "Paid amount does not match installment amount.",
-        },
-        {
-          status: 400,
-          headers:
-            corsHeaders(
-              origin
-            ),
-        }
+      throw new Error(
+        "Unable to calculate locked grams."
       );
     }
 
     // ==========================================================
-    // DB TRANSACTION
+    // 9. TRANSACTION
     // ==========================================================
 
     const result =
       await prisma.$transaction(
         async (tx) => {
+          const duplicateInsideTx =
+            await tx.paymentHistory.findUnique({
+              where: {
+                id: razorpay_payment_id,
+              },
+              select: {
+                id: true,
+              },
+            });
+
+          if (duplicateInsideTx) {
+            return {
+              type:
+                "PAYMENT_ALREADY_PROCESSED",
+              data: null,
+            };
+          }
+
           // ====================================================
           // EXISTING ENROLLMENT
           // ====================================================
 
           if (
             existingEnrollment &&
-            nextInstallment
+            selectedInstallment
           ) {
-            const isLast =
-              nextInstallment
-                .installmentNumber ===
-              scheme
-                .durationMonths;
-
-            // -----------------------------------------------
-            // Update installment row
-            // -----------------------------------------------
-
-            await tx
-              .schemeInstallment
-              .update({
+            const latestEnrollment =
+              await tx.customerScheme.findUnique({
                 where: {
-                  id:
-                    nextInstallment.id,
+                  id: existingEnrollment.id,
                 },
-
-                data: {
-                  status:
-                    "PAID",
-
-                  paidAt:
-                    new Date(),
-
-                  paymentMode:
-                    "ONLINE",
-
-                  rateType,
-
-                  rateUsed:
-                    rateType ===
-                    "CASH"
-                      ? null
-                      : rateUsed,
-
-                  gramsAdded:
-                    rateType ===
-                    "CASH"
-                      ? null
-                      : gramsEarned,
-
-                  razorpayPaymentId:
-                    razorpay_payment_id,
+                include: {
+                  installments: {
+                    orderBy: {
+                      installmentNumber:
+                        "asc",
+                    },
+                  },
+                  coupon: true,
                 },
               });
 
-            const newRemaining =
-              Math.max(
-                0,
-                Number(
-                  existingEnrollment
-                    .remainingAmount
-                ) -
-                  installmentAmount
+            if (!latestEnrollment) {
+              throw new Error(
+                "Enrollment no longer exists."
+              );
+            }
+
+            const latestTarget =
+              latestEnrollment.installments.find(
+                (item) =>
+                  item.id ===
+                  selectedInstallment.id
               );
 
-            const updated =
-              await tx
-                .customerScheme
-                .update({
-                  where: {
-                    id:
-                      existingEnrollment.id,
-                  },
+            if (
+              !latestTarget ||
+              latestTarget.status !==
+                "UPCOMING"
+            ) {
+              throw new Error(
+                "This installment has already been processed or changed."
+              );
+            }
 
-                  data: {
-                    totalPaid: {
-                      increment:
-                        installmentAmount,
-                    },
+            const previousUnpaid =
+              latestEnrollment.installments.filter(
+                (item) =>
+                  item.installmentNumber <
+                    latestTarget.installmentNumber &&
+                  item.status !== "PAID"
+              );
 
-                    remainingAmount:
-                      newRemaining,
+            if (
+              previousUnpaid.length > 0
+            ) {
+              throw new Error(
+                "A previous installment is still unpaid."
+              );
+            }
 
-                    installmentsPaid: {
-                      increment: 1,
-                    },
+            await tx.schemeInstallment.update({
+              where: {
+                id: latestTarget.id,
+              },
+              data: {
+                status: "PAID",
+                paidAt: new Date(),
+                paymentMode: "ONLINE",
+                rateType,
+                rateUsed:
+                  rateType === "CASH"
+                    ? null
+                    : rateUsed,
+                gramsAdded:
+                  rateType === "CASH"
+                    ? null
+                    : gramsEarned,
+                razorpayPaymentId:
+                  razorpay_payment_id,
+              },
+            });
 
-                    installmentsLeft: {
-                      decrement: 1,
-                    },
+            const newPaidCount =
+              latestEnrollment.installmentsPaid + 1;
 
-                    accumulatedGrams: {
-                      increment:
-                        gramsEarned,
-                    },
+            const newLeftCount =
+              Math.max(
+                0,
+                latestEnrollment.installmentsLeft -
+                  1
+              );
 
-                    isCompleted:
-                      isLast,
-                  },
-                });
+            const completed =
+              newLeftCount === 0 ||
+              newPaidCount >=
+                scheme.durationMonths;
 
-            // -----------------------------------------------
-            // Payment history
-            // -----------------------------------------------
+            const newRemaining =
+              newLeftCount *
+              installmentAmount;
 
-            await tx
-              .paymentHistory
-              .create({
+            const updatedEnrollment =
+              await tx.customerScheme.update({
+                where: {
+                  id: latestEnrollment.id,
+                },
                 data: {
-                  id:
-                    razorpay_payment_id,
-
-                  customerSchemeId:
-                    existingEnrollment.id,
-
-                  amountPaid:
-                    installmentAmount,
-
-                  rateType,
-
-                  rateUsed:
-                    rateType ===
-                    "CASH"
-                      ? null
-                      : rateUsed,
-
-                  gramsAdded:
-                    rateType ===
-                    "CASH"
-                      ? null
-                      : gramsEarned,
+                  totalPaid: {
+                    increment:
+                      installmentAmount,
+                  },
+                  remainingAmount:
+                    newRemaining,
+                  installmentsPaid:
+                    newPaidCount,
+                  installmentsLeft:
+                    newLeftCount,
+                  accumulatedGrams: {
+                    increment:
+                      gramsEarned,
+                  },
+                  isCompleted:
+                    completed,
                 },
               });
 
-            // -----------------------------------------------
-            // Coupon
-            // -----------------------------------------------
+            await tx.paymentHistory.create({
+              data: {
+                id:
+                  razorpay_payment_id,
+                customerSchemeId:
+                  latestEnrollment.id,
+                amountPaid:
+                  installmentAmount,
+                liveRate22K:
+                  rateType ===
+                  "GOLD_22K"
+                    ? rateUsed
+                    : null,
+                rateType,
+                rateUsed:
+                  rateType === "CASH"
+                    ? null
+                    : rateUsed,
+                gramsAdded:
+                  rateType === "CASH"
+                    ? null
+                    : gramsEarned,
+                paymentMode: "ONLINE",
+                reference:
+                  razorpay_order_id,
+              },
+            });
 
-            if (
-              existingEnrollment
-                .coupon
-            ) {
-              await tx.coupon
-                .update({
-                  where: {
-                    customerSchemeId:
-                      existingEnrollment.id,
-                  },
-
-                  data: {
-                    totalWeightGrams:
-                      rateType ===
-                      "CASH"
-                        ? undefined
-                        : {
-                            increment:
-                              gramsEarned,
-                          },
-
-                    isActive:
-                      isLast,
-                  },
-                });
+            if (latestEnrollment.coupon) {
+              await tx.coupon.update({
+                where: {
+                  customerSchemeId:
+                    latestEnrollment.id,
+                },
+                data: {
+                  ...(rateType !== "CASH"
+                    ? {
+                        totalWeightGrams: {
+                          increment:
+                            gramsEarned,
+                        },
+                      }
+                    : {}),
+                  isActive:
+                    completed,
+                },
+              });
             }
 
             return {
               type:
                 "INSTALLMENT_PROCESSED",
-
               data:
-                updated,
+                updatedEnrollment,
             };
           }
 
@@ -1001,313 +1031,250 @@ export async function POST(
           // FIRST ENROLLMENT
           // ====================================================
 
+          const enrollmentExistsNow =
+            await tx.customerScheme.findFirst({
+              where: {
+                customerId:
+                  String(currentUserId),
+                schemeId,
+              },
+              select: {
+                id: true,
+              },
+            });
+
+          if (enrollmentExistsNow) {
+            throw new Error(
+              "An enrollment for this scheme already exists."
+            );
+          }
+
           const startDate =
             new Date();
 
           const duration =
-            scheme
-              .durationMonths;
+            scheme.durationMonths;
 
-          const remainingAmount =
-            Math.max(
-              0,
-              (
-                duration -
-                1
-              ) *
-                installmentAmount
-            );
+          const installmentsLeft =
+            Math.max(0, duration - 1);
 
           const newCS =
-            await tx
-              .customerScheme
-              .create({
-                data: {
-                  id:
-                    crypto.randomUUID(),
-
-                  customerId:
-                    String(
-                      currentUserId
-                    ),
-
-                  schemeId,
-
+            await tx.customerScheme.create({
+              data: {
+                id:
+                  crypto.randomUUID(),
+                customerId:
+                  String(currentUserId),
+                schemeId,
+                installmentAmount,
+                totalPaid:
                   installmentAmount,
+                remainingAmount:
+                  installmentsLeft *
+                  installmentAmount,
+                installmentsPaid: 1,
+                installmentsLeft,
+                accumulatedGrams:
+                  gramsEarned,
+                isCompleted:
+                  installmentsLeft === 0,
+                startDate,
+                customerAddress:
+                  customerAddress || null,
+                nomineeName:
+                  nomineeName || "",
+                nomineeRelation:
+                  nomineeRelation || "",
+                nomineePhone:
+                  nomineePhone || "",
+                nomineeAddress:
+                  nomineeAddress || null,
+              },
+            });
 
-                  totalPaid:
-                    installmentAmount,
+          const installmentRows =
+            Array.from(
+              {
+                length: duration,
+              },
+              (_, index) => {
+                const installmentNumber =
+                  index + 1;
+                const isFirst =
+                  installmentNumber === 1;
 
-                  remainingAmount,
-
-                  installmentsPaid:
-                    1,
-
-                  installmentsLeft:
-                    Math.max(
-                      0,
-                      duration -
-                        1
-                    ),
-
-                  accumulatedGrams:
-                    gramsEarned,
-
-                  isCompleted:
-                    duration ===
-                    1,
-
-                  startDate,
-
-                  customerAddress:
-                    customerAddress ||
-                    null,
-
-                  nomineeName:
-                    nomineeName ||
-                    "",
-
-                  nomineeRelation:
-                    nomineeRelation ||
-                    "",
-
-                  nomineePhone:
-                    nomineePhone ||
-                    "",
-
-                  nomineeAddress:
-                    nomineeAddress ||
-                    null,
-                },
-              });
-
-          // ====================================================
-          // CREATE ALL MONTHLY INSTALLMENT ROWS
-          // ====================================================
-
-          for (
-            let i = 1;
-            i <= duration;
-            i++
-          ) {
-            const isFirst =
-              i === 1;
-
-            await tx
-              .schemeInstallment
-              .create({
-                data: {
+                return {
                   customerSchemeId:
                     newCS.id,
-
-                  installmentNumber:
-                    i,
-
+                  installmentNumber,
                   dueDate:
-                    addMonths(
+                    addMonthsSafe(
                       startDate,
-                      i - 1
+                      index
                     ),
-
                   amount:
                     installmentAmount,
-
-                  status:
-                    isFirst
-                      ? "PAID"
-                      : "UPCOMING",
-
-                  paidAt:
-                    isFirst
-                      ? new Date()
-                      : null,
-
-                  paymentMode:
-                    isFirst
-                      ? "ONLINE"
-                      : null,
-
+                  status: isFirst
+                    ? ("PAID" as const)
+                    : ("UPCOMING" as const),
+                  paidAt: isFirst
+                    ? new Date()
+                    : null,
+                  paymentMode: isFirst
+                    ? ("ONLINE" as const)
+                    : null,
                   rateType,
-
                   rateUsed:
                     isFirst &&
-                    rateType !==
-                      "CASH"
+                    rateType !== "CASH"
                       ? rateUsed
                       : null,
-
                   gramsAdded:
                     isFirst &&
-                    rateType !==
-                      "CASH"
+                    rateType !== "CASH"
                       ? gramsEarned
                       : null,
-
                   razorpayPaymentId:
                     isFirst
                       ? razorpay_payment_id
                       : null,
-                },
-              });
-          }
+                };
+              }
+            );
 
-          // ====================================================
-          // PAYMENT HISTORY
-          // ====================================================
+          await tx.schemeInstallment.createMany({
+            data:
+              installmentRows,
+          });
 
-          await tx
-            .paymentHistory
-            .create({
-              data: {
-                id:
-                  razorpay_payment_id,
+          await tx.paymentHistory.create({
+            data: {
+              id:
+                razorpay_payment_id,
+              customerSchemeId:
+                newCS.id,
+              amountPaid:
+                installmentAmount,
+              liveRate22K:
+                rateType ===
+                "GOLD_22K"
+                  ? rateUsed
+                  : null,
+              rateType,
+              rateUsed:
+                rateType === "CASH"
+                  ? null
+                  : rateUsed,
+              gramsAdded:
+                rateType === "CASH"
+                  ? null
+                  : gramsEarned,
+              paymentMode: "ONLINE",
+              reference:
+                razorpay_order_id,
+            },
+          });
 
-                customerSchemeId:
-                  newCS.id,
+          const suffix = crypto
+            .randomBytes(3)
+            .toString("hex")
+            .toUpperCase();
 
-                amountPaid:
-                  installmentAmount,
-
-                rateType,
-
-                rateUsed:
-                  rateType ===
-                  "CASH"
-                    ? null
-                    : rateUsed,
-
-                gramsAdded:
-                  rateType ===
-                  "CASH"
-                    ? null
-                    : gramsEarned,
-              },
-            });
-
-          // ====================================================
-          // COUPON
-          // ====================================================
-
-          const suffix =
-            crypto
-              .randomBytes(3)
-              .toString("hex")
-              .toUpperCase();
-
-          await tx.coupon
-            .create({
-              data: {
-                id:
-                  crypto.randomUUID(),
-
-                code:
-                  `SUV-${rateType}-${suffix}`,
-
-                customerId:
-                  String(
-                    currentUserId
-                  ),
-
-                schemeId,
-
-                customerSchemeId:
-                  newCS.id,
-
-                totalCashValue:
-                  rateType ===
-                  "CASH"
-                    ? (
-                        scheme
-                          .durationMonths +
-                        (
-                          scheme
-                            .maturityMonths ||
-                          0
-                        )
-                      ) *
-                      installmentAmount
-                    : 0,
-
-                totalWeightGrams:
-                  rateType ===
-                  "CASH"
-                    ? 0
-                    : gramsEarned,
-
-                isActive:
-                  duration ===
-                  1,
-              },
-            });
+          await tx.coupon.create({
+            data: {
+              id:
+                crypto.randomUUID(),
+              code:
+                `SUV-${rateType}-${suffix}`,
+              customerId:
+                String(currentUserId),
+              schemeId,
+              customerSchemeId:
+                newCS.id,
+              totalCashValue:
+                rateType === "CASH"
+                  ? (
+                      scheme.durationMonths +
+                      (scheme.maturityMonths ||
+                        0)
+                    ) *
+                    installmentAmount
+                  : 0,
+              totalWeightGrams:
+                rateType === "CASH"
+                  ? 0
+                  : gramsEarned,
+              isActive:
+                installmentsLeft === 0,
+              type:
+                rateType === "CASH"
+                  ? "CASH"
+                  : "WEIGHT",
+            },
+          });
 
           return {
             type:
               "NEW_ENROLLMENT_STARTED",
-
             data:
               newCS,
           };
         }
       );
 
+    if (
+      result.type ===
+      "PAYMENT_ALREADY_PROCESSED"
+    ) {
+      return NextResponse.json(
+        {
+          status: "Success",
+          action:
+            "PAYMENT_ALREADY_PROCESSED",
+        },
+        {
+          status: 200,
+          headers: corsHeaders(origin),
+        }
+      );
+    }
+
+    const enrollment = result.data!;
+
     return NextResponse.json(
       {
-        status:
-          "Success",
-
-        action:
-          result.type,
-
+        status: "Success",
+        action: result.type,
         summary: {
           rateType,
-
           installmentAmount,
-
           rateUsed:
-            rateType ===
-            "CASH"
+            rateType === "CASH"
               ? null
               : rateUsed,
-
           gramsAdded:
-            rateType ===
-            "CASH"
+            rateType === "CASH"
               ? 0
               : Number(
-                  gramsEarned.toFixed(
-                    4
-                  )
+                  gramsEarned.toFixed(4)
                 ),
-
           installmentsPaid:
-            result.data
-              .installmentsPaid,
-
+            enrollment.installmentsPaid,
           installmentsLeft:
-            result.data
-              .installmentsLeft,
-
+            enrollment.installmentsLeft,
           accumulatedGrams:
             Number(
-              result.data
-                .accumulatedGrams
+              enrollment.accumulatedGrams
             ).toFixed(4),
         },
-
-        enrollment:
-          result.data,
+        enrollment,
       },
       {
         status: 200,
-        headers:
-          corsHeaders(
-            origin
-          ),
+        headers: corsHeaders(origin),
       }
     );
-  } catch (
-    error: any
-  ) {
+  } catch (error: any) {
     console.error(
       "[VERIFY ERROR]",
       error
@@ -1315,19 +1282,14 @@ export async function POST(
 
     return NextResponse.json(
       {
-        status:
-          "Failed",
-
+        status: "Failed",
         message:
           error?.message ||
           "Internal Server Error",
       },
       {
         status: 500,
-        headers:
-          corsHeaders(
-            origin
-          ),
+        headers: corsHeaders(origin),
       }
     );
   }
