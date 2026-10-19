@@ -6,10 +6,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/jwt";
 
-// ============================================================
-// CORS
-// ============================================================
-
 function corsHeaders(origin: string) {
   return {
     "Access-Control-Allow-Origin": origin || "*",
@@ -19,13 +15,8 @@ function corsHeaders(origin: string) {
   };
 }
 
-// ============================================================
-// OPTIONS
-// ============================================================
-
 export async function OPTIONS(req: Request) {
-  const origin =
-    req.headers.get("origin") || "";
+  const origin = req.headers.get("origin") || "";
 
   return new NextResponse(null, {
     status: 204,
@@ -33,26 +24,26 @@ export async function OPTIONS(req: Request) {
   });
 }
 
-// ============================================================
-// GET CURRENT CUSTOMER SCHEMES
-// ============================================================
+function sameMonth(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth()
+  );
+}
+
+function isDueByCurrentMonth(dueDate: Date, now: Date) {
+  const dueKey = dueDate.getFullYear() * 12 + dueDate.getMonth();
+  const nowKey = now.getFullYear() * 12 + now.getMonth();
+  return dueKey <= nowKey;
+}
 
 export async function GET(req: Request) {
-  const origin =
-    req.headers.get("origin") || "";
+  const origin = req.headers.get("origin") || "";
 
   try {
-    // ==========================================================
-    // 1. AUTH
-    // ==========================================================
+    const authHeader = req.headers.get("Authorization");
 
-    const authHeader =
-      req.headers.get("Authorization");
-
-    if (
-      !authHeader ||
-      !authHeader.startsWith("Bearer ")
-    ) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         {
           success: false,
@@ -66,15 +57,9 @@ export async function GET(req: Request) {
       );
     }
 
-    const token =
-      authHeader.split(" ")[1];
-
-    const decoded: any =
-      verifyToken(token);
-
-    const currentUserId =
-      decoded?.userId ||
-      decoded?.id;
+    const token = authHeader.split(" ")[1];
+    const decoded: any = verifyToken(token);
+    const currentUserId = decoded?.userId || decoded?.id;
 
     if (!currentUserId) {
       return NextResponse.json(
@@ -90,134 +75,142 @@ export async function GET(req: Request) {
       );
     }
 
-    console.log(
-      "[MY SCHEMES] Customer:",
-      currentUserId
+    const customerId = String(currentUserId);
+    const now = new Date();
+    const currentMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
     );
+
+    // ==========================================================
+    // 1. PROMOTE PAST UNPAID MONTHS TO MISSED
+    //
+    // Example:
+    // October installment remains unpaid when November begins
+    // -> October becomes MISSED.
+    // ==========================================================
+
+    await prisma.schemeInstallment.updateMany({
+      where: {
+        customerScheme: {
+          customerId,
+        },
+        status: "UPCOMING",
+        dueDate: {
+          lt: currentMonthStart,
+        },
+      },
+      data: {
+        status: "MISSED",
+      },
+    });
 
     // ==========================================================
     // 2. FETCH ENROLLMENTS
-    //
-    // IMPORTANT:
-    //
-    // Prisma relations are:
-    //
-    // scheme
-    // payments
-    // customer
-    //
-    // NOT:
-    //
-    // Scheme
-    // PaymentHistory
     // ==========================================================
 
-    const myEnrollments =
-      await prisma.customerScheme.findMany({
-        where: {
-          customerId:
-            String(currentUserId),
+    const myEnrollments = await prisma.customerScheme.findMany({
+      where: {
+        customerId,
+      },
+      include: {
+        scheme: true,
+        payments: {
+          orderBy: {
+            paidAt: "desc",
+          },
+          take: 1,
         },
-
-        include: {
-          scheme: true,
-
-          payments: true,
+        installments: {
+          orderBy: {
+            installmentNumber: "asc",
+          },
         },
+      },
+      orderBy: {
+        startDate: "desc",
+      },
+    });
 
-        orderBy: {
-          startDate: "desc",
-        },
-      });
-
-    console.log(
-      "[MY SCHEMES] Found:",
-      myEnrollments.length
-    );
-
-    // ==========================================================
-    // 3. FORMAT RESPONSE FOR FLUTTER
-    //
-    // Your Flutter code was previously expecting:
-    //
-    // e["Scheme"]
-    // e["PaymentHistory"]
-    //
-    // Instead of changing several Flutter places,
-    // map Prisma's relation names to those response names.
-    // ==========================================================
-
-    const schemes =
-      myEnrollments.map(
-        (enrollment: any) => {
-          const payments =
-            Array.isArray(
-              enrollment.payments
-            )
-              ? enrollment.payments
-              : [];
-
-          // ----------------------------------------------------
-          // FIND MOST RECENT PAYMENT
-          //
-          // If createdAt exists, newest comes first.
-          // Otherwise preserve returned order.
-          // ----------------------------------------------------
-
-          const sortedPayments =
-            [...payments].sort(
-              (a: any, b: any) => {
-                const aTime =
-                  a?.createdAt
-                    ? new Date(
-                        a.createdAt
-                      ).getTime()
-                    : a?.paidAt
-                    ? new Date(
-                        a.paidAt
-                      ).getTime()
-                    : 0;
-
-                const bTime =
-                  b?.createdAt
-                    ? new Date(
-                        b.createdAt
-                      ).getTime()
-                    : b?.paidAt
-                    ? new Date(
-                        b.paidAt
-                      ).getTime()
-                    : 0;
-
-                return bTime - aTime;
-              }
-            );
-
-          // Remove original relation fields so response is clean.
-          const {
-            scheme,
-            payments: _payments,
-            ...enrollmentData
-          } = enrollment;
-
-          return {
-            ...enrollmentData,
-
-            // Keep the response compatible with
-            // your current Flutter service.
-            Scheme: scheme,
-
-            PaymentHistory:
-              sortedPayments.length > 0
-                ? [sortedPayments[0]]
-                : [],
-          };
-        }
+    const schemes = myEnrollments.map((enrollment) => {
+      const installments = enrollment.installments ?? [];
+      const missedInstallments = installments.filter(
+        (item) => item.status === "MISSED"
       );
 
-    // ==========================================================
-    // 4. RESPONSE
-    // ==========================================================
+      const nextInstallment =
+        installments.find((item) => item.status !== "PAID") ?? null;
+
+      const latestPayment =
+        enrollment.payments.length > 0
+          ? enrollment.payments[0]
+          : null;
+
+      const isPaidThisMonth =
+        latestPayment?.paidAt != null
+          ? sameMonth(new Date(latestPayment.paidAt), now)
+          : false;
+
+      const scheduleMissing =
+        installments.length === 0 &&
+        !enrollment.isCompleted;
+
+      const isNextInstallmentDue =
+        nextInstallment != null
+          ? isDueByCurrentMonth(
+              new Date(nextInstallment.dueDate),
+              now
+            )
+          : false;
+
+      const hasMissedInstallments =
+        missedInstallments.length > 0;
+
+      const canPayOnline =
+        !enrollment.isCompleted &&
+        !scheduleMissing &&
+        !hasMissedInstallments &&
+        nextInstallment != null &&
+        isNextInstallmentDue &&
+        !isPaidThisMonth;
+
+      return {
+        id: enrollment.id,
+        customerId: enrollment.customerId,
+        schemeId: enrollment.schemeId,
+        installmentAmount: enrollment.installmentAmount,
+        totalPaid: enrollment.totalPaid,
+        remainingAmount: enrollment.remainingAmount,
+        installmentsPaid: enrollment.installmentsPaid,
+        installmentsLeft: enrollment.installmentsLeft,
+        isCompleted: enrollment.isCompleted,
+        startDate: enrollment.startDate,
+        accumulatedGrams: enrollment.accumulatedGrams,
+        customerAddress: enrollment.customerAddress,
+        nomineeAddress: enrollment.nomineeAddress,
+        nomineeName: enrollment.nomineeName,
+        nomineePhone: enrollment.nomineePhone,
+        nomineeRelation: enrollment.nomineeRelation,
+
+        // Flutter compatibility
+        Scheme: enrollment.scheme,
+        PaymentHistory: latestPayment ? [latestPayment] : [],
+
+        // New installment state
+        Installments: installments,
+        hasMissedInstallments,
+        missedInstallmentCount: missedInstallments.length,
+        missedInstallments,
+        nextInstallment,
+        canPayOnline,
+        isPaidThisMonth,
+        isNextInstallmentDue,
+        scheduleMissing,
+        lastPaymentDate: latestPayment?.paidAt ?? null,
+        nextDueDate: nextInstallment?.dueDate ?? null,
+      };
+    });
 
     return NextResponse.json(
       {
@@ -231,10 +224,7 @@ export async function GET(req: Request) {
       }
     );
   } catch (error: any) {
-    console.error(
-      "[MY SCHEMES API ERROR]",
-      error
-    );
+    console.error("[MY SCHEMES API ERROR]", error);
 
     return NextResponse.json(
       {
