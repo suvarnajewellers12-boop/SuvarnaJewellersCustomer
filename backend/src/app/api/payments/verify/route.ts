@@ -9,10 +9,10 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 
 const RAZORPAY_KEY_ID =
-  "rzp_live_TDQaSOX3zMK06D";
+  "rzp_test_TlLhkVrMSDh6az";
 
 const RAZORPAY_KEY_SECRET =
-  "psi9PnOf8Q1CEFoLxiN8afsx";
+  "e5VaoxSOW3ygy4kKHblZIir5";
 
 const razorpay = new Razorpay({
   key_id: RAZORPAY_KEY_ID,
