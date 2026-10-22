@@ -6,132 +6,515 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as admin from "firebase-admin";
 
-// Initialize Firebase Admin only once
+// ============================================================
+// FIREBASE ADMIN
+// ============================================================
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      projectId:
+        process.env.FIREBASE_PROJECT_ID,
+
+      clientEmail:
+        process.env.FIREBASE_CLIENT_EMAIL,
+
+      privateKey:
+        process.env.FIREBASE_PRIVATE_KEY
+          ?.replace(/\\n/g, "\n"),
     }),
   });
 }
 
-const NOTIFY_DAYS = [10, 7, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7];
+// ============================================================
+// REMINDER DAYS
+// ============================================================
 
-function getMessage(schemeName: string, diff: number): { title: string; body: string } | null {
-  if (diff === 10) return { title: "Scheme Reminder 🔔", body: `${schemeName}: 10 days to your next installment due` };
-  if (diff === 7)  return { title: "Scheme Reminder 🔔", body: `${schemeName}: 7 days to your next installment due` };
-  if (diff === 5)  return { title: "Scheme Reminder 🔔", body: `${schemeName}: 5 days to your next installment due` };
-  if (diff === 4)  return { title: "Scheme Reminder 🔔", body: `${schemeName}: 4 days to your next installment due` };
-  if (diff === 3)  return { title: "Scheme Reminder 🔔", body: `${schemeName}: 3 days to your next installment due` };
-  if (diff === 2)  return { title: "Scheme Reminder 🔔", body: `${schemeName}: 2 days to your next installment due` };
-  if (diff === 1)  return { title: "Payment Due Tomorrow ⚠️", body: `${schemeName}: 1 day to your next installment due` };
-  if (diff === 0)  return { title: "Pay Today! ⚠️", body: `${schemeName}: Today is the last day to pay your installment` };
-  if (diff < 0)   return { title: "Due Crossed ❌", body: `${schemeName}: Due date crossed. Please visit the store` };
+const NOTIFY_DAYS = [
+  10,
+  7,
+  5,
+  4,
+  3,
+  2,
+  1,
+  0,
+];
+
+// ============================================================
+// DATE HELPERS
+// ============================================================
+
+function startOfDay(date: Date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+}
+
+function differenceInDays(
+  target: Date,
+  today: Date
+) {
+  const targetDay =
+    startOfDay(target).getTime();
+
+  const todayDay =
+    startOfDay(today).getTime();
+
+  return Math.round(
+    (targetDay - todayDay) /
+      (1000 * 60 * 60 * 24)
+  );
+}
+
+// ============================================================
+// MESSAGE
+// ============================================================
+
+function getReminderMessage(
+  schemeName: string,
+  diff: number
+) {
+  if (diff === 10) {
+    return {
+      title:
+        "Scheme Reminder 🔔",
+      body:
+        `${schemeName}: 10 days until your installment is due.`,
+    };
+  }
+
+  if (diff === 7) {
+    return {
+      title:
+        "Scheme Reminder 🔔",
+      body:
+        `${schemeName}: 7 days until your installment is due.`,
+    };
+  }
+
+  if (diff === 5) {
+    return {
+      title:
+        "Scheme Reminder 🔔",
+      body:
+        `${schemeName}: 5 days until your installment is due.`,
+    };
+  }
+
+  if (diff === 4) {
+    return {
+      title:
+        "Scheme Reminder 🔔",
+      body:
+        `${schemeName}: 4 days until your installment is due.`,
+    };
+  }
+
+  if (diff === 3) {
+    return {
+      title:
+        "Scheme Reminder 🔔",
+      body:
+        `${schemeName}: 3 days until your installment is due.`,
+    };
+  }
+
+  if (diff === 2) {
+    return {
+      title:
+        "Scheme Reminder 🔔",
+      body:
+        `${schemeName}: 2 days until your installment is due.`,
+    };
+  }
+
+  if (diff === 1) {
+    return {
+      title:
+        "Payment Due Tomorrow ⚠️",
+      body:
+        `${schemeName}: your installment is due tomorrow.`,
+    };
+  }
+
+  if (diff === 0) {
+    return {
+      title:
+        "Payment Due Today ⚠️",
+      body:
+        `${schemeName}: your installment is due today.`,
+    };
+  }
+
   return null;
 }
 
-export async function GET(req: Request) {
-  // Security check
-  const cronSecret = req.headers.get("x-cron-secret");
-  if (cronSecret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+// ============================================================
+// SEND FCM
+// ============================================================
+
+async function sendFcm(
+  token: string,
+  title: string,
+  body: string
+) {
+  return admin.messaging().send({
+    token,
+
+    notification: {
+      title,
+      body,
+    },
+
+    data: {
+      type:
+        "SCHEME_PAYMENT_REMINDER",
+    },
+
+    android: {
+      priority: "high",
+
+      notification: {
+        channelId:
+          "suvarna_reminders",
+
+        sound:
+          "default",
+      },
+    },
+
+    apns: {
+      payload: {
+        aps: {
+          sound:
+            "default",
+        },
+      },
+    },
+  });
+}
+
+// ============================================================
+// GET
+// ============================================================
+
+export async function GET(
+  req: Request
+) {
+  // ==========================================================
+  // CRON AUTH
+  // ==========================================================
+
+  const cronSecret =
+    req.headers.get(
+      "x-cron-secret"
+    );
+
+  if (
+    !process.env.CRON_SECRET ||
+    cronSecret !==
+      process.env.CRON_SECRET
+  ) {
+    return NextResponse.json(
+      {
+        message:
+          "Unauthorized",
+      },
+      {
+        status: 401,
+      }
+    );
   }
 
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now =
+      new Date();
 
-    const customers = await prisma.customer.findMany({
-      where: { fcmToken: { not: null } },
-      select: {
-        id: true,
-        name: true,
-        fcmToken: true,
-        CustomerScheme: {
-          where: { isCompleted: false },
-          select: {
-            installmentsPaid: true,
-            startDate: true,
-            Scheme: {
-              select: { name: true },
-            },
+    const currentMonthStart =
+      new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
+
+    // ========================================================
+    // 1. PROMOTE OLD UPCOMING ROWS TO MISSED
+    // ========================================================
+
+    await prisma
+      .schemeInstallment
+      .updateMany({
+        where: {
+          status:
+            "UPCOMING",
+
+          dueDate: {
+            lt:
+              currentMonthStart,
           },
         },
-      },
-    });
+
+        data: {
+          status:
+            "MISSED",
+        },
+      });
+
+    // ========================================================
+    // 2. FETCH ACTIVE ENROLLMENTS
+    // ========================================================
+
+    const enrollments =
+      await prisma
+        .customerScheme
+        .findMany({
+          where: {
+            isCompleted:
+              false,
+
+            customer: {
+              fcmToken: {
+                not: null,
+              },
+            },
+          },
+
+          include: {
+            customer: {
+              select: {
+                id: true,
+                fcmToken: true,
+              },
+            },
+
+            scheme: {
+              select: {
+                id: true,
+                name: true,
+                rateType: true,
+              },
+            },
+
+            installments: {
+              orderBy: {
+                installmentNumber:
+                  "asc",
+              },
+            },
+          },
+        });
 
     let totalSent = 0;
     let totalSkipped = 0;
+    let totalFailed = 0;
 
-    for (const customer of customers) {
-      if (!customer.fcmToken) continue;
+    // ========================================================
+    // 3. PROCESS EACH ENROLLMENT
+    // ========================================================
 
-      for (const enrollment of customer.CustomerScheme) {
-        const startDate = new Date(enrollment.startDate);
-        const nextDueDate = new Date(
-          startDate.getFullYear(),
-          startDate.getMonth() + enrollment.installmentsPaid,
-          startDate.getDate(),
+    for (
+      const enrollment
+      of enrollments
+    ) {
+      const token =
+        enrollment.customer
+          .fcmToken;
+
+      if (!token) {
+        totalSkipped++;
+        continue;
+      }
+
+      const installments =
+        enrollment.installments ??
+        [];
+
+      // ------------------------------------------------------
+      // MISSED INSTALLMENT
+      // ------------------------------------------------------
+
+      const missed =
+        installments.filter(
+          (item) =>
+            item.status ===
+            "MISSED"
         );
-        nextDueDate.setHours(0, 0, 0, 0);
 
-        const diffMs = nextDueDate.getTime() - today.getTime();
-        const diff = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-        if (!NOTIFY_DAYS.includes(diff)) {
-          totalSkipped++;
-          continue;
-        }
-
-        const message = getMessage(enrollment.Scheme.name, diff);
-        if (!message) {
-          totalSkipped++;
-          continue;
-        }
-
+      if (
+        missed.length > 0
+      ) {
         try {
-          await admin.messaging().send({
-            token: customer.fcmToken,
-            notification: {
-              title: message.title,
-              body: message.body,
-            },
-            android: {
-              priority: "high",
-              notification: {
-                channelId: "suvarna_reminders",
-                sound: "default",
-              },
-            },
-          });
+          await sendFcm(
+            token,
+            "Missed Installment ⚠️",
+            `${enrollment.scheme.name}: ${missed.length} missed installment${missed.length === 1 ? "" : "s"}. Please visit the store to clear ${missed.length === 1 ? "it" : "them"}.`
+          );
+
           totalSent++;
-        } catch (fcmError: any) {
-          console.error(`FCM send failed for ${customer.id}:`, fcmError.message);
-          // If token is invalid, clear it from DB
-          if (fcmError.code === "messaging/registration-token-not-registered") {
-            await prisma.customer.update({
-              where: { id: customer.id },
-              data: { fcmToken: null },
-            });
+        } catch (
+          error: any
+        ) {
+          totalFailed++;
+
+          console.error(
+            `[FCM FAILED] Customer ${enrollment.customer.id}`,
+            error
+          );
+
+          if (
+            error?.code ===
+            "messaging/registration-token-not-registered"
+          ) {
+            await prisma
+              .customer
+              .update({
+                where: {
+                  id:
+                    enrollment
+                      .customer
+                      .id,
+                },
+
+                data: {
+                  fcmToken:
+                    null,
+                },
+              });
           }
+        }
+
+        // Don't send normal due reminder while older payment is missed.
+        continue;
+      }
+
+      // ------------------------------------------------------
+      // NEXT UNPAID INSTALLMENT
+      // ------------------------------------------------------
+
+      const nextInstallment =
+        installments.find(
+          (item) =>
+            item.status !==
+            "PAID"
+        );
+
+      if (
+        !nextInstallment
+      ) {
+        totalSkipped++;
+        continue;
+      }
+
+      const diff =
+        differenceInDays(
+          new Date(
+            nextInstallment.dueDate
+          ),
+          now
+        );
+
+      if (
+        !NOTIFY_DAYS.includes(
+          diff
+        )
+      ) {
+        totalSkipped++;
+        continue;
+      }
+
+      const message =
+        getReminderMessage(
+          enrollment.scheme.name,
+          diff
+        );
+
+      if (!message) {
+        totalSkipped++;
+        continue;
+      }
+
+      try {
+        await sendFcm(
+          token,
+          message.title,
+          message.body
+        );
+
+        totalSent++;
+      } catch (
+        error: any
+      ) {
+        totalFailed++;
+
+        console.error(
+          `[FCM FAILED] Customer ${enrollment.customer.id}`,
+          error
+        );
+
+        if (
+          error?.code ===
+          "messaging/registration-token-not-registered"
+        ) {
+          await prisma
+            .customer
+            .update({
+              where: {
+                id:
+                  enrollment
+                    .customer
+                    .id,
+              },
+
+              data: {
+                fcmToken:
+                  null,
+              },
+            });
         }
       }
     }
 
     return NextResponse.json({
-      message: "Reminders processed",
-      totalSent,
-      totalSkipped,
-      processedAt: new Date().toISOString(),
-    });
+      success: true,
 
-  } catch (error: any) {
-    console.error("Send reminders error:", error);
+      message:
+        "Reminders processed",
+
+      activeEnrollments:
+        enrollments.length,
+
+      totalSent,
+
+      totalSkipped,
+
+      totalFailed,
+
+      processedAt:
+        new Date()
+          .toISOString(),
+    });
+  } catch (
+    error: any
+  ) {
+    console.error(
+      "[SEND REMINDERS ERROR]",
+      error
+    );
+
     return NextResponse.json(
-      { message: error.message || "Failed" },
-      { status: 500 }
+      {
+        success: false,
+
+        message:
+          error?.message ||
+          "Failed to process reminders",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }
