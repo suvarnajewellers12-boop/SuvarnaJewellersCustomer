@@ -142,16 +142,29 @@ export async function GET(req: Request) {
       const nextInstallment =
         installments.find((item) => item.status !== "PAID") ?? null;
 
-      const latestPayment =
-        enrollment.payments.length > 0
-          ? enrollment.payments[0]
-          : null;
+     const latestPayment =
+  enrollment.payments.length > 0
+    ? enrollment.payments[0]
+    : null;
 
-      const isPaidThisMonth =
-        latestPayment?.paidAt != null
-          ? sameMonth(new Date(latestPayment.paidAt), now)
-          : false;
+// ==========================================================
+// CHECK THE ACTUAL CURRENT-MONTH INSTALLMENT
+// ==========================================================
 
+const currentMonthInstallment =
+  installments.find(
+    (item) =>
+      sameMonth(
+        new Date(
+          item.dueDate
+        ),
+        now
+      )
+  ) ?? null;
+
+const isPaidThisMonth =
+  currentMonthInstallment
+    ?.status === "PAID";
       const scheduleMissing =
         installments.length === 0 &&
         !enrollment.isCompleted;
