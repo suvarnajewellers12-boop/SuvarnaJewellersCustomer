@@ -9,6 +9,71 @@ import PaymentModal from "@/components/PaymentModal";
 
 const formatINR = (n: number = 0) => "₹" + n.toLocaleString("en-IN");
 
+type SchemeCategory = "GOLD" | "SILVER" | "CASH";
+
+const getSchemeRateType = (scheme: any) =>
+  String(
+    scheme?.rateType ??
+      scheme?.schemeRateType ??
+      ""
+  )
+    .trim()
+    .toUpperCase();
+
+const getSchemeCategory = (
+  scheme: any
+): SchemeCategory => {
+  const rateType = getSchemeRateType(scheme);
+
+  if (rateType === "SILVER") return "SILVER";
+
+  if (
+    rateType === "GOLD_22K" ||
+    rateType === "GOLD_18K"
+  ) {
+    return "GOLD";
+  }
+
+  if (rateType === "CASH") return "CASH";
+
+  // Backward compatibility for older records.
+  if (scheme?.isWeightBased === true) {
+    return "GOLD";
+  }
+
+  return "CASH";
+};
+
+const getSchemeTypeLabel = (scheme: any) => {
+  const rateType = getSchemeRateType(scheme);
+
+  if (rateType === "GOLD_22K") return "22K Gold";
+  if (rateType === "GOLD_18K") return "18K Gold";
+  if (rateType === "SILVER") return "Silver";
+
+  return "Cash";
+};
+
+const getSchemeDescription = (scheme: any) => {
+  const category = getSchemeCategory(scheme);
+  const rateType = getSchemeRateType(scheme);
+
+  if (category === "GOLD") {
+    return rateType === "GOLD_18K"
+      ? "18K gold accumulation based savings plan"
+      : "22K gold accumulation based savings plan";
+  }
+
+  if (category === "SILVER") {
+    return "Silver accumulation based savings plan";
+  }
+
+  return `Get Maturity Value: ${formatINR(
+    Number(scheme.monthlyAmount || 0) *
+      Number(scheme.durationMonths || 0)
+  )}`;
+};
+
 // Structured content array to support screen readers with clean headers and list groups
 const termsAndConditionsSections = [
   {
@@ -18,7 +83,7 @@ const termsAndConditionsSections = [
   {
     title: "Savings Schemes",
     content: [
-      "Customers may enroll in available gold or cash savings schemes.",
+      "Customers may enroll in available gold, silver, or cash savings schemes.",
       "Monthly installment amounts and durations are fixed according to the selected scheme.",
       "Failure to pay installments on time may affect benefits associated with the scheme.",
       "Duplicate enrollment into the same scheme may not be permitted."
@@ -35,8 +100,8 @@ const termsAndConditionsSections = [
   {
     title: "Gold Rate & Valuation",
     content: [
-      "Gold rates displayed in the application are subject to daily market fluctuations.",
-      "Final valuation will be based on prevailing rates at the showroom during redemption or purchase."
+      "Gold and silver rates displayed in the application are subject to daily market fluctuations.",
+      "Final valuation will be based on prevailing gold or silver rates at the showroom during redemption or purchase."
     ]
   },
   {
@@ -572,7 +637,7 @@ const Schemes = () => {
   // until the payment succeeds ──────────────────────────────────────
   const [enrollmentDetails, setEnrollmentDetails] = useState<EnrollmentDetails | null>(null);
   const [loading, setLoading] = useState(_cachedDbSchemes === null);
-  const [showGold, setShowGold] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<SchemeCategory>("GOLD");
 
   useEffect(() => {
     if (_cachedDbSchemes !== null) return;
@@ -586,7 +651,7 @@ const Schemes = () => {
           setDbSchemes(_cachedDbSchemes!);
         }
       } catch (err) {
-        console.error("Failed to fetch royal schemes:", err);
+        console.error("Failed to fetch savings schemes:", err);
       } finally {
         setLoading(false);
       }
@@ -595,17 +660,53 @@ const Schemes = () => {
     fetchAllSchemes();
   }, []);
 
-  const handleTabKeyDown = (e: React.KeyboardEvent, isGoldTab: boolean) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      setShowGold(!isGoldTab);
-      const targetId = isGoldTab ? "tab-cash" : "tab-gold";
-      document.getElementById(targetId)?.focus();
+  const schemeTabs: Array<{
+    key: SchemeCategory;
+    id: string;
+  }> = [
+    { key: "GOLD", id: "tab-gold" },
+    { key: "SILVER", id: "tab-silver" },
+    { key: "CASH", id: "tab-cash" },
+  ];
+
+  const handleTabKeyDown = (
+    e: React.KeyboardEvent,
+    currentCategory: SchemeCategory
+  ) => {
+    if (
+      e.key !== "ArrowRight" &&
+      e.key !== "ArrowLeft"
+    ) {
+      return;
     }
+
+    e.preventDefault();
+
+    const currentIndex = schemeTabs.findIndex(
+      (tab) => tab.key === currentCategory
+    );
+
+    const direction =
+      e.key === "ArrowRight" ? 1 : -1;
+
+    const nextIndex =
+      (currentIndex +
+        direction +
+        schemeTabs.length) %
+      schemeTabs.length;
+
+    const nextTab = schemeTabs[nextIndex];
+
+    setSelectedCategory(nextTab.key);
+    document
+      .getElementById(nextTab.id)
+      ?.focus();
   };
 
-  const filteredSchemes = dbSchemes.filter((scheme) =>
-    showGold ? scheme.isWeightBased === true : scheme.isWeightBased === false
+  const filteredSchemes = dbSchemes.filter(
+    (scheme) =>
+      getSchemeCategory(scheme) ===
+      selectedCategory
   );
 
   const handleEnrollClick = (scheme: any) => {
@@ -647,7 +748,7 @@ const Schemes = () => {
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="font-elegant italic text-gold-dark">
-              Loading Royal Collections...
+              Loading Savings Plans...
             </p>
           </div>
         </div>
@@ -687,45 +788,70 @@ const Schemes = () => {
               Investment Plans
             </p>
             <h1 className="font-display text-4xl md:text-6xl font-bold text-foreground mb-4">
-              <span className="text-gold-gradient-shine">Golden</span> Savings Plans
+              <span className="text-gold-gradient-shine">Suvarna</span> Savings Plans
             </h1>
             <p className="font-body text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
-              Invest today. Adorn tomorrow.
+              Choose Gold, Silver, or Cash savings plans.
             </p>
 
-            <nav className="mt-8 max-w-md mx-auto" aria-label="Savings Schemes Filters">
+            <nav
+              className="mt-8 max-w-2xl mx-auto"
+              aria-label="Savings Schemes Filters"
+            >
               <div
                 role="tablist"
                 aria-label="Scheme Types"
-                className="bg-pearl/70 p-1 rounded-2xl flex border border-gold/10"
+                className="bg-pearl/70 p-1 rounded-2xl grid grid-cols-3 border border-gold/10"
               >
                 <button
                   id="tab-gold"
                   role="tab"
-                  aria-selected={showGold}
+                  aria-selected={selectedCategory === "GOLD"}
                   aria-controls="schemes-panel"
-                  tabIndex={showGold ? 0 : -1}
-                  onClick={() => setShowGold(true)}
-                  onKeyDown={(e) => handleTabKeyDown(e, true)}
-                  className={`flex-1 py-3 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
-                    showGold ? "bg-gold text-white shadow-lg" : "text-muted-foreground"
+                  tabIndex={selectedCategory === "GOLD" ? 0 : -1}
+                  onClick={() => setSelectedCategory("GOLD")}
+                  onKeyDown={(e) => handleTabKeyDown(e, "GOLD")}
+                  className={`py-3 px-2 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
+                    selectedCategory === "GOLD"
+                      ? "bg-gold text-white shadow-lg"
+                      : "text-muted-foreground"
                   }`}
                 >
-                  ✦ Gold Schemes
+                  ✦ Gold
                 </button>
+
+                <button
+                  id="tab-silver"
+                  role="tab"
+                  aria-selected={selectedCategory === "SILVER"}
+                  aria-controls="schemes-panel"
+                  tabIndex={selectedCategory === "SILVER" ? 0 : -1}
+                  onClick={() => setSelectedCategory("SILVER")}
+                  onKeyDown={(e) => handleTabKeyDown(e, "SILVER")}
+                  className={`py-3 px-2 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
+                    selectedCategory === "SILVER"
+                      ? "bg-gold text-white shadow-lg"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  ◇ Silver
+                </button>
+
                 <button
                   id="tab-cash"
                   role="tab"
-                  aria-selected={!showGold}
+                  aria-selected={selectedCategory === "CASH"}
                   aria-controls="schemes-panel"
-                  tabIndex={!showGold ? 0 : -1}
-                  onClick={() => setShowGold(false)}
-                  onKeyDown={(e) => handleTabKeyDown(e, false)}
-                  className={`flex-1 py-3 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
-                    !showGold ? "bg-gold text-white shadow-lg" : "text-muted-foreground"
+                  tabIndex={selectedCategory === "CASH" ? 0 : -1}
+                  onClick={() => setSelectedCategory("CASH")}
+                  onKeyDown={(e) => handleTabKeyDown(e, "CASH")}
+                  className={`py-3 px-2 rounded-xl font-body text-sm font-semibold transition-all duration-300 ${
+                    selectedCategory === "CASH"
+                      ? "bg-gold text-white shadow-lg"
+                      : "text-muted-foreground"
                   }`}
                 >
-                  ₹ Cash Schemes
+                  ₹ Cash
                 </button>
               </div>
             </nav>
@@ -734,18 +860,32 @@ const Schemes = () => {
           <div
             id="schemes-panel"
             role="tabpanel"
-            aria-labelledby={showGold ? "tab-gold" : "tab-cash"}
+            aria-labelledby={
+              selectedCategory === "GOLD"
+                ? "tab-gold"
+                : selectedCategory === "SILVER"
+                ? "tab-silver"
+                : "tab-cash"
+            }
           >
             {filteredSchemes.length === 0 ? (
               <div className="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto">
                 <p className="font-body text-muted-foreground">
-                  {showGold ? "No gold schemes available" : "No cash schemes available"}
+                  {selectedCategory === "GOLD"
+                    ? "No gold schemes available"
+                    : selectedCategory === "SILVER"
+                    ? "No silver schemes available"
+                    : "No cash schemes available"}
                 </p>
               </div>
             ) : (
               <div className="grid md:grid-cols-3 gap-8">
                 {filteredSchemes.map((scheme, index) => {
-                  const isEnrolled = enrolledSchemes.some((s) => s.name === scheme.name);
+                  const isEnrolled = enrolledSchemes.some(
+                    (s: any) =>
+                      s.schemeId === scheme.id ||
+                      s.id === scheme.id
+                  );
 
                   return (
                     <motion.div
@@ -770,6 +910,12 @@ const Schemes = () => {
                         {scheme.name}
                       </h2>
 
+                      <div className="mb-3">
+                        <span className="inline-flex items-center rounded-full border border-gold/20 bg-gold/5 px-3 py-1 text-xs font-semibold text-gold-dark">
+                          {getSchemeTypeLabel(scheme)}
+                        </span>
+                      </div>
+
                       <div className="mb-4">
                         <span className="font-display text-3xl font-bold text-gold-gradient">
                           {formatINR(scheme.monthlyAmount)}
@@ -783,17 +929,10 @@ const Schemes = () => {
                           {scheme.durationMonths} monthly installments
                         </div>
 
-                        {scheme.isWeightBased ? (
-                          <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
-                            <Sparkles className="w-4 h-4 text-gold-dark" />
-                            Gold accumulation based savings plan
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
-                            <Sparkles className="w-4 h-4 text-gold-dark" />
-                            Get Maturity Value: {formatINR(scheme.monthlyAmount * scheme.durationMonths)}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
+                          <Sparkles className="w-4 h-4 text-gold-dark" />
+                          {getSchemeDescription(scheme)}
+                        </div>
                       </div>
 
                       {isEnrolled ? (
@@ -833,7 +972,9 @@ const Schemes = () => {
           <PaymentModal
             schemeId={paymentScheme.id}
             schemeName={paymentScheme.name}
-            monthlyAmount={paymentScheme.monthlyAmount}
+            monthlyAmount={
+              Number(paymentScheme.monthlyAmount || 0)
+            }
             // ── NEW: forward the collected nominee/address details
             // so PaymentModal can include them in the verify request ──
             nomineeName={enrollmentDetails?.nomineeName}
