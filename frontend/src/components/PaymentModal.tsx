@@ -24,8 +24,7 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 
-const RAZORPAY_KEY_ID =
-  import.meta.env.VITE_RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_ID = "rzp_live_TDQaSOX3zMK06D";
 
 type PaymentMethod = "upi" | "card" | "netbanking";
 type Stage = "summary" | "processing" | "success";
