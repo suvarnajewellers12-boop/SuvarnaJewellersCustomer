@@ -6,6 +6,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/jwt";
 
+// ============================================================
+// CORS
+// ============================================================
+
 function corsHeaders(origin: string) {
   return {
     "Access-Control-Allow-Origin": origin || "*",
@@ -23,6 +27,10 @@ export async function OPTIONS(req: Request) {
     headers: corsHeaders(origin),
   });
 }
+
+// ============================================================
+// INDIA DATE HELPERS
+// ============================================================
 
 function getIndiaDateParts(date = new Date()) {
   const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -42,18 +50,6 @@ function getIndiaDateParts(date = new Date()) {
     month: Number(getValue("month")),
     day: Number(getValue("day")),
   };
-}
-
-function getIndiaTodayStartUtc() {
-  const parts = getIndiaDateParts();
-
-  const year = String(parts.year);
-  const month = String(parts.month).padStart(2, "0");
-  const day = String(parts.day).padStart(2, "0");
-
-  return new Date(
-    `${year}-${month}-${day}T00:00:00+05:30`
-  );
 }
 
 function isSameIndiaDay(first: Date, second: Date) {
@@ -77,24 +73,66 @@ function isSameIndiaMonth(first: Date, second: Date) {
   );
 }
 
-function isInstallmentDue(dueDate: Date, now: Date) {
-  const dueParts = getIndiaDateParts(dueDate);
-  const nowParts = getIndiaDateParts(now);
+function compareIndiaMonth(first: Date, second: Date) {
+  const a = getIndiaDateParts(first);
+  const b = getIndiaDateParts(second);
 
-  const dueKey = Date.UTC(
-    dueParts.year,
-    dueParts.month - 1,
-    dueParts.day
-  );
+  if (a.year < b.year) return -1;
+  if (a.year > b.year) return 1;
 
-  const nowKey = Date.UTC(
-    nowParts.year,
-    nowParts.month - 1,
-    nowParts.day
-  );
+  if (a.month < b.month) return -1;
+  if (a.month > b.month) return 1;
 
-  return dueKey <= nowKey;
+  return 0;
 }
+
+// ============================================================
+// LAST DAY OF INSTALLMENT MONTH
+//
+// Example:
+// 2026-11-anyday -> 2026-11-30 23:59:59 IST
+// 2026-02-anyday -> 2026-02-28 23:59:59 IST
+// ============================================================
+
+function getLastDateOfIndiaMonth(date: Date) {
+  const parts = getIndiaDateParts(date);
+
+  const lastDay = new Date(
+    Date.UTC(
+      parts.year,
+      parts.month,
+      0
+    )
+  ).getUTCDate();
+
+  const year = String(parts.year);
+  const month = String(parts.month).padStart(2, "0");
+  const day = String(lastDay).padStart(2, "0");
+
+  return new Date(
+    `${year}-${month}-${day}T23:59:59+05:30`
+  );
+}
+
+// ============================================================
+// PAYMENT WINDOW
+//
+// Entire installment month is payable.
+// ============================================================
+
+function isInstallmentPayableThisMonth(
+  installmentDate: Date,
+  now: Date
+) {
+  return isSameIndiaMonth(
+    installmentDate,
+    now
+  );
+}
+
+// ============================================================
+// RATE TYPE NORMALIZATION
+// ============================================================
 
 function normalizeRateType(
   rateType: string | null | undefined,
@@ -119,10 +157,18 @@ function normalizeRateType(
   return "CASH";
 }
 
+// ============================================================
+// GET /api/schemes/my
+// ============================================================
+
 export async function GET(req: Request) {
   const origin = req.headers.get("origin") || "";
 
   try {
+    // ========================================================
+    // AUTH
+    // ========================================================
+
     const authHeader = req.headers.get("Authorization");
 
     if (
@@ -143,7 +189,9 @@ export async function GET(req: Request) {
     }
 
     const token = authHeader.split(" ")[1];
+
     const decoded: any = verifyToken(token);
+
     const currentUserId =
       decoded?.userId || decoded?.id;
 
@@ -163,51 +211,122 @@ export async function GET(req: Request) {
 
     const customerId = String(currentUserId);
     const now = new Date();
-    const todayStart = getIndiaTodayStartUtc();
 
-    await prisma.schemeInstallment.updateMany({
-      where: {
-        customerScheme: {
-          customerId,
+    // ========================================================
+    // STEP 1:
+    // MARK ONLY PREVIOUS CALENDAR MONTHS AS MISSED
+    //
+    // Current month must NEVER be marked missed before the
+    // calendar month ends.
+    // ========================================================
+
+    const upcomingInstallments =
+      await prisma.schemeInstallment.findMany({
+        where: {
+          customerScheme: {
+            customerId,
+          },
+
+          status: "UPCOMING",
         },
-        status: "UPCOMING",
-        dueDate: {
-          lt: todayStart,
+
+        select: {
+          id: true,
+          dueDate: true,
         },
-      },
-      data: {
-        status: "MISSED",
-      },
-    });
+      });
+
+    const missedIds =
+      upcomingInstallments
+        .filter((installment) => {
+          return (
+            compareIndiaMonth(
+              new Date(installment.dueDate),
+              now
+            ) < 0
+          );
+        })
+        .map((installment) => installment.id);
+
+    if (missedIds.length > 0) {
+      await prisma.schemeInstallment.updateMany({
+        where: {
+          id: {
+            in: missedIds,
+          },
+
+          status: "UPCOMING",
+        },
+
+        data: {
+          status: "MISSED",
+        },
+      });
+    }
+
+    // ========================================================
+    // STEP 2:
+    // FETCH ENROLLMENTS
+    // ========================================================
 
     const myEnrollments =
       await prisma.customerScheme.findMany({
         where: {
           customerId,
         },
+
         include: {
           scheme: true,
+
           payments: {
             orderBy: {
               paidAt: "desc",
             },
+
             take: 1,
           },
+
           installments: {
             orderBy: {
               installmentNumber: "asc",
             },
           },
         },
+
         orderBy: {
           startDate: "desc",
         },
       });
 
+    // ========================================================
+    // STEP 3:
+    // BUILD RESPONSE
+    // ========================================================
+
     const schemes = myEnrollments.map(
       (enrollment) => {
+        // ----------------------------------------------------
+        // Normalize every due date to the last day of month.
+        //
+        // This affects the API response and all calculations
+        // inside this endpoint.
+        // ----------------------------------------------------
+
         const installments =
-          enrollment.installments ?? [];
+          (enrollment.installments ?? []).map(
+            (item) => ({
+              ...item,
+
+              dueDate:
+                getLastDateOfIndiaMonth(
+                  new Date(item.dueDate)
+                ),
+            })
+          );
+
+        // ====================================================
+        // MISSED INSTALLMENTS
+        // ====================================================
 
         const missedInstallments =
           installments.filter(
@@ -215,16 +334,12 @@ export async function GET(req: Request) {
               item.status === "MISSED"
           );
 
-        const nextInstallment =
-          installments.find(
-            (item) =>
-              item.status !== "PAID"
-          ) ?? null;
+        const hasMissedInstallments =
+          missedInstallments.length > 0;
 
-        const latestPayment =
-          enrollment.payments.length > 0
-            ? enrollment.payments[0]
-            : null;
+        // ====================================================
+        // CURRENT MONTH INSTALLMENT
+        // ====================================================
 
         const currentMonthInstallment =
           installments.find(
@@ -235,36 +350,73 @@ export async function GET(req: Request) {
               )
           ) ?? null;
 
+        // ====================================================
+        // PAID THIS MONTH?
+        // ====================================================
+
         const isPaidThisMonth =
           currentMonthInstallment?.status ===
           "PAID";
+
+        // ====================================================
+        // NEXT NON-PAID INSTALLMENT
+        // ====================================================
+
+        const nextInstallment =
+          installments.find(
+            (item) =>
+              item.status !== "PAID"
+          ) ?? null;
+
+        // ====================================================
+        // LATEST PAYMENT
+        // ====================================================
+
+        const latestPayment =
+          enrollment.payments.length > 0
+            ? enrollment.payments[0]
+            : null;
+
+        // ====================================================
+        // SCHEDULE MISSING
+        // ====================================================
 
         const scheduleMissing =
           installments.length === 0 &&
           !enrollment.isCompleted;
 
-        const isNextInstallmentDue =
-          nextInstallment != null
-            ? isInstallmentDue(
-                new Date(
-                  nextInstallment.dueDate
-                ),
-                now
-              )
-            : false;
+        // ====================================================
+        // CURRENT MONTH PAYMENT WINDOW
+        // ====================================================
 
-        const hasMissedInstallments =
-          missedInstallments.length > 0;
+        const isNextInstallmentDue =
+          currentMonthInstallment != null &&
+          currentMonthInstallment.status ===
+            "UPCOMING" &&
+          isInstallmentPayableThisMonth(
+            new Date(
+              currentMonthInstallment.dueDate
+            ),
+            now
+          );
+
+        // ====================================================
+        // ONLINE PAYMENT
+        // ====================================================
 
         const canPayOnline =
           !enrollment.isCompleted &&
           !scheduleMissing &&
           !hasMissedInstallments &&
-          nextInstallment != null &&
-          nextInstallment.status ===
+          currentMonthInstallment != null &&
+          currentMonthInstallment.status ===
             "UPCOMING" &&
           isNextInstallmentDue &&
           !isPaidThisMonth;
+
+        // ====================================================
+        // NORMALIZE SCHEME
+        // ====================================================
 
         const normalizedRateType =
           normalizeRateType(
@@ -274,43 +426,99 @@ export async function GET(req: Request) {
 
         const normalizedScheme = {
           ...enrollment.scheme,
-          rateType: normalizedRateType,
+
+          rateType:
+            normalizedRateType,
+
           isWeightBased:
-            normalizedRateType !== "CASH",
+            normalizedRateType !==
+            "CASH",
         };
 
+        // ====================================================
+        // EFFECTIVE NEXT INSTALLMENT
+        //
+        // Prefer current month if it is still unpaid.
+        // ====================================================
+
+        const effectiveNextInstallment =
+          currentMonthInstallment?.status ===
+            "UPCOMING"
+            ? currentMonthInstallment
+            : nextInstallment;
+
+        // ====================================================
+        // NEXT DUE DATE
+        //
+        // Always returns last day of installment month.
+        // ====================================================
+
+        const nextDueDate =
+          effectiveNextInstallment?.dueDate ??
+          null;
+
         return {
-          id: enrollment.id,
-          customerId: enrollment.customerId,
-          schemeId: enrollment.schemeId,
+          id:
+            enrollment.id,
+
+          customerId:
+            enrollment.customerId,
+
+          schemeId:
+            enrollment.schemeId,
+
           installmentAmount:
             enrollment.installmentAmount,
-          totalPaid: enrollment.totalPaid,
+
+          totalPaid:
+            enrollment.totalPaid,
+
           remainingAmount:
             enrollment.remainingAmount,
+
           installmentsPaid:
             enrollment.installmentsPaid,
+
           installmentsLeft:
             enrollment.installmentsLeft,
+
           isCompleted:
             enrollment.isCompleted,
+
           startDate:
             enrollment.startDate,
+
           accumulatedGrams:
             enrollment.accumulatedGrams,
+
           customerAddress:
             enrollment.customerAddress,
+
           nomineeAddress:
             enrollment.nomineeAddress,
+
           nomineeName:
             enrollment.nomineeName,
+
           nomineePhone:
             enrollment.nomineePhone,
+
           nomineeRelation:
             enrollment.nomineeRelation,
 
-          Scheme: normalizedScheme,
-          scheme: normalizedScheme,
+          // ================================================
+          // SCHEME
+          // ================================================
+
+          Scheme:
+            normalizedScheme,
+
+          scheme:
+            normalizedScheme,
+
+          // ================================================
+          // PAYMENT HISTORY
+          // ================================================
 
           PaymentHistory:
             latestPayment
@@ -322,31 +530,78 @@ export async function GET(req: Request) {
               ? [latestPayment]
               : [],
 
-          Installments: installments,
+          // ================================================
+          // INSTALLMENTS
+          // ================================================
+
+          Installments:
+            installments,
+
           installments,
 
+          // ================================================
+          // MISSED
+          // ================================================
+
           hasMissedInstallments,
+
           missedInstallmentCount:
             missedInstallments.length,
+
           missedInstallments,
-          nextInstallment,
-          canPayOnline,
-          isPaidThisMonth,
-          isNextInstallmentDue,
-          scheduleMissing,
 
-          lastPaymentDate:
-            latestPayment?.paidAt ?? null,
+          // ================================================
+          // CURRENT MONTH
+          // ================================================
 
-          nextDueDate:
-            nextInstallment?.dueDate ??
+          currentMonthInstallment,
+
+          // ================================================
+          // NEXT INSTALLMENT
+          // ================================================
+
+          nextInstallment:
+            effectiveNextInstallment,
+
+          nextInstallmentNumber:
+            effectiveNextInstallment
+              ?.installmentNumber ??
             null,
 
+          // ================================================
+          // PAYMENT FLAGS
+          // ================================================
+
+          canPayOnline,
+
+          isPaidThisMonth,
+
+          isNextInstallmentDue,
+
+          isPaymentWindowOpen:
+            canPayOnline,
+
+          scheduleMissing,
+
+          // ================================================
+          // PAYMENT DATES
+          // ================================================
+
+          lastPaymentDate:
+            latestPayment?.paidAt ??
+            null,
+
+          nextDueDate,
+
+          // ================================================
+          // DUE TODAY
+          // ================================================
+
           isDueToday:
-            nextInstallment != null
+            effectiveNextInstallment != null
               ? isSameIndiaDay(
                   new Date(
-                    nextInstallment.dueDate
+                    effectiveNextInstallment.dueDate
                   ),
                   now
                 )
@@ -354,6 +609,10 @@ export async function GET(req: Request) {
         };
       }
     );
+
+    // ========================================================
+    // RESPONSE
+    // ========================================================
 
     return NextResponse.json(
       {
