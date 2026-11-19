@@ -20,6 +20,13 @@ interface PaymentModalProps {
 
 const formatINR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://suvarna-jewellers-customer-backend.vercel.app";
+
+const RAZORPAY_KEY_ID =
+  import.meta.env.VITE_RAZORPAY_KEY_ID;
+
 type PaymentMethod = "upi" | "card" | "netbanking";
 type Stage = "summary" | "processing" | "success";
 
@@ -116,87 +123,291 @@ const PaymentModal = ({
 
   const handleProceed = async () => {
     try {
+      if (!RAZORPAY_KEY_ID) {
+        throw new Error(
+          "VITE_RAZORPAY_KEY_ID is not configured"
+        );
+      }
+
+      if (
+        !monthlyAmount ||
+        monthlyAmount <= 0
+      ) {
+        throw new Error(
+          "Invalid installment amount"
+        );
+      }
+
       setStage("processing");
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://suvarna-jewellers-customer-backend.vercel.app'}/api/payments/create-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: monthlyAmount }),
-      });
+      // ======================================================
+      // CREATE RAZORPAY ORDER
+      // ======================================================
 
-      const orderData = await response.json();
+      const response = await fetch(
+        `${API_URL}/api/payments/create-order`,
+        {
+          method: "POST",
 
-      if (!response.ok) throw new Error("Could not create order");
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            amount:
+              monthlyAmount,
+          }),
+        }
+      );
+
+      let orderData: any = null;
+
+      try {
+        orderData =
+          await response.json();
+      } catch {
+        orderData = null;
+      }
+
+      if (!response.ok) {
+        console.error(
+          "CREATE ORDER ERROR:",
+          {
+            status:
+              response.status,
+
+            statusText:
+              response.statusText,
+
+            response:
+              orderData,
+          }
+        );
+
+        throw new Error(
+          orderData?.error ||
+            orderData?.message ||
+            `Could not create order (${response.status})`
+        );
+      }
+
+      if (
+        !orderData?.orderId ||
+        !orderData?.amount ||
+        !orderData?.currency
+      ) {
+        console.error(
+          "INVALID CREATE ORDER RESPONSE:",
+          orderData
+        );
+
+        throw new Error(
+          "Invalid order response from server"
+        );
+      }
+
+      // ======================================================
+      // RAZORPAY CHECKOUT
+      // ======================================================
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_SQBmMDbmpm3m0D",
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Suvarna Jewellers",
-        description: `Payment for ${schemeName}`,
-        order_id: orderData.orderId,
-        handler: async function (response: any) {
-          console.log("DEBUG: Finalizing payment for UUID:", currentUserId);
-          const backendUrl = "http://localhost:3000"; // Replace with your backend URL
+        key:
+          RAZORPAY_KEY_ID,
 
-          try {
-            const verifyRes = await fetch(`${backendUrl}/api/payments/verify`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${localStorage.getItem("token")}`
-              },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                schemeId: schemeId,
-                userId: currentUserId,
-                // ── NEW: only meaningful on first enrollment — the
-                // backend ignores these on subsequent installments ──
-                customerAddress: customerAddress,
-                nomineeName: nomineeName,
-                nomineeRelation: nomineeRelation,
-                nomineePhone: nomineePhone,
-                nomineeAddress: nomineeAddress,
-              }),
-            });
+        amount:
+          orderData.amount,
 
-            if (verifyRes.ok) {
-              window.dispatchEvent(new Event("schemeUpdated"));
-              setStage("success");
-            } else {
-              const errorText = await verifyRes.text();
-              console.error("Verification failed server response:", errorText);
-              alert("Payment successful! Please refresh your dashboard to see updates.");
-              setStage("summary");
+        currency:
+          orderData.currency,
+
+        name:
+          "Suvarna Jewellers",
+
+        description:
+          `Payment for ${schemeName}`,
+
+        order_id:
+          orderData.orderId,
+
+        handler:
+          async function (
+            response: any
+          ) {
+            console.log(
+              "DEBUG: Finalizing payment for UUID:",
+              currentUserId
+            );
+
+            try {
+              // ==============================================
+              // VERIFY PAYMENT
+              // ==============================================
+
+              const verifyRes =
+                await fetch(
+                  `${API_URL}/api/payments/verify`,
+                  {
+                    method:
+                      "POST",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+
+                      Authorization:
+                        `Bearer ${localStorage.getItem(
+                          "token"
+                        )}`,
+                    },
+
+                    body:
+                      JSON.stringify({
+                        razorpay_order_id:
+                          response.razorpay_order_id,
+
+                        razorpay_payment_id:
+                          response.razorpay_payment_id,
+
+                        razorpay_signature:
+                          response.razorpay_signature,
+
+                        schemeId:
+                          schemeId,
+
+                        userId:
+                          currentUserId,
+
+                        customerAddress:
+                          customerAddress,
+
+                        nomineeName:
+                          nomineeName,
+
+                        nomineeRelation:
+                          nomineeRelation,
+
+                        nomineePhone:
+                          nomineePhone,
+
+                        nomineeAddress:
+                          nomineeAddress,
+                      }),
+                  }
+                );
+
+              let verifyData: any = null;
+
+              try {
+                verifyData =
+                  await verifyRes.json();
+              } catch {
+                verifyData = null;
+              }
+
+              if (verifyRes.ok) {
+                window.dispatchEvent(
+                  new Event(
+                    "schemeUpdated"
+                  )
+                );
+
+                setStage(
+                  "success"
+                );
+              } else {
+                console.error(
+                  "VERIFICATION FAILED:",
+                  {
+                    status:
+                      verifyRes.status,
+
+                    statusText:
+                      verifyRes.statusText,
+
+                    response:
+                      verifyData,
+                  }
+                );
+
+                alert(
+                  verifyData?.error ||
+                    verifyData?.message ||
+                    "Payment was completed but verification failed. Please contact support."
+                );
+
+                setStage(
+                  "summary"
+                );
+              }
+            } catch (err) {
+              console.error(
+                "VERIFY FETCH ERROR:",
+                err
+              );
+
+              alert(
+                "Payment was completed, but verification could not connect to the server. Please contact support before paying again."
+              );
+
+              setStage(
+                "summary"
+              );
             }
-          } catch (err) {
-            console.error("Fetch Error:", err);
-            alert("Connection error. Please check your internet and refresh.");
-            setStage("summary");
-          }
-        },
+          },
+
         prefill: {
-          name: "Customer Name",
-          contact: "9876543210",
+          name:
+            user?.name ||
+            "Customer",
+
+          contact:
+            (user as any)
+              ?.phone ||
+            "",
         },
+
         theme: {
-          color: "#b8860b",
+          color:
+            "#b8860b",
         },
+
         modal: {
-          ondismiss: function () {
-            setStage("summary");
-          }
-        }
+          ondismiss:
+            function () {
+              setStage(
+                "summary"
+              );
+            },
+        },
       };
 
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      if (
+        !(window as any)
+          .Razorpay
+      ) {
+        throw new Error(
+          "Razorpay checkout script is not loaded"
+        );
+      }
 
-    } catch (err) {
-      console.error("Payment Error:", err);
-      alert("Payment failed to initialize. Check console.");
+      const rzp =
+        new (window as any).Razorpay(
+          options
+        );
+
+      rzp.open();
+    } catch (err: any) {
+      console.error(
+        "Payment Error:",
+        err
+      );
+
+      alert(
+        err?.message ||
+          "Payment failed to initialize."
+      );
+
       setStage("summary");
     }
   };
