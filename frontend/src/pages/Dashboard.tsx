@@ -18,6 +18,104 @@ import PaymentModal from "@/components/PaymentModal";
 const formatINR = (n: number) =>
   "₹" + (n || 0).toLocaleString("en-IN");
 
+type SchemeCategory = "GOLD" | "SILVER" | "CASH";
+
+const getSchemeRateType = (scheme: any) =>
+  String(
+    scheme?.rateType ??
+      scheme?.scheme?.rateType ??
+      scheme?.Scheme?.rateType ??
+      ""
+  )
+    .trim()
+    .toUpperCase();
+
+const getSchemeCategory = (
+  scheme: any
+): SchemeCategory => {
+  const rateType =
+    getSchemeRateType(scheme);
+
+  if (rateType === "SILVER") {
+    return "SILVER";
+  }
+
+  if (
+    rateType === "GOLD_22K" ||
+    rateType === "GOLD_18K"
+  ) {
+    return "GOLD";
+  }
+
+  if (rateType === "CASH") {
+    return "CASH";
+  }
+
+  if (scheme?.isWeightBased === true) {
+    return "GOLD";
+  }
+
+  return "CASH";
+};
+
+const getSchemeTypeLabel = (
+  scheme: any
+) => {
+  const rateType =
+    getSchemeRateType(scheme);
+
+  if (rateType === "GOLD_22K") {
+    return "22K Gold";
+  }
+
+  if (rateType === "GOLD_18K") {
+    return "18K Gold";
+  }
+
+  if (rateType === "SILVER") {
+    return "Silver";
+  }
+
+  return "Cash";
+};
+
+const getAccumulationLabel = (
+  scheme: any
+) => {
+  const category =
+    getSchemeCategory(scheme);
+
+  if (category === "SILVER") {
+    return "Total Silver Accumulated";
+  }
+
+  if (category === "GOLD") {
+    return "Total Gold Accumulated";
+  }
+
+  return "Total Cash Saved";
+};
+
+const getAccumulationValue = (
+  scheme: any
+) => {
+  const category =
+    getSchemeCategory(scheme);
+
+  if (
+    category === "GOLD" ||
+    category === "SILVER"
+  ) {
+    return `${Number(
+      scheme.accumulatedGrams || 0
+    ).toFixed(3)} g`;
+  }
+
+  return formatINR(
+    scheme.totalPaid || 0
+  );
+};
+
 const formatDate = (value?: string | Date | null) => {
   if (!value) return "—";
 
@@ -413,20 +511,21 @@ const SchemeDetailModal = ({
 
               <div className="p-4 rounded-xl bg-gold/5 border border-gold/15">
                 <p className="font-body text-xs text-muted-foreground mb-1">
-                  {scheme.isWeightBased
+                  {getSchemeCategory(
+                    scheme
+                  ) === "SILVER"
+                    ? "Silver Accumulated"
+                    : getSchemeCategory(
+                        scheme
+                      ) === "GOLD"
                     ? "Gold Accumulated"
                     : "Cash Saved"}
                 </p>
 
                 <p className="font-display text-lg font-bold text-gold-gradient">
-                  {scheme.isWeightBased
-                    ? `${(
-                        scheme.accumulatedGrams ||
-                        0
-                      ).toFixed(3)} g`
-                    : formatINR(
-                        scheme.totalPaid || 0
-                      )}
+                  {getAccumulationValue(
+                    scheme
+                  )}
                 </p>
               </div>
 
@@ -597,8 +696,8 @@ const Dashboard = () => {
   const [selectedScheme, setSelectedScheme] =
     useState<Scheme | null>(null);
 
-  const [showGold, setShowGold] =
-    useState(true);
+  const [selectedCategory, setSelectedCategory] =
+    useState<SchemeCategory>("GOLD");
 
   if (authLoading) {
     return (
@@ -617,10 +716,10 @@ const Dashboard = () => {
   }
 
   const filteredSchemes =
-    enrolledSchemes.filter((scheme) =>
-      showGold
-        ? scheme.isWeightBased
-        : !scheme.isWeightBased
+    enrolledSchemes.filter(
+      (scheme) =>
+        getSchemeCategory(scheme) ===
+        selectedCategory
     );
 
   return (
@@ -668,18 +767,27 @@ const Dashboard = () => {
           </motion.div>
 
           <div className="mb-8">
-            {/* ACCESSIBILITY FIX: Structured target tablist layout wrappers */}
-            <div className="flex gap-3" role="tablist" aria-label="Scheme Categories">
+            <div
+              className="flex flex-wrap gap-3"
+              role="tablist"
+              aria-label="Scheme Categories"
+            >
               <button
                 role="tab"
                 id="tab-gold"
-                aria-selected={showGold}
+                aria-selected={
+                  selectedCategory ===
+                  "GOLD"
+                }
                 aria-controls="scheme-tab-panel"
                 onClick={() =>
-                  setShowGold(true)
+                  setSelectedCategory(
+                    "GOLD"
+                  )
                 }
                 className={`px-5 py-2 rounded-xl font-semibold transition-all ${
-                  showGold
+                  selectedCategory ===
+                  "GOLD"
                     ? "btn-gold"
                     : "bg-pearl border border-gold/20"
                 }`}
@@ -689,14 +797,43 @@ const Dashboard = () => {
 
               <button
                 role="tab"
-                id="tab-cash"
-                aria-selected={!showGold}
+                id="tab-silver"
+                aria-selected={
+                  selectedCategory ===
+                  "SILVER"
+                }
                 aria-controls="scheme-tab-panel"
                 onClick={() =>
-                  setShowGold(false)
+                  setSelectedCategory(
+                    "SILVER"
+                  )
                 }
                 className={`px-5 py-2 rounded-xl font-semibold transition-all ${
-                  !showGold
+                  selectedCategory ===
+                  "SILVER"
+                    ? "btn-gold"
+                    : "bg-pearl border border-gold/20"
+                }`}
+              >
+                ◇ Silver Schemes
+              </button>
+
+              <button
+                role="tab"
+                id="tab-cash"
+                aria-selected={
+                  selectedCategory ===
+                  "CASH"
+                }
+                aria-controls="scheme-tab-panel"
+                onClick={() =>
+                  setSelectedCategory(
+                    "CASH"
+                  )
+                }
+                className={`px-5 py-2 rounded-xl font-semibold transition-all ${
+                  selectedCategory ===
+                  "CASH"
                     ? "btn-gold"
                     : "bg-pearl border border-gold/20"
                 }`}
@@ -707,9 +844,21 @@ const Dashboard = () => {
           </div>
 
           {filteredSchemes.length === 0 ? (
-            <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold" : "tab-cash"} className="glass-card rounded-2xl p-8 text-center">
+            <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={
+              selectedCategory === "GOLD"
+                ? "tab-gold"
+                : selectedCategory ===
+                  "SILVER"
+                ? "tab-silver"
+                : "tab-cash"
+            } className="glass-card rounded-2xl p-8 text-center">
               <p className="font-body text-muted-foreground mb-4">
-                No schemes available
+                {selectedCategory === "GOLD"
+                  ? "No gold schemes available"
+                  : selectedCategory ===
+                    "SILVER"
+                  ? "No silver schemes available"
+                  : "No cash schemes available"}
               </p>
 
               <button
@@ -722,7 +871,14 @@ const Dashboard = () => {
               </button>
             </div>
           ) : (
-            <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold" : "tab-cash"} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={
+              selectedCategory === "GOLD"
+                ? "tab-gold"
+                : selectedCategory ===
+                  "SILVER"
+                ? "tab-silver"
+                : "tab-cash"
+            } className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSchemes.map(
                 (scheme, i) => {
                   const details =
@@ -824,32 +980,32 @@ const Dashboard = () => {
                       <div className="rounded-2xl p-5 bg-[#2E2118] border border-gold/20">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0">
-                            {scheme.isWeightBased ? (
-                              <Scale className="w-6 h-6 text-gold-dark" />
-                            ) : (
+                            {getSchemeCategory(
+                              scheme
+                            ) === "CASH" ? (
                               <Wallet className="w-6 h-6 text-gold-dark" />
+                            ) : (
+                              <Scale className="w-6 h-6 text-gold-dark" />
                             )}
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <p className="text-xs text-gold-dark/70 uppercase tracking-wider mb-0.5">
-                              {scheme.isWeightBased
-                                ? "Total Gold Accumulated"
-                                : "Total Cash Saved"}
+                              {getAccumulationLabel(
+                                scheme
+                              )}
                             </p>
 
                             {/* FIXED: Switched from an h3 to a simple semantic paragraph wrapper to fix the navigation issue */}
                             <p className="font-display text-2xl font-bold text-gold-gradient-shine">
-                              {scheme.isWeightBased
-                                ? `${(
-                                    scheme.accumulatedGrams || 0
-                                  ).toFixed(3)} g`
-                                : formatINR(
-                                    scheme.totalPaid || 0
-                                  )}
+                              {getAccumulationValue(
+                                scheme
+                              )}
                             </p>
 
-                            {scheme.isWeightBased &&
+                            {getSchemeCategory(
+                              scheme
+                            ) !== "CASH" &&
                               details.lastPaymentGrams > 0 && (
                                 <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gold/10 w-fit">
                                   <span className="text-gold-dark text-xs">
@@ -868,9 +1024,9 @@ const Dashboard = () => {
                           </div>
 
                           <div className="px-3 py-1 rounded-full bg-gold/10 text-gold-dark text-xs font-semibold flex-shrink-0">
-                            {scheme.isWeightBased
-                              ? "Gold"
-                              : "Cash"}
+                            {getSchemeTypeLabel(
+                              scheme
+                            )}
                           </div>
                         </div>
                       </div>
