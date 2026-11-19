@@ -9,6 +9,27 @@ import PaymentModal from "@/components/PaymentModal";
 
 const formatINR = (n: number = 0) => "₹" + n.toLocaleString("en-IN");
 
+const AMOUNT_OPTIONS = [
+  500,
+  1000,
+  2000,
+  5000,
+  7000,
+  10000,
+  15000,
+  20000,
+  25000,
+  30000,
+  40000,
+  50000,
+  75000,
+  100000,
+  125000,
+  150000,
+  175000,
+  200000,
+] as const;
+
 type SchemeCategory = "GOLD" | "SILVER" | "CASH";
 
 const getSchemeRateType = (scheme: any) =>
@@ -639,6 +660,44 @@ const Schemes = () => {
   const [loading, setLoading] = useState(_cachedDbSchemes === null);
   const [selectedCategory, setSelectedCategory] = useState<SchemeCategory>("GOLD");
 
+  // Customer-selected monthly installment for each scheme.
+  const [selectedAmounts, setSelectedAmounts] =
+    useState<Record<string, number>>({});
+
+  const getSelectedAmount = (scheme: any) => {
+    const stored =
+      selectedAmounts[scheme.id];
+
+    if (stored) {
+      return stored;
+    }
+
+    const backendDefault = Number(
+      scheme.monthlyAmount || 0
+    );
+
+    if (
+      AMOUNT_OPTIONS.includes(
+        backendDefault as
+          (typeof AMOUNT_OPTIONS)[number]
+      )
+    ) {
+      return backendDefault;
+    }
+
+    return 1000;
+  };
+
+  const handleAmountChange = (
+    schemeId: string,
+    amount: number
+  ) => {
+    setSelectedAmounts((prev) => ({
+      ...prev,
+      [schemeId]: amount,
+    }));
+  };
+
   useEffect(() => {
     if (_cachedDbSchemes !== null) return;
 
@@ -714,7 +773,17 @@ const Schemes = () => {
       navigate("/login");
       return;
     }
-    setPendingScheme(scheme);
+
+    const selectedAmount =
+      getSelectedAmount(scheme);
+
+    setPendingScheme({
+      ...scheme,
+      selectedInstallmentAmount:
+        selectedAmount,
+      monthlyAmount:
+        selectedAmount,
+    });
   };
 
   // ── UPDATED: now receives the collected enrollment details
@@ -887,6 +956,11 @@ const Schemes = () => {
                       s.id === scheme.id
                   );
 
+                  const selectedAmount =
+                    getSelectedAmount(
+                      scheme
+                    );
+
                   return (
                     <motion.div
                       key={scheme.id}
@@ -918,7 +992,9 @@ const Schemes = () => {
 
                       <div className="mb-4">
                         <span className="font-display text-3xl font-bold text-gold-gradient">
-                          {formatINR(scheme.monthlyAmount)}
+                          {formatINR(
+                            selectedAmount
+                          )}
                         </span>
                         <span className="font-body text-sm text-muted-foreground">/month</span>
                       </div>
@@ -931,9 +1007,76 @@ const Schemes = () => {
 
                         <div className="flex items-center gap-2 font-body text-sm text-foreground text-left">
                           <Sparkles className="w-4 h-4 text-gold-dark" />
-                          {getSchemeDescription(scheme)}
+                          {getSchemeCategory(
+                            scheme
+                          ) === "CASH"
+                            ? `Get Maturity Value: ${formatINR(
+                                selectedAmount *
+                                  Number(
+                                    scheme.durationMonths ||
+                                      0
+                                  )
+                              )}`
+                            : getSchemeDescription(
+                                scheme
+                              )}
                         </div>
                       </div>
+
+                      {!isEnrolled && (
+                        <div className="w-full mb-5 text-left">
+                          <label
+                            htmlFor={`amount-${scheme.id}`}
+                            className="block font-body text-sm font-semibold text-foreground mb-2"
+                          >
+                            Choose Monthly Amount
+                          </label>
+
+                          <select
+                            id={`amount-${scheme.id}`}
+                            value={
+                              selectedAmount
+                            }
+                            onChange={(e) =>
+                              handleAmountChange(
+                                scheme.id,
+                                Number(
+                                  e.target.value
+                                )
+                              )
+                            }
+                            aria-label={`Choose monthly installment amount for ${scheme.name}`}
+                            className="w-full rounded-xl border border-gold/30 bg-white px-4 py-3 font-body text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-gold"
+                          >
+                            {AMOUNT_OPTIONS.map(
+                              (amount) => (
+                                <option
+                                  key={
+                                    amount
+                                  }
+                                  value={
+                                    amount
+                                  }
+                                >
+                                  {formatINR(
+                                    amount
+                                  )}
+                                </option>
+                              )
+                            )}
+                          </select>
+
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Selected installment:{" "}
+                            <span className="font-semibold text-gold-dark">
+                              {formatINR(
+                                selectedAmount
+                              )}
+                              /month
+                            </span>
+                          </p>
+                        </div>
+                      )}
 
                       {isEnrolled ? (
                         <div className="btn-gold w-full text-center py-3.5 opacity-80 cursor-default flex items-center justify-center gap-2">
@@ -973,7 +1116,12 @@ const Schemes = () => {
             schemeId={paymentScheme.id}
             schemeName={paymentScheme.name}
             monthlyAmount={
-              Number(paymentScheme.monthlyAmount || 0)
+              Number(
+                paymentScheme
+                  .selectedInstallmentAmount ??
+                  paymentScheme.monthlyAmount ??
+                  0
+              )
             }
             // ── NEW: forward the collected nominee/address details
             // so PaymentModal can include them in the verify request ──
