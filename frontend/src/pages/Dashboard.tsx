@@ -18,55 +18,179 @@ import PaymentModal from "@/components/PaymentModal";
 const formatINR = (n: number) =>
   "₹" + (n || 0).toLocaleString("en-IN");
 
+const formatDate = (value?: string | Date | null) => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 const getSchemeDetails = (scheme: Scheme) => {
-  const enrolledDate = new Date(
-    (scheme as any).enrolledDate ||
-      (scheme as any).startDate ||
-      Date.now()
+  const raw = scheme as any;
+
+  const schemeMeta =
+    raw.scheme || raw.Scheme || {};
+
+  const installments =
+    raw.installments ||
+    raw.Installments ||
+    [];
+
+  const duration = Number(
+    raw.durationMonths ||
+      schemeMeta.durationMonths ||
+      11
   );
 
-  const installments = scheme.installmentsPaid || 0;
-  const duration = scheme.durationMonths || 1;
-
-  const lastPaymentDate = new Date(enrolledDate);
-
-  lastPaymentDate.setMonth(
-    lastPaymentDate.getMonth() +
-      (installments > 0 ? installments - 1 : 0)
+  const installmentsPaid = Number(
+    raw.installmentsPaid || 0
   );
 
-  const nextDueDate = new Date(enrolledDate);
-
-  nextDueDate.setMonth(
-    nextDueDate.getMonth() + installments
+  const installmentAmount = Number(
+    raw.installmentAmount ??
+      raw.monthlyAmount ??
+      0
   );
 
-  const isCompleted = installments >= duration;
+  const isCompleted =
+    Boolean(raw.isCompleted) ||
+    installmentsPaid >= duration;
 
-  const isPayable = !isCompleted;
+  const hasMissedInstallments =
+    Boolean(raw.hasMissedInstallments) ||
+    installments.some(
+      (item: any) =>
+        item.status === "MISSED"
+    );
+
+  const currentMonthInstallment =
+    raw.currentMonthInstallment ||
+    null;
+
+  const nextInstallment =
+    raw.nextInstallment ||
+    currentMonthInstallment ||
+    installments.find(
+      (item: any) =>
+        item.status !== "PAID"
+    ) ||
+    null;
+
+  const isPaidThisMonth =
+    Boolean(raw.isPaidThisMonth) ||
+    currentMonthInstallment?.status ===
+      "PAID";
+
+  const canPayOnline =
+    Boolean(raw.canPayOnline);
+
+  const lastPayment =
+    raw.paymentHistory?.[0] ||
+    raw.PaymentHistory?.[0] ||
+    null;
+
+  const lastPaymentDate =
+    raw.lastPaymentDate ||
+    lastPayment?.paidAt ||
+    null;
+
+  const nextDueDate =
+    raw.nextDueDate ||
+    currentMonthInstallment?.dueDate ||
+    nextInstallment?.dueDate ||
+    null;
+
+  const amountDue = Number(
+    currentMonthInstallment?.amount ??
+      nextInstallment?.amount ??
+      installmentAmount
+  );
+
+  const currentInstallmentNumber =
+    Number(
+      currentMonthInstallment
+        ?.installmentNumber ??
+        nextInstallment
+          ?.installmentNumber ??
+        installmentsPaid + 1
+    );
+
+  let paymentMessage = "";
+
+  if (isCompleted) {
+    paymentMessage =
+      "This scheme has been completed.";
+  } else if (hasMissedInstallments) {
+    paymentMessage =
+      "A previous installment is missed. Please visit the store to clear it before continuing online payments.";
+  } else if (isPaidThisMonth) {
+    paymentMessage =
+      "This month's installment is already paid.";
+  } else if (canPayOnline) {
+    paymentMessage =
+      nextDueDate
+        ? `Payment window is open until ${formatDate(
+            nextDueDate
+          )}.`
+        : "Payment window is open.";
+  } else if (nextDueDate) {
+    paymentMessage =
+      `Next payment due by ${formatDate(
+        nextDueDate
+      )}.`;
+  } else {
+    paymentMessage =
+      "Payment is not available yet.";
+  }
 
   return {
+    duration,
+    installments,
+    installmentAmount,
+
     lastPaymentDate:
-      lastPaymentDate.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
+      formatDate(lastPaymentDate),
 
     nextDueDate:
-      nextDueDate.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
+      formatDate(nextDueDate),
 
-    amountDue: scheme.monthlyAmount,
+    amountDue,
 
     isCompleted,
 
-    isPayable,
+    isPayable:
+      canPayOnline,
 
-    isDue: !isCompleted,
+    isDue:
+      !isCompleted,
+
+    canPayOnline,
+
+    hasMissedInstallments,
+
+    isPaidThisMonth,
+
+    currentMonthInstallment,
+
+    nextInstallment,
+
+    currentInstallmentNumber,
+
+    paymentMessage,
+
+    lastPaymentGrams:
+      Number(
+        lastPayment?.gramsAdded || 0
+      ),
   };
 };
 
@@ -91,7 +215,7 @@ const SchemeDetailModal = ({
 
   const progress =
     ((scheme.installmentsPaid || 0) /
-      (scheme.durationMonths || 1)) *
+      details.duration) *
     100;
 
   // SAFE ACCESSIBILITY HOOKS: Focus trapping & accessibility without crashing
@@ -168,7 +292,7 @@ const SchemeDetailModal = ({
           key="payment-step"
           schemeId={(scheme as any).schemeId}
           schemeName={scheme.name}
-          monthlyAmount={scheme.monthlyAmount}
+          monthlyAmount={details.installmentAmount}
           onSuccess={handleInstallmentSuccess}
           onClose={() => setIsPaying(false)}
         />
@@ -269,7 +393,7 @@ const SchemeDetailModal = ({
 
               <p className="font-body text-sm text-muted-foreground text-center">
                 {scheme.installmentsPaid} of{" "}
-                {scheme.durationMonths}{" "}
+                {details.duration}{" "}
                 installments completed
               </p>
             </div>
@@ -282,7 +406,7 @@ const SchemeDetailModal = ({
 
                 <p className="font-display text-lg font-bold text-gold-gradient">
                   {formatINR(
-                    scheme.monthlyAmount
+                    details.installmentAmount
                   )}
                 </p>
               </div>
@@ -335,43 +459,65 @@ const SchemeDetailModal = ({
               </p>
 
               {/* ACCESSIBILITY FIX: Structured sequence within ordered list components */}
-              <ol className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                {Array.from(
-                  {
-                    length:
-                      scheme.durationMonths,
-                  },
-                  (_, i) => {
-                    const isPaid =
-                      i <
-                      scheme.installmentsPaid;
+              <ol className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                {details.installments.map(
+                  (item: any) => {
+                    const status =
+                      String(
+                        item.status || ""
+                      ).toUpperCase();
 
-                    const isCurrent =
-                      i ===
-                      scheme.installmentsPaid;
+                    const isPaid =
+                      status === "PAID";
+
+                    const isMissed =
+                      status === "MISSED";
 
                     return (
                       <li
-                        key={i}
+                        key={
+                          item.id ||
+                          item.installmentNumber
+                        }
                         className="flex items-center gap-3"
                       >
                         {isPaid ? (
                           <CheckCircle2 className="w-4 h-4 text-gold-dark flex-shrink-0" />
-                        ) : isCurrent ? (
-                          <AlertCircle className="w-4 h-4 text-gold flex-shrink-0" />
+                        ) : isMissed ? (
+                          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
                         ) : (
                           <Clock className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
                         )}
 
-                        <span className="font-body text-xs">
-                          Month {i + 1}
-                        </span>
+                        <div className="min-w-0">
+                          <span className="font-body text-xs block">
+                            Month{" "}
+                            {
+                              item.installmentNumber
+                            }
+                          </span>
 
-                        <span className="ml-auto text-xs">
+                          <span className="font-body text-[11px] text-muted-foreground">
+                            Last date:{" "}
+                            {formatDate(
+                              item.dueDate
+                            )}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`ml-auto text-xs font-semibold ${
+                            isPaid
+                              ? "text-emerald"
+                              : isMissed
+                              ? "text-red-500"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {isPaid
                             ? "Paid"
-                            : isCurrent
-                            ? "Due"
+                            : isMissed
+                            ? "Missed"
                             : "Upcoming"}
                         </span>
                       </li>
@@ -383,28 +529,50 @@ const SchemeDetailModal = ({
 
             {details.isDue && (
               <div className="px-8 pb-8">
+                <div
+                  className={`mb-3 rounded-xl px-4 py-3 text-sm ${
+                    details.hasMissedInstallments
+                      ? "bg-red-50 border border-red-200 text-red-700"
+                      : details.canPayOnline
+                      ? "bg-gold/5 border border-gold/20 text-foreground"
+                      : "bg-pearl border border-gold/10 text-muted-foreground"
+                  }`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {details.paymentMessage}
+                </div>
+
                 <button
                   type="button"
                   disabled={
-                    !details.isPayable
+                    !details.canPayOnline
                   }
                   onClick={() => {
                     setPaymentMonth(
-                      scheme.installmentsPaid
+                      Math.max(
+                        0,
+                        details.currentInstallmentNumber -
+                          1
+                      )
                     );
 
                     setIsPaying(true);
                   }}
                   className={`w-full text-base py-3.5 rounded-xl font-bold transition-all ${
-                    details.isPayable
+                    details.canPayOnline
                       ? "btn-gold btn-gold-pulse"
-                      : "bg-pearl border border-gold/20 text-muted-foreground/50"
+                      : "bg-pearl border border-gold/20 text-muted-foreground/50 cursor-not-allowed"
                   }`}
                 >
-                  {details.isPayable
+                  {details.canPayOnline
                     ? `Pay Now — ${formatINR(
                         details.amountDue
                       )}`
+                    : details.hasMissedInstallments
+                    ? "Visit Store to Clear Missed Payment"
+                    : details.isPaidThisMonth
+                    ? "This Month Paid"
                     : `Next Due: ${details.nextDueDate}`}
                 </button>
               </div>
@@ -557,18 +725,19 @@ const Dashboard = () => {
             <div id="scheme-tab-panel" role="tabpanel" aria-labelledby={showGold ? "tab-gold" : "tab-cash"} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSchemes.map(
                 (scheme, i) => {
+                  const details =
+                    getSchemeDetails(
+                      scheme
+                    );
+
                   const progress =
                     ((scheme.installmentsPaid ||
                       0) /
-                      (scheme.durationMonths ||
-                        1)) *
+                      details.duration) *
                     100;
 
                   const isCompleted =
-                    (scheme.installmentsPaid ||
-                      0) >=
-                    (scheme.durationMonths ||
-                      1);
+                    details.isCompleted;
 
                   return (
                     <motion.div
@@ -595,7 +764,7 @@ const Dashboard = () => {
                           )
                         }
                         aria-haspopup="dialog"
-                        aria-label={`Scheme Summary: ${scheme.name}, ${formatINR(scheme.monthlyAmount)} per month, ${scheme.installmentsPaid} of ${scheme.durationMonths} installments paid. Status: ${isCompleted ? "Completed" : "Active"}. Activate to view full scheme ledger.`}
+                        aria-label={`Scheme Summary: ${scheme.name}, ${formatINR(details.installmentAmount)} per month, ${scheme.installmentsPaid} of ${details.duration} installments paid. Status: ${isCompleted ? "Completed" : details.hasMissedInstallments ? "Missed payment pending" : "Active"}. Activate to view full scheme ledger.`}
                         className="w-full text-left glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-gold/40 transition-all duration-300 block focus:outline-none focus:ring-2 focus:ring-gold/50"
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -607,18 +776,22 @@ const Dashboard = () => {
                             className={`px-2 py-0.5 rounded-full text-xs font-body font-semibold border ${
                               isCompleted
                                 ? "bg-emerald/10 text-emerald border-emerald/20"
+                                : details.hasMissedInstallments
+                                ? "bg-red-50 text-red-600 border-red-200"
                                 : "bg-gold/10 text-gold-dark border-gold/20"
                             }`}
                           >
                             {isCompleted
                               ? "Completed"
+                              : details.hasMissedInstallments
+                              ? "Payment Pending"
                               : "Active"}
                           </span>
                         </div>
 
                         <p className="font-body text-sm text-muted-foreground mb-1">
                           {formatINR(
-                            scheme.monthlyAmount
+                            details.installmentAmount
                           )}
                           /month •{" "}
                           {
@@ -626,7 +799,7 @@ const Dashboard = () => {
                           }
                           /
                           {
-                            scheme.durationMonths
+                            details.duration
                           }{" "}
                           paid
                         </p>
@@ -677,17 +850,17 @@ const Dashboard = () => {
                             </p>
 
                             {scheme.isWeightBased &&
-                              (scheme.lastPaymentGrams ?? 0) > 0 && (
+                              details.lastPaymentGrams > 0 && (
                                 <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gold/10 w-fit">
                                   <span className="text-gold-dark text-xs">
                                     ↑
                                   </span>
 
                                   <span className="text-xs text-gold-dark/90 font-medium">
-                                    This month: +
-                                    {(
-                                      scheme.lastPaymentGrams ?? 0
-                                    ).toFixed(3)}{" "}
+                                    Last payment: +
+                                    {details.lastPaymentGrams.toFixed(
+                                      3
+                                    )}{" "}
                                     g
                                   </span>
                                 </div>
