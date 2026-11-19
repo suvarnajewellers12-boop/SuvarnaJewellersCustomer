@@ -9,6 +9,179 @@ import { Sparkles, CalendarClock, CreditCard } from "lucide-react";
 
 const formatINR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 
+const formatDate = (value?: string | Date | null) => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const getSchemeDetails = (scheme: any) => {
+  const schemeMeta =
+    scheme.scheme || scheme.Scheme || {};
+
+  const installments =
+    scheme.installments ||
+    scheme.Installments ||
+    [];
+
+  const durationMonths = Number(
+    scheme.durationMonths ||
+      schemeMeta.durationMonths ||
+      11
+  );
+
+  const installmentsPaid = Number(
+    scheme.installmentsPaid || 0
+  );
+
+  const installmentAmount = Number(
+    scheme.installmentAmount ??
+      scheme.monthlyAmount ??
+      0
+  );
+
+  const isCompleted =
+    Boolean(scheme.isCompleted) ||
+    installmentsPaid >= durationMonths;
+
+  const hasMissedInstallments =
+    Boolean(
+      scheme.hasMissedInstallments
+    ) ||
+    installments.some(
+      (item: any) =>
+        item.status === "MISSED"
+    );
+
+  const currentMonthInstallment =
+    scheme.currentMonthInstallment ||
+    null;
+
+  const nextInstallment =
+    scheme.nextInstallment ||
+    currentMonthInstallment ||
+    installments.find(
+      (item: any) =>
+        item.status !== "PAID"
+    ) ||
+    null;
+
+  const isPaidThisMonth =
+    Boolean(scheme.isPaidThisMonth) ||
+    currentMonthInstallment?.status ===
+      "PAID";
+
+  const canPayOnline =
+    Boolean(scheme.canPayOnline);
+
+  const nextDueDate =
+    scheme.nextDueDate ||
+    currentMonthInstallment?.dueDate ||
+    nextInstallment?.dueDate ||
+    null;
+
+  const amountDue = Number(
+    currentMonthInstallment?.amount ??
+      nextInstallment?.amount ??
+      installmentAmount
+  );
+
+  const remaining = Math.max(
+    0,
+    Number(
+      scheme.installmentsLeft ??
+        durationMonths -
+          installmentsPaid
+    )
+  );
+
+  const isWeightBased =
+    Boolean(
+      scheme.isWeightBased ??
+        schemeMeta.isWeightBased
+    );
+
+  const accumulatedGrams = Number(
+    scheme.accumulatedGrams || 0
+  );
+
+  const totalPaid = Number(
+    scheme.totalPaid || 0
+  );
+
+  let status:
+    | "Completed"
+    | "Payment Pending"
+    | "Paid This Month"
+    | "Active"
+    | "Upcoming";
+
+  if (isCompleted) {
+    status = "Completed";
+  } else if (hasMissedInstallments) {
+    status = "Payment Pending";
+  } else if (isPaidThisMonth) {
+    status = "Paid This Month";
+  } else if (canPayOnline) {
+    status = "Active";
+  } else {
+    status = "Upcoming";
+  }
+
+  let actionMessage = "";
+
+  if (isCompleted) {
+    actionMessage =
+      "Scheme Matured";
+  } else if (hasMissedInstallments) {
+    actionMessage =
+      "Visit Store to Clear Missed Payment";
+  } else if (isPaidThisMonth) {
+    actionMessage =
+      "This Month Paid";
+  } else if (canPayOnline) {
+    actionMessage = `Pay Now (${formatINR(
+      amountDue
+    )})`;
+  } else {
+    actionMessage = `Next Due: ${formatDate(
+      nextDueDate
+    )}`;
+  }
+
+  return {
+    schemeMeta,
+    installments,
+    durationMonths,
+    installmentsPaid,
+    installmentAmount,
+    isCompleted,
+    hasMissedInstallments,
+    currentMonthInstallment,
+    nextInstallment,
+    isPaidThisMonth,
+    canPayOnline,
+    nextDueDate,
+    amountDue,
+    remaining,
+    isWeightBased,
+    accumulatedGrams,
+    totalPaid,
+    status,
+    actionMessage,
+  };
+};
+
 const MySchemes = () => {
   const { enrolledSchemes, refreshSchemes } = useAuth();
   const navigate = useNavigate();
@@ -75,34 +248,36 @@ const MySchemes = () => {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {enrolledSchemes.map((scheme, i) => {
-                const installmentsPaid = scheme.installmentsPaid || 0;
-                const durationMonths = scheme.durationMonths || 1;
-                const monthlyAmount = scheme.monthlyAmount || 0;
+                const details =
+                  getSchemeDetails(scheme);
 
-                const progress = (installmentsPaid / durationMonths) * 100;
-                const goldAccumulated = monthlyAmount * installmentsPaid;
-                const remaining = durationMonths - installmentsPaid;
-                const status = remaining <= 0 ? "Completed" : "Active";
+                const installmentsPaid =
+                  details.installmentsPaid;
 
-                // --- SAFE DATE LOCK LOGIC START ---
-                const today = new Date();
-                const start = new Date((scheme as any).startDate || (scheme as any).enrolledDate || Date.now());
+                const durationMonths =
+                  details.durationMonths;
 
-                // Next Due Date = Start Date + Current Number of Installments Paid
-                const nextDue = new Date(start);
-                nextDue.setMonth(nextDue.getMonth() + installmentsPaid);
+                const monthlyAmount =
+                  details.installmentAmount;
 
-                // Normalize dates to midnight for accurate comparisons
-                const todayCheck = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const dueCheck = new Date(nextDue.getFullYear(), nextDue.getMonth(), nextDue.getDate());
+                const progress =
+                  (installmentsPaid /
+                    durationMonths) *
+                  100;
 
-                const isPayable = todayCheck >= dueCheck && status !== "Completed";
-                const formattedDueDate = nextDue.toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                });
-                // --- DATE LOCK LOGIC END ---
+                const remaining =
+                  details.remaining;
+
+                const status =
+                  details.status;
+
+                const isPayable =
+                  details.canPayOnline;
+
+                const formattedDueDate =
+                  formatDate(
+                    details.nextDueDate
+                  );
 
                 return (
                   <motion.article
@@ -152,9 +327,13 @@ const MySchemes = () => {
                         role="status"
                         aria-live="polite"
                         className={`px-3 py-1 rounded-full text-xs font-body font-semibold border ${
-                          status === "Active"
-                            ? "bg-gold/10 text-gold-dark border-gold/20"
-                            : "bg-emerald/10 text-emerald border-emerald/20"
+                          status === "Completed"
+                            ? "bg-emerald/10 text-emerald border-emerald/20"
+                            : status === "Payment Pending"
+                            ? "bg-red-50 text-red-600 border-red-200"
+                            : status === "Paid This Month"
+                            ? "bg-blue-50 text-blue-600 border-blue-200"
+                            : "bg-gold/10 text-gold-dark border-gold/20"
                         }`}
                       >
                         {status}
@@ -166,11 +345,42 @@ const MySchemes = () => {
                       EMI: {formatINR(monthlyAmount)}/month
                     </p>
                     <p className="font-body text-sm text-muted-foreground mb-4 relative">
-                      Gold Accumulated:{" "}
+                      {details.isWeightBased
+                        ? "Gold Accumulated"
+                        : "Cash Saved"}
+                      :{" "}
                       <span className="font-semibold text-gold-gradient">
-                        {formatINR(goldAccumulated)}
+                        {details.isWeightBased
+                          ? `${details.accumulatedGrams.toFixed(
+                              3
+                            )} g`
+                          : formatINR(
+                              details.totalPaid
+                            )}
                       </span>
                     </p>
+
+                    <div className="grid grid-cols-2 gap-3 mb-5 relative">
+                      <div className="rounded-xl bg-gold/5 border border-gold/10 p-3">
+                        <p className="text-[11px] text-muted-foreground mb-1">
+                          Next Due
+                        </p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {formattedDueDate}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-gold/5 border border-gold/10 p-3">
+                        <p className="text-[11px] text-muted-foreground mb-1">
+                          Installment
+                        </p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {formatINR(
+                            details.amountDue
+                          )}
+                        </p>
+                      </div>
+                    </div>
 
                     {/* Semantic progressbar region */}
                     <div
@@ -217,13 +427,19 @@ const MySchemes = () => {
                       aria-label={
                         status === "Completed"
                           ? "Scheme Matured"
+                          : details.hasMissedInstallments
+                          ? "Visit Store to Clear Missed Payment"
+                          : details.isPaidThisMonth
+                          ? "This Month Paid"
                           : isPayable
-                          ? `Pay Now, amount ${formatINR(monthlyAmount)}`
+                          ? `Pay Now, amount ${formatINR(details.amountDue)}`
                           : `Next Due on ${formattedDueDate}`
                       }
                       className={`w-full py-4 rounded-xl font-display font-bold text-sm tracking-widest flex items-center justify-center gap-2 transition-all duration-500 relative z-20 focus:outline-none focus:ring-2 focus:ring-gold/50 ${
                         status === "Completed"
                           ? "bg-emerald/10 text-emerald border border-emerald/20 cursor-default"
+                          : details.hasMissedInstallments
+                          ? "bg-red-50 text-red-600 border border-red-200 cursor-not-allowed"
                           : isPayable
                           ? "btn-gold shadow-lg shadow-gold/20"
                           : "bg-pearl/50 text-muted-foreground/50 border border-gold/10 cursor-not-allowed opacity-70"
@@ -231,14 +447,41 @@ const MySchemes = () => {
                     >
                       {status === "Completed" ? (
                         <>Scheme Matured</>
+                      ) : details.hasMissedInstallments ? (
+                        <>
+                          <CalendarClock
+                            className="w-4 h-4"
+                            aria-hidden="true"
+                          />
+                          Visit Store to Clear Missed Payment
+                        </>
+                      ) : details.isPaidThisMonth ? (
+                        <>
+                          <CalendarClock
+                            className="w-4 h-4"
+                            aria-hidden="true"
+                          />
+                          This Month Paid
+                        </>
                       ) : isPayable ? (
                         <>
-                          <CreditCard className="w-4 h-4" aria-hidden="true" /> Pay Now (
-                          {formatINR(monthlyAmount)})
+                          <CreditCard
+                            className="w-4 h-4"
+                            aria-hidden="true"
+                          />
+                          Pay Now (
+                          {formatINR(
+                            details.amountDue
+                          )}
+                          )
                         </>
                       ) : (
                         <>
-                          <CalendarClock className="w-4 h-4" aria-hidden="true" /> Next Due:{" "}
+                          <CalendarClock
+                            className="w-4 h-4"
+                            aria-hidden="true"
+                          />
+                          Next Due:{" "}
                           {formattedDueDate}
                         </>
                       )}
@@ -279,7 +522,11 @@ const MySchemes = () => {
           <PaymentModal
             schemeId={(activePaymentScheme as any).schemeId || activePaymentScheme.id}
             schemeName={activePaymentScheme.name}
-            monthlyAmount={activePaymentScheme.monthlyAmount}
+            monthlyAmount={
+              (activePaymentScheme as any)
+                .installmentAmount ??
+              activePaymentScheme.monthlyAmount
+            }
             onSuccess={handlePaymentSuccess}
             onClose={() => setActivePaymentScheme(null)}
           />
