@@ -171,6 +171,9 @@ const PaymentModal = ({
           body: JSON.stringify({
             amount:
               monthlyAmount,
+
+            schemeId:
+              schemeId,
           }),
         }
       );
