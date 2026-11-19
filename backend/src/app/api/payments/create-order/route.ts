@@ -9,8 +9,8 @@ import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/jwt";
 
 const razorpay = new Razorpay({
-  key_id: "rzp_test_TlLhkVrMSDh6az",
-  key_secret: "e5VaoxSOW3ygy4kKHblZIir5",
+  key_id:  process.env.RAZORPAY_KEY_ID;,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
 const ALLOWED_INSTALLMENT_AMOUNTS = [
