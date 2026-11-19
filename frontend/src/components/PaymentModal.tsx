@@ -24,7 +24,8 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://suvarna-jewellers-customer-backend.vercel.app";
 
-const RAZORPAY_KEY_ID = "rzp_live_TDQaSOX3zMK06D";
+const RAZORPAY_KEY_ID =
+  import.meta.env.VITE_RAZORPAY_KEY_ID;
 
 type PaymentMethod = "upi" | "card" | "netbanking";
 type Stage = "summary" | "processing" | "success";
@@ -137,6 +138,17 @@ const PaymentModal = ({
         );
       }
 
+      const token =
+        localStorage.getItem(
+          "token"
+        );
+
+      if (!token) {
+        throw new Error(
+          "Your login session has expired. Please login again."
+        );
+      }
+
       setStage("processing");
 
       // ======================================================
@@ -151,6 +163,9 @@ const PaymentModal = ({
           headers: {
             "Content-Type":
               "application/json",
+
+            Authorization:
+              `Bearer ${token}`,
           },
 
           body: JSON.stringify({
@@ -255,9 +270,7 @@ const PaymentModal = ({
                         "application/json",
 
                       Authorization:
-                        `Bearer ${localStorage.getItem(
-                          "token"
-                        )}`,
+                        `Bearer ${token}`,
                     },
 
                     body:
