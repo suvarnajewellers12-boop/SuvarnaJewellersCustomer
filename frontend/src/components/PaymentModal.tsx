@@ -174,6 +174,21 @@ const PaymentModal = ({
 
             schemeId:
               schemeId,
+
+            customerAddress:
+              customerAddress,
+
+            nomineeName:
+              nomineeName,
+
+            nomineeRelation:
+              nomineeRelation,
+
+            nomineePhone:
+              nomineePhone,
+
+            nomineeAddress:
+              nomineeAddress,
           }),
         }
       );
