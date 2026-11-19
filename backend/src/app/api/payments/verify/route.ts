@@ -8,11 +8,16 @@ import { verifyToken } from "@/lib/jwt";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-const RAZORPAY_KEY_ID =
-  "rzp_test_TlLhkVrMSDh6az";
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 
-const RAZORPAY_KEY_SECRET =
-  "e5VaoxSOW3ygy4kKHblZIir5";
+if (!RAZORPAY_KEY_ID) {
+  throw new Error("RAZORPAY_KEY_ID is not configured");
+}
+
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+if (!RAZORPAY_KEY_SECRET) {
+  throw new Error("RAZORPAY_KEY_ID is not configured");
+}
 
 const razorpay = new Razorpay({
   key_id: RAZORPAY_KEY_ID,
